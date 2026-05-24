@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.5.0 — Settings, offline, comparison depth
+
+### Preferences & control
+- **App Settings panel** — opens from the landing footer. Three rows: strict-mode default (auto-enabled on new decks), preferred currency (USD/EUR), cached-card count with a Clear-cache button.
+- **Wishlist target on search bar** — `→ deck` / `→ wish` toggle inline in the card search; route adds straight to the wishlist instead of slotting them first.
+
+### Offline-capable
+- **Service worker** (`public/sw.js`) caches the app shell and immutable assets (Scryfall mana SVGs, weserv card images). Scryfall + EDHREC API calls pass through — the app's own IndexedDB cache handles those. SPA now boots and works offline against cached data.
+- **Offline indicator** — small pill that appears bottom-center when `navigator.onLine` is false, explaining what still works.
+
+### Comparison depth
+- **Compare with EDHREC average** — third option in the Compare modal, alongside other-deck picker. Synthesises a typical deck for your commander from EDHREC's top 99 cards, batch-fetches Scryfall data, runs through the existing `compareDecks` pipeline. Curve overlay, pip distribution, shared / only-A / only-B columns all work.
+- **Compare button always available when a commander is set** (was: only with a second deck in the archive).
+
+### Internals
+- New modules: `settings`, `sw-register`
+- New components: `OfflineIndicator`, `SettingsModal`
+- 160 unit tests (Vitest); E2E suite still in `e2e/` for local use
+
 ## v0.4.0 — Builder workflow, archive UX, durable storage
 
 ### Builder workflow
