@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, BookOpen, Loader2, Crown, Sparkles, Tag, BarChart3, Target, Clock, Calculator } from 'lucide-react';
+import { ChevronLeft, BookOpen, Loader2, Crown, Sparkles, Tag, BarChart3, Target, Clock, Calculator, Lightbulb } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { lc, pad } from '../lib/utils.js';
 import { searchCardAutocomplete, fetchCardByExactName, cardImageUrl } from '../lib/scryfall.js';
-import { CardsTab, PackagesTab, CurveTab, BracketTab, StagesTab, ProbabilitiesTab } from './Tabs.jsx';
+import { CardsTab, PackagesTab, CurveTab, BracketTab, StagesTab, ProbabilitiesTab, RecommendationsTab } from './Tabs.jsx';
 import { RulesModal } from './Modals.jsx';
 
 // ───────────────────────────────────────────────────────────────────────────────
@@ -180,9 +180,10 @@ export function DeckEditor({ deck, onUpdate, onBack }) {
   const tabs = [
     { id: 'cards', label: 'Cards', icon: Sparkles },
     { id: 'packages', label: 'Packages', icon: Tag },
+    { id: 'stages', label: 'Stages', icon: Clock },
+    { id: 'recs', label: 'Recs', icon: Lightbulb },
     { id: 'curve', label: 'Stats', icon: BarChart3 },
     { id: 'bracket', label: 'Bracket', icon: Target },
-    { id: 'stages', label: 'Stages', icon: Clock },
     { id: 'probs', label: 'Probability', icon: Calculator },
   ];
 
@@ -250,7 +251,7 @@ export function DeckEditor({ deck, onUpdate, onBack }) {
       </div>
 
       <div
-        className="grid grid-cols-3 md:grid-cols-6 border-t border-l fade-up"
+        className="grid grid-cols-4 md:grid-cols-7 border-t border-l fade-up"
         style={{ borderColor: CREAM_FAINT, animationDelay: '120ms' }}
       >
         {tabs.map((t) => {
@@ -277,9 +278,10 @@ export function DeckEditor({ deck, onUpdate, onBack }) {
       <div className="py-8 fade-up" style={{ animationDelay: '180ms' }}>
         {tab === 'cards' && <CardsTab deck={deck} onUpdate={onUpdate} />}
         {tab === 'packages' && <PackagesTab deck={deck} />}
+        {tab === 'stages' && <StagesTab deck={deck} />}
+        {tab === 'recs' && <RecommendationsTab deck={deck} onUpdate={onUpdate} />}
         {tab === 'curve' && <CurveTab deck={deck} />}
         {tab === 'bracket' && <BracketTab deck={deck} />}
-        {tab === 'stages' && <StagesTab deck={deck} />}
         {tab === 'probs' && <ProbabilitiesTab deck={deck} />}
       </div>
 

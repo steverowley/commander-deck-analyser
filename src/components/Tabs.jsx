@@ -1,11 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Upload, BookOpen } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
-import { lc, pad, hypergeom } from '../lib/utils.js';
-import { detectTags, AUTO_TAGS } from '../lib/tags.js';
+import { pad, hypergeom } from '../lib/utils.js';
 import { assessBracket } from '../lib/analyzers.js';
 import { buildStagePlans, synergyHubs, packageWeight } from '../lib/strategy.js';
 import { BRACKETS } from '../lib/constants.js';
+import { addCardsToDeck, setCardCount, removeCardFromDeck, setCardTags } from '../lib/deckops.js';
+import { fetchRecommendations, topRecommendations, recommendationsByTheme } from '../lib/edhrec.js';
+import { fetchCardByExactName } from '../lib/scryfall.js';
 import { CardSearchBar, CardRow, TagPill, CardThumb, StatBox, FlagBox, ProbCard } from './UI.jsx';
 import { BulkAddModal, TagEditModal } from './Modals.jsx';
 
@@ -19,40 +21,10 @@ export function CardsTab({ deck, onUpdate }) {
   const [filter, setFilter] = useState('');
   const [sortBy, setSortBy] = useState('type');
 
-  const addCards = (newCards) => {
-    const cardNames = new Set([...deck.cards, ...newCards].map((c) => lc(c.name)));
-    const cardsCopy = deck.cards.map((c) => ({ ...c, tags: [...(c.tags || [])] }));
-    for (const nc of newCards) {
-      const existing = cardsCopy.find((c) => lc(c.name) === lc(nc.name));
-      if (existing) existing.count += nc.count;
-      else cardsCopy.push({ ...nc, tags: detectTags(nc.scryfall, cardNames) });
-    }
-    // Re-run tag detection across all cards (combo pieces depend on what's in the deck),
-    // preserving any tags the user added manually.
-    for (const c of cardsCopy) {
-      if (c.scryfall) {
-        const tags = detectTags(c.scryfall, cardNames);
-        const manual = (c.tags || []).filter((t) => !AUTO_TAGS.has(t) && !t.startsWith('Tribal:'));
-        c.tags = [...new Set([...tags, ...manual])];
-      }
-    }
-    onUpdate({ ...deck, cards: cardsCopy });
-  };
-
-  const changeCount = (entry, count) => {
-    if (count <= 0) onUpdate({ ...deck, cards: deck.cards.filter((c) => c !== entry) });
-    else {
-      entry.count = count;
-      onUpdate({ ...deck, cards: [...deck.cards] });
-    }
-  };
-
-  const removeCard = (entry) => onUpdate({ ...deck, cards: deck.cards.filter((c) => c !== entry) });
-
-  const saveTagsForCard = (entry, tags) => {
-    entry.tags = tags;
-    onUpdate({ ...deck, cards: [...deck.cards] });
-  };
+  const addCards = (newCards) => onUpdate(addCardsToDeck(deck, newCards));
+  const changeCount = (entry, count) => onUpdate(setCardCount(deck, entry, count));
+  const removeCard = (entry) => onUpdate(removeCardFromDeck(deck, entry.name));
+  const saveTagsForCard = (entry, tags) => onUpdate(setCardTags(deck, entry, tags));
 
   const filtered = useMemo(() => {
     let cards = deck.cards.filter((c) => c.scryfall);
@@ -847,6 +819,228 @@ export function ProbabilitiesTab({ deck }) {
             ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// RECOMMENDATIONS TAB
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export function RecommendationsTab({ deck, onUpdate }) {
+  const [recs, setRecs] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [adding, setAdding] = useState({}); // { cardName: true } while fetching
+  const [view, setView] = useState('synergy'); // 'synergy' | 'theme'
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!deck.commander) {
+      setRecs(null);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    fetchRecommendations(deck.commander.name)
+      .then((r) => {
+        if (cancelled) return;
+        if (!r) setError('EDHREC has no page for this commander yet.');
+        setRecs(r);
+      })
+      .catch((e) => !cancelled && setError(e.message))
+      .finally(() => !cancelled && setLoading(false));
+    return () => { cancelled = true; };
+  }, [deck.commander?.name]);
+
+  const excludeNames = useMemo(() => {
+    const s = new Set(deck.cards.map((c) => c.name.toLowerCase()));
+    if (deck.commander) s.add(deck.commander.name.toLowerCase());
+    return s;
+  }, [deck.cards, deck.commander]);
+
+  const topList = useMemo(
+    () => (recs ? topRecommendations(recs, excludeNames, 40) : []),
+    [recs, excludeNames]
+  );
+
+  const byTheme = useMemo(
+    () => (recs ? recommendationsByTheme(recs, excludeNames, 8) : []),
+    [recs, excludeNames]
+  );
+
+  const addRec = async (rec) => {
+    setAdding((a) => ({ ...a, [rec.name]: true }));
+    try {
+      const card = await fetchCardByExactName(rec.name);
+      if (card) onUpdate(addCardsToDeck(deck, [{ name: card.name, count: 1, scryfall: card }]));
+    } finally {
+      setAdding((a) => {
+        const next = { ...a };
+        delete next[rec.name];
+        return next;
+      });
+    }
+  };
+
+  if (!deck.commander) {
+    return (
+      <div className="border p-12 text-center font-serif text-sm italic" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
+        Set a commander to see recommendations.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-baseline md:justify-between gap-3">
+        <div>
+          <div className="font-serif text-sm italic" style={{ color: CREAM_DIM }}>
+            Cards most often played alongside <span style={{ color: CREAM }}>{deck.commander.name}</span>, sourced from EDHREC. Filtered to ones you don't already have.
+          </div>
+        </div>
+        <div className="flex gap-px border self-start" style={{ borderColor: CREAM_FAINT }}>
+          {[
+            { id: 'synergy', label: 'Top Synergy' },
+            { id: 'theme', label: 'By Theme' },
+          ].map((v) => (
+            <button
+              key={v.id}
+              onClick={() => setView(v.id)}
+              className="px-4 py-2 font-serif text-[10px] tracking-[0.3em] uppercase transition"
+              style={{
+                color: view === v.id ? CREAM : CREAM_DIM,
+                background: view === v.id ? 'rgba(243,231,201,0.06)' : 'transparent',
+              }}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading && (
+        <div className="border p-8 text-center" style={{ borderColor: CREAM_FAINT }}>
+          <div className="font-mono text-xs" style={{ color: CREAM_DIM }}>
+            Querying EDHREC...
+          </div>
+        </div>
+      )}
+
+      {error && !loading && (
+        <div className="border p-6" style={{ borderColor: ACCENT, background: 'rgba(196,74,63,0.06)' }}>
+          <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-1" style={{ color: ACCENT }}>
+            Unavailable
+          </div>
+          <div className="font-mono text-xs" style={{ color: CREAM_DIM }}>
+            {error}
+          </div>
+        </div>
+      )}
+
+      {!loading && !error && view === 'synergy' && topList.length > 0 && (
+        <div className="border-t border-l" style={{ borderColor: CREAM_FAINT }}>
+          {topList.map((rec) => (
+            <RecRow
+              key={rec.name}
+              rec={rec}
+              busy={!!adding[rec.name]}
+              onAdd={() => addRec(rec)}
+            />
+          ))}
+        </div>
+      )}
+
+      {!loading && !error && view === 'theme' && byTheme.length > 0 && (
+        <div className="space-y-3">
+          {byTheme.map((theme) => (
+            <div key={theme.header} className="border" style={{ borderColor: CREAM_FAINT }}>
+              <div
+                className="px-4 py-2 border-b flex items-center justify-between"
+                style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}
+              >
+                <div className="font-serif text-sm tracking-[0.2em] uppercase font-bold" style={{ color: CREAM }}>
+                  {theme.header}
+                </div>
+                <span className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>
+                  {pad(theme.cards.length)} cards
+                </span>
+              </div>
+              <div>
+                {theme.cards.map((rec) => (
+                  <RecRow
+                    key={rec.name}
+                    rec={rec}
+                    busy={!!adding[rec.name]}
+                    onAdd={() => addRec(rec)}
+                    compact
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!loading && !error && topList.length === 0 && byTheme.length === 0 && recs && (
+        <div className="border p-12 text-center font-serif text-sm italic" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
+          You already have all of EDHREC's top recommendations for this commander. Nice.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RecRow({ rec, busy, onAdd, compact }) {
+  const inclusionPct = Math.round(rec.inclusion * 100);
+  const synergyLabel =
+    rec.synergy >= 0.2 ? 'high' :
+    rec.synergy >= 0.1 ? 'mid' :
+    rec.synergy >= 0 ? 'low' : 'neg';
+  return (
+    <div
+      className={`border-r border-b flex items-center gap-3 px-3 ${compact ? 'py-1.5' : 'py-2.5'}`}
+      style={{ borderColor: CREAM_FAINT }}
+    >
+      {rec.imageUrl && !compact && (
+        <img
+          src={`https://images.weserv.nl/?url=${encodeURIComponent(rec.imageUrl)}`}
+          alt=""
+          className="w-9 h-12 object-cover"
+          loading="lazy"
+          style={{ borderColor: CREAM_FAINT, borderWidth: 1 }}
+          onError={(e) => (e.currentTarget.style.display = 'none')}
+        />
+      )}
+      <div className="flex-1 min-w-0">
+        <div className="font-serif font-bold uppercase tracking-tight truncate" style={{ color: CREAM, fontSize: compact ? '0.85rem' : '0.95rem' }}>
+          {rec.name}
+        </div>
+        {!compact && rec.label && (
+          <div className="font-serif text-xs italic truncate" style={{ color: CREAM_DIM }}>
+            {rec.label}
+          </div>
+        )}
+      </div>
+      <div className="hidden md:flex flex-col items-end shrink-0">
+        <span className="font-mono text-[10px] tracking-wider" style={{ color: CREAM_DIM }}>
+          synergy · {synergyLabel} {rec.synergy >= 0 ? '+' : ''}{(rec.synergy * 100).toFixed(0)}
+        </span>
+        {inclusionPct > 0 && (
+          <span className="font-mono text-[9px]" style={{ color: CREAM_DIM }}>
+            in {inclusionPct}% of decks
+          </span>
+        )}
+      </div>
+      <button
+        onClick={onAdd}
+        disabled={busy}
+        className="font-serif text-[10px] tracking-[0.3em] uppercase px-3 py-1 border transition disabled:opacity-40"
+        style={{ borderColor: CREAM_FAINT, color: CREAM }}
+        title="Fetch the card from Scryfall and add it to the deck"
+      >
+        {busy ? '...' : 'Add'}
+      </button>
     </div>
   );
 }
