@@ -6,6 +6,7 @@ import { searchCardAutocomplete, fetchCardByExactName, cardImageUrl } from '../l
 import { renameDeck } from '../lib/deckops.js';
 import { CardsTab, PackagesTab, CurveTab, BracketTab, StagesTab, ProbabilitiesTab, RecommendationsTab } from './Tabs.jsx';
 import { RulesModal, ExportModal } from './Modals.jsx';
+import { ManaCost } from './ManaCost.jsx';
 
 // ───────────────────────────────────────────────────────────────────────────────
 
@@ -106,8 +107,8 @@ function CommanderPicker({ deck, onSet }) {
             {deck.commander.type_line}
           </div>
           {deck.commander.mana_cost && (
-            <div className="font-mono text-sm mt-4" style={{ color: CREAM }}>
-              {deck.commander.mana_cost}
+            <div className="mt-4" style={{ color: CREAM, fontSize: '1.5rem' }}>
+              <ManaCost cost={deck.commander.mana_cost} size="1em" gap="0.15em" />
             </div>
           )}
           {deck.commander.oracle_text && (
