@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Upload, BookOpen } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { lc, pad, hypergeom } from '../lib/utils.js';
 import { detectTags, AUTO_TAGS } from '../lib/tags.js';
-import { assessBracket, analyzeGameStages } from '../lib/analyzers.js';
+import { assessBracket } from '../lib/analyzers.js';
+import { buildStagePlans, synergyHubs, packageWeight } from '../lib/strategy.js';
 import { BRACKETS } from '../lib/constants.js';
 import { CardSearchBar, CardRow, TagPill, CardThumb, StatBox, FlagBox, ProbCard } from './UI.jsx';
 import { BulkAddModal, TagEditModal } from './Modals.jsx';
@@ -167,6 +168,8 @@ export function CardsTab({ deck, onUpdate }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export function PackagesTab({ deck }) {
+  const [focusTag, setFocusTag] = useState(null);
+
   const packages = useMemo(() => {
     const map = {};
     for (const c of deck.cards) {
@@ -176,57 +179,202 @@ export function PackagesTab({ deck }) {
         map[t].push(c);
       }
     }
-    return Object.entries(map).sort((a, b) => b[1].length - a[1].length);
+    return Object.entries(map).sort((a, b) => {
+      // Strategic weight first; then card count as tiebreaker.
+      const wDiff = packageWeight(b[0]) - packageWeight(a[0]);
+      if (wDiff !== 0) return wDiff;
+      return b[1].length - a[1].length;
+    });
   }, [deck.cards]);
 
-  return (
-    <div>
-      <div className="font-serif text-sm italic mb-4" style={{ color: CREAM_DIM }}>
-        Cards grouped by tag. Each card appears in every package it belongs to.
+  const hubs = useMemo(() => synergyHubs(deck, 3), [deck.cards]);
+
+  if (deck.cards.length === 0) {
+    return (
+      <div className="border p-12 text-center font-serif text-sm italic" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
+        Add cards on the Cards tab to see packages.
       </div>
-      {packages.length === 0 ? (
-        <div className="border p-12 text-center font-serif text-sm italic" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
-          No tagged cards.
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Synergy hubs */}
+      <div>
+        <div className="flex items-baseline gap-4 mb-3">
+          <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
+            Synergy Hubs
+          </div>
+          <div className="flex-1 border-t" style={{ borderColor: CREAM_FAINT }}></div>
+          <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+            cards in 3+ packages
+          </div>
         </div>
-      ) : (
-        <div className="space-y-px">
-          {packages.map(([tag, cards]) => (
-            <div key={tag} className="border" style={{ borderColor: CREAM_FAINT }}>
+        {hubs.length === 0 ? (
+          <div className="border p-6 font-serif text-sm italic" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
+            No cards yet appear in 3+ strategic packages. Add more synergistic cards or tag manually to surface hubs.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 border-t border-l" style={{ borderColor: CREAM_FAINT }}>
+            {hubs.slice(0, 12).map(({ card, packages: pkgs }) => (
               <div
-                className="px-4 py-2 border-b flex items-center justify-between"
-                style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}
+                key={card.name}
+                className="border-r border-b p-3 flex items-start gap-3"
+                style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.025)' }}
               >
-                <TagPill tag={tag} />
-                <span className="font-mono text-[10px] tracking-wider" style={{ color: CREAM_DIM }}>
-                  {pad(cards.length)} cards
-                </span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2">
-                {cards.map((c) => (
-                  <div
-                    key={c.name}
-                    className="flex items-center gap-3 px-4 py-2 border-r border-b text-sm"
-                    style={{ borderColor: CREAM_FAINT }}
-                  >
-                    <CardThumb card={c.scryfall} />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-serif truncate uppercase tracking-tight" style={{ color: CREAM }}>
-                        {c.name}
-                      </div>
-                      <div className="font-serif text-xs italic truncate" style={{ color: CREAM_DIM }}>
-                        {c.scryfall.type_line}
-                      </div>
-                    </div>
-                    <span className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>
-                      {c.scryfall.cmc ?? 0}
-                    </span>
+                <CardThumb card={card.scryfall} />
+                <div className="flex-1 min-w-0">
+                  <div className="font-serif font-bold uppercase tracking-tight truncate" style={{ color: CREAM }}>
+                    {card.name}
                   </div>
-                ))}
+                  <div className="font-mono text-[10px] mt-0.5" style={{ color: CREAM_DIM }}>
+                    {pkgs.length} packages · cmc {card.scryfall.cmc ?? 0}
+                  </div>
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {pkgs.slice(0, 6).map((t) => (
+                      <button key={t} onClick={() => setFocusTag(t)}>
+                        <TagPill tag={t} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Package focus filter */}
+      {focusTag && (
+        <div
+          className="flex items-center justify-between border px-4 py-3"
+          style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.04)' }}
+        >
+          <div className="flex items-center gap-3">
+            <span className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+              Filter
+            </span>
+            <TagPill tag={focusTag} />
+          </div>
+          <button
+            onClick={() => setFocusTag(null)}
+            className="font-serif text-[10px] tracking-[0.3em] uppercase"
+            style={{ color: CREAM_DIM }}
+          >
+            Clear ×
+          </button>
         </div>
       )}
+
+      {/* Packages list */}
+      <div>
+        <div className="flex items-baseline gap-4 mb-3">
+          <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
+            All Packages
+          </div>
+          <div className="flex-1 border-t" style={{ borderColor: CREAM_FAINT }}></div>
+          <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+            sorted by strategic weight
+          </div>
+        </div>
+        <div className="space-y-2">
+          {packages
+            .filter(([tag]) => !focusTag || tag === focusTag)
+            .map(([tag, cards]) => (
+              <PackageBlock
+                key={tag}
+                tag={tag}
+                cards={cards}
+                focused={focusTag === tag}
+                onFocus={() => setFocusTag(tag === focusTag ? null : tag)}
+              />
+            ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PackageBlock({ tag, cards, focused, onFocus }) {
+  const [expanded, setExpanded] = useState(focused);
+  useEffect(() => setExpanded(focused), [focused]);
+
+  return (
+    <div className="border" style={{ borderColor: CREAM_FAINT }}>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full px-4 py-2.5 border-b flex items-center justify-between transition"
+        style={{
+          borderColor: CREAM_FAINT,
+          background: expanded ? 'rgba(243,231,201,0.04)' : 'rgba(243,231,201,0.015)',
+        }}
+      >
+        <div className="flex items-center gap-3">
+          <span className="font-serif text-[10px]" style={{ color: CREAM_DIM }}>{expanded ? '▾' : '▸'}</span>
+          <TagPill tag={tag} />
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-[10px] tracking-wider" style={{ color: CREAM_DIM }}>
+            {pad(cards.length)} cards
+          </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onFocus();
+            }}
+            className="font-serif text-[10px] tracking-[0.3em] uppercase"
+            style={{ color: CREAM_DIM }}
+            title="Focus this package"
+          >
+            {focused ? '·focused' : 'focus'}
+          </button>
+        </div>
+      </button>
+      {expanded && (
+        <div className="grid grid-cols-1 md:grid-cols-2">
+          {cards
+            .slice()
+            .sort((a, b) => (a.scryfall.cmc || 0) - (b.scryfall.cmc || 0))
+            .map((c) => (
+              <PackageCardRow key={c.name} card={c} currentTag={tag} />
+            ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PackageCardRow({ card, currentTag }) {
+  const otherTags = (card.tags || []).filter((t) => t !== currentTag);
+  return (
+    <div
+      className="flex items-start gap-3 px-4 py-2 border-r border-b text-sm"
+      style={{ borderColor: CREAM_FAINT }}
+    >
+      <CardThumb card={card.scryfall} />
+      <div className="flex-1 min-w-0">
+        <div className="font-serif truncate uppercase tracking-tight" style={{ color: CREAM }}>
+          {card.name}
+        </div>
+        <div className="font-serif text-xs italic truncate" style={{ color: CREAM_DIM }}>
+          {card.scryfall.type_line}
+        </div>
+        {otherTags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {otherTags.slice(0, 4).map((t) => (
+              <TagPill key={t} tag={t} />
+            ))}
+            {otherTags.length > 4 && (
+              <span className="font-mono text-[9px]" style={{ color: CREAM_DIM }}>
+                +{otherTags.length - 4}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+      <span className="font-mono text-[10px] mt-1" style={{ color: CREAM_DIM }}>
+        {card.scryfall.cmc ?? 0}
+      </span>
     </div>
   );
 }
@@ -470,60 +618,112 @@ export function BracketTab({ deck }) {
 // STAGES TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function StageBox({ title, code, range, cards }) {
+function StageBlock({ title, code, range, stage }) {
   return (
     <div className="border" style={{ borderColor: CREAM_FAINT }}>
       <div className="px-5 py-3 border-b flex items-baseline justify-between" style={{ borderColor: CREAM_FAINT }}>
-        <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
-          {title}
+        <div>
+          <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
+            {title}
+          </div>
+          <div className="font-serif italic mt-1" style={{ color: CREAM_DIM, fontSize: '0.95rem' }}>
+            {stage.headline}
+          </div>
         </div>
-        <div className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>
+        <div className="font-mono text-[10px] shrink-0 ml-4" style={{ color: CREAM_DIM }}>
           {code} · {range}
         </div>
       </div>
-      <div className="p-5">
-        {cards.length === 0 ? (
-          <div className="font-serif text-sm italic" style={{ color: CREAM_DIM }}>
-            Empty stage.
+      <div className="p-5 space-y-4">
+        {stage.bullets.map((b, i) => (
+          <div key={i} className="flex gap-3">
+            <span className="font-serif font-bold mt-0.5 shrink-0" style={{ color: CREAM_DIM }}>·</span>
+            <div className="flex-1">
+              <p className="font-serif text-sm leading-relaxed" style={{ color: CREAM }}>
+                {b.text}
+              </p>
+              {b.cards.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {b.cards.map((name) => (
+                    <span
+                      key={name}
+                      className="font-mono text-[10px] px-2 py-0.5 border tracking-wide"
+                      style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
+                    >
+                      {name}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        ) : (
-          <div className="space-y-1.5">
-            {cards.slice(0, 12).map((c) => (
-              <div key={c.name} className="flex items-center gap-3 text-sm">
-                <span className="font-serif flex-1 truncate uppercase tracking-tight" style={{ color: CREAM }}>
-                  {c.name}
-                </span>
-                <span className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>
-                  cmc · {c.scryfall.cmc ?? 0}
-                </span>
-                {(c.tags || []).slice(0, 2).map((t) => (
-                  <TagPill key={t} tag={t} />
-                ))}
-              </div>
-            ))}
-            {cards.length > 12 && (
-              <div className="font-serif text-xs italic mt-2" style={{ color: CREAM_DIM }}>
-                + {cards.length - 12} more
-              </div>
-            )}
-          </div>
-        )}
+        ))}
       </div>
     </div>
   );
 }
 
 export function StagesTab({ deck }) {
-  const stages = useMemo(() => analyzeGameStages(deck), [deck.cards]);
+  const plans = useMemo(() => buildStagePlans(deck), [deck.cards, deck.commander]);
+
+  if (deck.cards.length === 0) {
+    return (
+      <div className="border p-12 text-center font-serif text-sm italic" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
+        Add cards to generate a stage-by-stage action plan.
+      </div>
+    );
+  }
+
+  const primary = plans.archetype;
 
   return (
-    <div className="space-y-px">
-      <div className="font-serif text-sm italic mb-4" style={{ color: CREAM_DIM }}>
-        How the deck plays turn-to-turn. A card can appear in multiple stages.
+    <div className="space-y-6">
+      {/* Archetype banner */}
+      <div className="border" style={{ borderColor: CREAM_FAINT }}>
+        <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
+          <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
+            Archetype
+          </div>
+          <div className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>
+            auto · live
+          </div>
+        </div>
+        <div className="p-6 md:p-8">
+          <div className="flex flex-col md:flex-row items-baseline gap-4 md:gap-8">
+            <h3
+              className="font-serif font-black uppercase tracking-tight leading-none"
+              style={{ color: CREAM, fontSize: 'clamp(2rem, 5vw, 3rem)' }}
+            >
+              {primary?.name || 'Unclassified'}
+            </h3>
+            <p className="font-serif text-sm md:text-base italic flex-1" style={{ color: CREAM_DIM }}>
+              {primary?.description || 'Add more tagged cards to classify the deck.'}
+            </p>
+          </div>
+          {plans.secondary.length > 0 && (
+            <div className="mt-5 pt-4 border-t flex flex-wrap items-baseline gap-3" style={{ borderColor: CREAM_FAINT }}>
+              <span className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+                also leans
+              </span>
+              {plans.secondary.map((s) => (
+                <span key={s.id} className="font-mono text-xs" style={{ color: CREAM }}>
+                  {s.name}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-      <StageBox title="Early Game" code="T1–3" range="cmc ≤ 2 or ramp" cards={stages.early} />
-      <StageBox title="Mid Game" code="T4–7" range="cmc 3–5" cards={stages.mid} />
-      <StageBox title="Late Game" code="T8+" range="cmc ≥ 6 or finishers" cards={stages.late} />
+
+      <div className="font-serif text-sm italic" style={{ color: CREAM_DIM }}>
+        Action plan generated from the deck's tag profile. Concrete card cites pull from cards already in the list.
+      </div>
+
+      <div className="space-y-3">
+        <StageBlock title="Early Game" code="T1–3" range="setup & curve" stage={plans.early} />
+        <StageBlock title="Mid Game" code="T4–7" range="commit threats" stage={plans.mid} />
+        <StageBlock title="Late Game" code="T8+" range="close it out" stage={plans.late} />
+      </div>
     </div>
   );
 }
