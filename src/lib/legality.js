@@ -65,9 +65,20 @@ export function deckSize(deck) {
 export function checkDeckLegality(deck) {
   const errors = [];
   const warnings = [];
+  // Structured per-issue data so a richer UI can render card-level
+  // lists without re-running the checks. Each entry: { cards: [...] }.
+  const issues = {
+    singleton: [],   // [{ name, count }]
+    offColor: [],    // [{ name, violation: ['U','G'] }]
+    banned: [],      // [name]
+    size: null,      // { current, target, over: bool }
+  };
 
   const size = deckSize(deck);
   const target = deck.commander ? 99 : 100;
+  if (size !== target) {
+    issues.size = { current: size, target, over: size > target };
+  }
   if (size > target) {
     errors.push(`Deck is ${size - target} card(s) over the legal limit (${size}/${target}).`);
   } else if (size > 0 && size < target) {
@@ -79,6 +90,7 @@ export function checkDeckLegality(deck) {
   }
 
   const dupes = checkSingletonViolations(deck);
+  issues.singleton = dupes;
   if (dupes.length > 0) {
     errors.push(
       `Singleton violation: ${dupes.map((d) => `${d.name} ×${d.count}`).join(', ')}.`
@@ -86,6 +98,7 @@ export function checkDeckLegality(deck) {
   }
 
   const banned = checkBannedCards(deck);
+  issues.banned = banned;
   if (banned.length > 0) {
     errors.push(`Banned in Commander: ${banned.join(', ')}.`);
   }
@@ -95,6 +108,7 @@ export function checkDeckLegality(deck) {
       .filter((c) => c.scryfall)
       .map((c) => ({ card: c, check: checkColorIdentity(c.scryfall, deck.commander) }))
       .filter((x) => !x.check.ok);
+    issues.offColor = offColor.map((x) => ({ name: x.card.name, violation: x.check.violation }));
     if (offColor.length > 0) {
       errors.push(
         `Color identity violation: ${offColor.map((x) => `${x.card.name} (${x.check.violation.join('')})`).join(', ')}.`
@@ -102,7 +116,7 @@ export function checkDeckLegality(deck) {
     }
   }
 
-  return { errors, warnings, size, target, banned };
+  return { errors, warnings, size, target, banned, issues };
 }
 
 /**
