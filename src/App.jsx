@@ -9,6 +9,7 @@ import { loadSettings } from './lib/settings.js';
 import { DeckListView } from './components/DeckList.jsx';
 import { DeckEditor } from './components/DeckEditor.jsx';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
+import { OfflineIndicator } from './components/OfflineIndicator.jsx';
 import { BackupModal, SettingsModal } from './components/Modals.jsx';
 
 export default function App() {
@@ -199,6 +200,7 @@ export default function App() {
         />
       )}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      <OfflineIndicator />
     </div>
   );
 }
