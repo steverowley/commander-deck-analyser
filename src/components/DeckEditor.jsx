@@ -310,11 +310,11 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, otherDecks = [
           >
             <LinkIcon className="w-3 h-3 mr-1.5" /> Share
           </button>
-          {otherDecks.length > 0 && (
+          {(otherDecks.length > 0 || deck.commander) && (
             <button
               onClick={() => setShowCompare(true)}
               className="flex items-center hover:opacity-100"
-              title="Compare with another deck"
+              title="Compare with another deck or the EDHREC average"
             >
               <GitCompare className="w-3 h-3 mr-1.5" /> Compare
             </button>
