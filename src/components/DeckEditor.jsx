@@ -8,6 +8,8 @@ import { CardsTab, PackagesTab, CurveTab, BracketTab, StagesTab, ProbabilitiesTa
 import { RulesModal, ExportModal, ShareModal, CompareModal, NotesModal } from './Modals.jsx';
 import { ManaCost } from './ManaCost.jsx';
 import { ErrorBoundary } from './ErrorBoundary.jsx';
+import { assessBracket } from '../lib/analyzers.js';
+import { computeHealth } from '../lib/health.js';
 
 // ───────────────────────────────────────────────────────────────────────────────
 
@@ -229,6 +231,14 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, otherDecks = [
   ];
 
   const totalCards = deck.cards.reduce((s, c) => s + c.count, 0);
+  const hasCards = deck.cards.length > 0;
+  const bracket = hasCards ? assessBracket(deck).bracket : null;
+  const health = hasCards ? computeHealth(deck) : null;
+  const healthTone =
+    !health ? CREAM_DIM :
+    health.score >= 80 ? '#a3c98a' :
+    health.score >= 65 ? CREAM :
+    health.score >= 50 ? '#d8b35a' : ACCENT;
 
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-8">
@@ -283,13 +293,28 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, otherDecks = [
           </span>
         </div>
         <div
-          className="hidden md:flex items-center px-5 border-r font-serif text-[11px] tracking-[0.3em] uppercase"
+          className="hidden md:flex items-center px-5 border-r font-serif text-[11px] tracking-[0.3em] uppercase gap-4"
           style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
         >
-          Commander ·{' '}
-          <span className="ml-1" style={{ color: deck.commander ? CREAM : ACCENT }}>
-            {deck.commander ? 'set' : 'null'}
-          </span>
+          {bracket !== null ? (
+            <>
+              <span title="Computed bracket — see the Bracket tab for breakdown">
+                Bracket · <span style={{ color: CREAM }}>{bracket}</span>
+              </span>
+              {health && !health.empty && (
+                <span title={`Health grade ${health.grade}`}>
+                  · <span style={{ color: healthTone }}>{health.score}</span>
+                </span>
+              )}
+            </>
+          ) : (
+            <span>
+              Commander ·{' '}
+              <span style={{ color: deck.commander ? CREAM : ACCENT }}>
+                {deck.commander ? 'set' : 'null'}
+              </span>
+            </span>
+          )}
         </div>
         <div
           className="hidden md:flex items-center px-5 border-r font-serif text-[11px] tracking-[0.3em] uppercase gap-4"
