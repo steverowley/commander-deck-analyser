@@ -8,6 +8,7 @@ import { decodeDeckUrl } from './lib/share.js';
 import { DeckListView } from './components/DeckList.jsx';
 import { DeckEditor } from './components/DeckEditor.jsx';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
+import { BackupModal } from './components/Modals.jsx';
 
 export default function App() {
   const [decks, setDecks] = useState([]);
@@ -16,6 +17,7 @@ export default function App() {
   const [pendingShare, setPendingShare] = useState(null); // decoded deck from URL hash
   const [importingShare, setImportingShare] = useState(false);
   const [importProgress, setImportProgress] = useState('');
+  const [showBackup, setShowBackup] = useState(false);
 
   useEffect(() => {
     loadDecks().then((d) => {
@@ -115,6 +117,23 @@ export default function App() {
     }
   };
 
+  const handleRestore = async (importedDecks, mode) => {
+    let next;
+    if (mode === 'replace') {
+      // Wipe existing, save each imported deck.
+      for (const d of decks) await deleteDeck(d.id);
+      next = importedDecks;
+    } else {
+      // Merge — keep existing, add imports that don't share an id.
+      const existingIds = new Set(decks.map((d) => d.id));
+      const additions = importedDecks.filter((d) => !existingIds.has(d.id));
+      next = [...additions, ...decks];
+    }
+    for (const d of importedDecks) await saveDeck(d);
+    setDecks(next.slice().sort((a, b) => (b.updated || 0) - (a.updated || 0)));
+    setShowBackup(false);
+  };
+
   const dismissShare = () => {
     setPendingShare(null);
     if (typeof window !== 'undefined') {
@@ -163,9 +182,17 @@ export default function App() {
             onDelete={handleDelete}
             onDuplicate={handleDuplicate}
             onImport={handleImport}
+            onBackup={() => setShowBackup(true)}
           />
         )}
       </ErrorBoundary>
+      {showBackup && (
+        <BackupModal
+          decks={decks}
+          onRestore={handleRestore}
+          onClose={() => setShowBackup(false)}
+        />
+      )}
     </div>
   );
 }
