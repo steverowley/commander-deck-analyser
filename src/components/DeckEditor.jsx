@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, BookOpen, Loader2, Crown, Sparkles, Tag, BarChart3, Target, Clock, Calculator, Lightbulb, Pencil, Copy, Download } from 'lucide-react';
+import { ChevronLeft, BookOpen, Loader2, Crown, Sparkles, Tag, BarChart3, Target, Clock, Calculator, Lightbulb, Pencil, Copy, Download, Link as LinkIcon } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { lc, pad } from '../lib/utils.js';
 import { searchCardAutocomplete, fetchCardByExactName, cardImageUrl } from '../lib/scryfall.js';
 import { renameDeck } from '../lib/deckops.js';
 import { CardsTab, PackagesTab, CurveTab, BracketTab, StagesTab, ProbabilitiesTab, RecommendationsTab } from './Tabs.jsx';
-import { RulesModal, ExportModal } from './Modals.jsx';
+import { RulesModal, ExportModal, ShareModal } from './Modals.jsx';
 import { ManaCost } from './ManaCost.jsx';
 
 // ───────────────────────────────────────────────────────────────────────────────
@@ -193,6 +193,7 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate }) {
   const [tab, setTab] = useState('cards');
   const [showRules, setShowRules] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [showShare, setShowShare] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(deck.name);
 
@@ -292,6 +293,13 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate }) {
           style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
         >
           <button
+            onClick={() => setShowShare(true)}
+            className="flex items-center hover:opacity-100"
+            title="Share via link"
+          >
+            <LinkIcon className="w-3 h-3 mr-1.5" /> Share
+          </button>
+          <button
             onClick={() => setShowExport(true)}
             className="flex items-center hover:opacity-100"
             title="Export decklist"
@@ -358,6 +366,7 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate }) {
 
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}
       {showExport && <ExportModal deck={deck} onClose={() => setShowExport(false)} />}
+      {showShare && <ShareModal deck={deck} onClose={() => setShowShare(false)} />}
     </div>
   );
 }

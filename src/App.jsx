@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { CREAM, CREAM_DIM, BG } from './theme.js';
 import { loadDecks, saveDeck, deleteDeck } from './lib/storage.js';
-import { loadCardCache } from './lib/scryfall.js';
+import { loadCardCache, fetchCardsByName } from './lib/scryfall.js';
 import { duplicateDeck, addCardsToDeck } from './lib/deckops.js';
+import { decodeDeckUrl } from './lib/share.js';
 import { DeckListView } from './components/DeckList.jsx';
 import { DeckEditor } from './components/DeckEditor.jsx';
 
@@ -11,6 +12,9 @@ export default function App() {
   const [decks, setDecks] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [pendingShare, setPendingShare] = useState(null); // decoded deck from URL hash
+  const [importingShare, setImportingShare] = useState(false);
+  const [importProgress, setImportProgress] = useState('');
 
   useEffect(() => {
     loadDecks().then((d) => {
@@ -18,6 +22,14 @@ export default function App() {
       setLoading(false);
     });
     loadCardCache();
+
+    // Check URL hash for a shared deck payload.
+    if (typeof window !== 'undefined' && window.location.hash) {
+      const decoded = decodeDeckUrl(window.location.hash);
+      if (decoded && decoded.cards.length > 0) {
+        setPendingShare(decoded);
+      }
+    }
   }, []);
 
   const activeDeck = decks.find((d) => d.id === activeId);
@@ -70,6 +82,45 @@ export default function App() {
     setActiveId(populated.id);
   };
 
+  // Resolve a shared deck payload against Scryfall and import as a new deck.
+  const acceptShare = async () => {
+    if (!pendingShare) return;
+    setImportingShare(true);
+    try {
+      const names = [
+        ...(pendingShare.commanderName ? [pendingShare.commanderName] : []),
+        ...pendingShare.cards.map((c) => c.name),
+      ];
+      const uniq = [...new Set(names)];
+      const { results } = await fetchCardsByName(uniq, setImportProgress);
+      const commander = pendingShare.commanderName
+        ? results[pendingShare.commanderName.toLowerCase()] || null
+        : null;
+      const cards = pendingShare.cards
+        .map(({ count, name }) => {
+          const c = results[name.toLowerCase()];
+          return c ? { name: c.name, count, scryfall: c } : null;
+        })
+        .filter(Boolean);
+      await handleImport({ name: pendingShare.name, commander, cards });
+      // Clear URL hash so subsequent reloads don't re-prompt.
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+      setPendingShare(null);
+      setImportProgress('');
+    } finally {
+      setImportingShare(false);
+    }
+  };
+
+  const dismissShare = () => {
+    setPendingShare(null);
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: BG }}>
@@ -85,6 +136,15 @@ export default function App() {
 
   return (
     <div className="min-h-screen relative" style={{ background: BG, color: CREAM }}>
+      {pendingShare && (
+        <SharePrompt
+          share={pendingShare}
+          onAccept={acceptShare}
+          onDismiss={dismissShare}
+          loading={importingShare}
+          progress={importProgress}
+        />
+      )}
       {activeDeck ? (
         <DeckEditor
           deck={activeDeck}
@@ -102,6 +162,50 @@ export default function App() {
           onImport={handleImport}
         />
       )}
+    </div>
+  );
+}
+
+function SharePrompt({ share, onAccept, onDismiss, loading, progress }) {
+  return (
+    <div
+      className="fixed inset-x-0 top-0 z-40 border-b"
+      style={{ borderColor: 'rgba(243,231,201,0.15)', background: 'rgba(13,22,20,0.95)', backdropFilter: 'blur(6px)' }}
+    >
+      <div className="max-w-6xl mx-auto px-4 md:px-8 py-3 flex flex-col md:flex-row items-start md:items-center gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+            Shared deck detected
+          </div>
+          <div className="font-serif text-sm mt-0.5 truncate" style={{ color: CREAM }}>
+            <span style={{ color: CREAM_DIM }}>{share.cards.length} cards</span>
+            {share.commanderName && (
+              <> · <span>{share.commanderName}</span></>
+            )}{' '}— <span style={{ color: CREAM_DIM }}>"{share.name}"</span>
+          </div>
+          {progress && (
+            <div className="font-mono text-[10px] mt-1" style={{ color: CREAM_DIM }}>{progress}</div>
+          )}
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={onDismiss}
+            disabled={loading}
+            className="font-serif text-[10px] tracking-[0.3em] uppercase disabled:opacity-30"
+            style={{ color: CREAM_DIM }}
+          >
+            Dismiss
+          </button>
+          <button
+            onClick={onAccept}
+            disabled={loading}
+            className="font-serif text-[10px] tracking-[0.3em] uppercase border px-4 py-2 disabled:opacity-30"
+            style={{ borderColor: 'rgba(243,231,201,0.3)', color: CREAM }}
+          >
+            {loading ? 'Importing...' : 'Import →'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

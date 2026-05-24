@@ -4,6 +4,7 @@ import {
   checkColorIdentity,
   checkSingletonViolations,
   checkDeckLegality,
+  checkBannedCards,
   previewAdditions,
 } from './legality.js';
 
@@ -102,6 +103,26 @@ describe('checkDeckLegality', () => {
     for (let i = 0; i < 101; i++) cards.push(card(`Filler ${i}`));
     const r = checkDeckLegality({ commander: null, cards });
     expect(r.errors.some((e) => e.toLowerCase().includes('over the legal'))).toBe(true);
+  });
+});
+
+describe('checkBannedCards', () => {
+  it('flags a card on the Commander banlist', () => {
+    const deck = {
+      cards: [card('Mana Crypt', { type_line: 'Artifact' })],
+      commander: null,
+    };
+    expect(checkBannedCards(deck)).toContain('Mana Crypt');
+  });
+  it('flags a banned commander', () => {
+    const deck = {
+      cards: [],
+      commander: { name: 'Lutri, the Spellchaser', color_identity: ['U', 'R'] },
+    };
+    expect(checkBannedCards(deck)).toContain('Lutri, the Spellchaser');
+  });
+  it('returns empty for a clean deck', () => {
+    expect(checkBannedCards({ cards: [card('Sol Ring')], commander: null })).toEqual([]);
   });
 });
 

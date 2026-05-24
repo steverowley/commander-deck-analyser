@@ -49,6 +49,37 @@ export const FAST_MANA = new Set([
   "mana crypt", "mana vault", "chrome mox", "mox diamond", "jeweled lotus", "grim monolith"
 ]);
 
+/**
+ * Commander banned list (Magic: The Gathering). Reflects WotC's most
+ * recent banlist update — the Commander format banlist shifts a few
+ * times a year; refresh this set when the official banlist changes.
+ *
+ * Source of truth: https://magic.wizards.com/en/banned-restricted-list
+ */
+export const BANNED_CARDS = new Set([
+  // Power Nine + classic eternal-format bans
+  "ancestral recall", "black lotus", "time walk", "time vault",
+  "library of alexandria", "channel", "fastbond",
+  // Commander-format perennials
+  "karakas", "lutri, the spellchaser", "shahrazad",
+  "sway of the stars", "panoptic mirror", "biorhythm",
+  "coalition victory", "limited resources", "primeval titan",
+  "sundering titan", "upheaval", "worldfire",
+  "yawgmoth's bargain", "tinker", "iona, shield of emeria",
+  "leovold, emissary of trest", "emrakul, the aeons torn",
+  "griselbrand", "erayo, soratami ascendant",
+  "rofellos, llanowar emissary", "trade secrets", "paradox engine",
+  // Sept 2024 update
+  "mana crypt", "jeweled lotus", "dockside extortionist",
+  "nadu, winged wisdom",
+  // Hate / format-warping
+  "hullbreacher", "golos, tireless pilgrim", "prophet of kruphix",
+  // Ante / dexterity / sub-game (functionally banned)
+  "amulet of quoz", "bronze tablet", "contract from below",
+  "darkpact", "demonic attorney", "jeweled bird", "rebirth",
+  "tempest efreet", "timmerian fiends", "chaos orb", "falling star",
+]);
+
 // Known two-card infinite combos. Used by the bracket assessor and combo-piece tagger.
 // Format: [card_a, card_b, description]. Both names lowercased.
 export const KNOWN_COMBOS = [

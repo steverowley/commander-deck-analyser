@@ -43,6 +43,9 @@ function normalize(card) {
     power: card.power,
     toughness: card.toughness,
     loyalty: card.loyalty,
+    // Keep USD + EUR pricing for the deck-total feature. Foil/tix dropped
+    // to stay light. Scryfall returns these as string-encoded decimals.
+    prices: card.prices ? { usd: card.prices.usd, eur: card.prices.eur } : undefined,
     image_uris: card.image_uris
       ? { small: card.image_uris.small, normal: card.image_uris.normal }
       : undefined,

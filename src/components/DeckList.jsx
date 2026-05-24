@@ -5,6 +5,7 @@ import { pad } from '../lib/utils.js';
 import { cardImageUrl } from '../lib/scryfall.js';
 import { assessBracket } from '../lib/analyzers.js';
 import { computeHealth } from '../lib/health.js';
+import { deckTotalPrice, formatPrice } from '../lib/pricing.js';
 import { ManaSymbol } from './ManaCost.jsx';
 import { ImportDeckModal } from './Modals.jsx';
 
@@ -314,6 +315,19 @@ function DeckCardMeta({ deck }) {
           </span>
         </>
       )}
+      {hasCards && (() => {
+        const price = deckTotalPrice(deck);
+        if (price.priced === 0) return null;
+        const approx = price.unpriced > 0 ? '~' : '';
+        return (
+          <>
+            <span>·</span>
+            <span title={price.unpriced > 0 ? `${price.unpriced} card(s) unpriced` : 'All cards priced'}>
+              {approx}{formatPrice(price.total)}
+            </span>
+          </>
+        );
+      })()}
     </div>
   );
 }
