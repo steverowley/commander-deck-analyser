@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, BookOpen, Loader2, Crown, Sparkles, Tag, BarChart3, Target, Clock, Calculator, Lightbulb } from 'lucide-react';
+import { ChevronLeft, BookOpen, Loader2, Crown, Sparkles, Tag, BarChart3, Target, Clock, Calculator, Lightbulb, Pencil, Copy, Download } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { lc, pad } from '../lib/utils.js';
 import { searchCardAutocomplete, fetchCardByExactName, cardImageUrl } from '../lib/scryfall.js';
+import { renameDeck } from '../lib/deckops.js';
 import { CardsTab, PackagesTab, CurveTab, BracketTab, StagesTab, ProbabilitiesTab, RecommendationsTab } from './Tabs.jsx';
-import { RulesModal } from './Modals.jsx';
+import { RulesModal, ExportModal } from './Modals.jsx';
 
 // ───────────────────────────────────────────────────────────────────────────────
 
@@ -164,9 +165,12 @@ function CommanderPicker({ deck, onSet }) {
 
 // ───────────────────────────────────────────────────────────────────────────────
 
-export function DeckEditor({ deck, onUpdate, onBack }) {
+export function DeckEditor({ deck, onUpdate, onBack, onDuplicate }) {
   const [tab, setTab] = useState('cards');
   const [showRules, setShowRules] = useState(false);
+  const [showExport, setShowExport] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(deck.name);
 
   const setCommander = (card) => {
     if (!card) {
@@ -175,6 +179,15 @@ export function DeckEditor({ deck, onUpdate, onBack }) {
     }
     const filteredCards = deck.cards.filter((c) => lc(c.name) !== lc(card.name));
     onUpdate({ ...deck, commander: card, cards: filteredCards });
+  };
+
+  const commitRename = () => {
+    setEditingName(false);
+    if (nameDraft.trim() && nameDraft.trim() !== deck.name) {
+      onUpdate(renameDeck(deck, nameDraft));
+    } else {
+      setNameDraft(deck.name);
+    }
   };
 
   const tabs = [
@@ -196,10 +209,37 @@ export function DeckEditor({ deck, onUpdate, onBack }) {
           <button onClick={onBack} className="hover:opacity-100 transition" style={{ color: CREAM_DIM }}>
             <ChevronLeft className="w-4 h-4" />
           </button>
-          <div>
-            <div className="font-serif text-xl font-black leading-none tracking-wider truncate" style={{ color: CREAM }}>
-              {deck.name.toUpperCase()}
-            </div>
+          <div className="flex-1 min-w-0">
+            {editingName ? (
+              <input
+                value={nameDraft}
+                autoFocus
+                onChange={(e) => setNameDraft(e.target.value)}
+                onBlur={commitRename}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitRename();
+                  else if (e.key === 'Escape') {
+                    setNameDraft(deck.name);
+                    setEditingName(false);
+                  }
+                }}
+                className="font-serif text-xl font-black leading-none tracking-wider w-full bg-transparent border-b focus:outline-none uppercase"
+                style={{ color: CREAM, borderColor: CREAM_FAINT }}
+              />
+            ) : (
+              <button
+                onClick={() => {
+                  setNameDraft(deck.name);
+                  setEditingName(true);
+                }}
+                className="font-serif text-xl font-black leading-none tracking-wider truncate text-left flex items-center gap-2 group"
+                style={{ color: CREAM }}
+                title="Rename"
+              >
+                <span className="truncate">{deck.name.toUpperCase()}</span>
+                <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 transition shrink-0" style={{ color: CREAM_DIM }} />
+              </button>
+            )}
             <div className="font-serif text-[10px] tracking-[0.3em] uppercase mt-1" style={{ color: CREAM_DIM }}>
               Vault · Deck
             </div>
@@ -224,18 +264,25 @@ export function DeckEditor({ deck, onUpdate, onBack }) {
           </span>
         </div>
         <div
-          className="hidden md:flex items-center px-5 border-r font-serif text-[11px] tracking-[0.3em] uppercase"
+          className="hidden md:flex items-center px-5 border-r font-serif text-[11px] tracking-[0.3em] uppercase gap-4"
           style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
         >
-          {
-            Object.keys(
-              deck.cards.reduce((m, c) => {
-                (c.tags || []).forEach((t) => (m[t] = 1));
-                return m;
-              }, {})
-            ).length
-          }{' '}
-          tags
+          <button
+            onClick={() => setShowExport(true)}
+            className="flex items-center hover:opacity-100"
+            title="Export decklist"
+          >
+            <Download className="w-3 h-3 mr-1.5" /> Export
+          </button>
+          {onDuplicate && (
+            <button
+              onClick={onDuplicate}
+              className="flex items-center hover:opacity-100"
+              title="Duplicate deck"
+            >
+              <Copy className="w-3 h-3 mr-1.5" /> Dupe
+            </button>
+          )}
         </div>
         <button
           onClick={() => setShowRules(true)}
@@ -286,6 +333,7 @@ export function DeckEditor({ deck, onUpdate, onBack }) {
       </div>
 
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}
+      {showExport && <ExportModal deck={deck} onClose={() => setShowExport(false)} />}
     </div>
   );
 }

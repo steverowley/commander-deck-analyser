@@ -1,8 +1,19 @@
 /**
- * Deck persistence backed by localStorage.
+ * Deck persistence — storage adapter.
  *
- * Async signatures are preserved so swapping in a real backend later
- * (Supabase, Firebase, custom Node) won't require touching call sites.
+ * Public contract (everything else in the app calls these only):
+ *
+ *   loadDecks()       → Promise<Deck[]>    // ordered by updated desc
+ *   saveDeck(deck)    → Promise<boolean>   // create or update; mutates `updated`
+ *   deleteDeck(id)    → Promise<void>
+ *
+ * Current backend: browser localStorage (single device).
+ * Swap path: replace this file with a Supabase / Firebase / Node adapter
+ * exposing the same three async functions and the rest of the app needs
+ * no changes. Auth would live behind these functions, not above them.
+ *
+ * Deck shape (see src/App.jsx handleCreate):
+ *   { id, name, cards: [...], commander, created, updated }
  */
 
 const DECKS_KEY = 'vault:decks-v1';
