@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, BookOpen, Loader2, Crown, Sparkles, Tag, BarChart3, Target, Clock, Calculator, Lightbulb, Pencil, Copy, Download, Link as LinkIcon, GitCompare } from 'lucide-react';
+import { ChevronLeft, BookOpen, Loader2, Crown, Sparkles, Tag, BarChart3, Target, Clock, Calculator, Lightbulb, Pencil, Copy, Download, Link as LinkIcon, GitCompare, FileText } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { lc, pad } from '../lib/utils.js';
 import { searchCardAutocomplete, fetchCardByExactName, cardImageUrl } from '../lib/scryfall.js';
-import { renameDeck } from '../lib/deckops.js';
+import { renameDeck, setDeckNotes } from '../lib/deckops.js';
 import { CardsTab, PackagesTab, CurveTab, BracketTab, StagesTab, ProbabilitiesTab, RecommendationsTab } from './Tabs.jsx';
-import { RulesModal, ExportModal, ShareModal, CompareModal } from './Modals.jsx';
+import { RulesModal, ExportModal, ShareModal, CompareModal, NotesModal } from './Modals.jsx';
 import { ManaCost } from './ManaCost.jsx';
 import { ErrorBoundary } from './ErrorBoundary.jsx';
 
@@ -196,6 +196,7 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, otherDecks = [
   const [showExport, setShowExport] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showCompare, setShowCompare] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(deck.name);
 
@@ -295,6 +296,14 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, otherDecks = [
           style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
         >
           <button
+            onClick={() => setShowNotes(true)}
+            className="flex items-center hover:opacity-100"
+            title="Deck notes / scratchpad"
+            style={{ color: deck.notes ? CREAM : CREAM_DIM }}
+          >
+            <FileText className="w-3 h-3 mr-1.5" /> Notes{deck.notes ? ' ·' : ''}
+          </button>
+          <button
             onClick={() => setShowShare(true)}
             className="flex items-center hover:opacity-100"
             title="Share via link"
@@ -381,6 +390,13 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, otherDecks = [
       {showExport && <ExportModal deck={deck} onClose={() => setShowExport(false)} />}
       {showShare && <ShareModal deck={deck} onClose={() => setShowShare(false)} />}
       {showCompare && <CompareModal deck={deck} otherDecks={otherDecks} onClose={() => setShowCompare(false)} />}
+      {showNotes && (
+        <NotesModal
+          deck={deck}
+          onSave={(notes) => onUpdate(setDeckNotes(deck, notes))}
+          onClose={() => setShowNotes(false)}
+        />
+      )}
     </div>
   );
 }

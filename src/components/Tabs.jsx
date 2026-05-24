@@ -1683,7 +1683,29 @@ export function RecommendationsTab({ deck, onUpdate }) {
               {cuts.length} possible cut{cuts.length === 1 ? '' : 's'} — weakest first
             </div>
             {cuts.map((cut) => (
-              <CutRow key={cut.card.name} cut={cut} onRemove={() => removeFromDeck(cut.card.name)} />
+              <CutRow
+                key={cut.card.name}
+                cut={cut}
+                replacements={topList}
+                busy={adding}
+                onRemove={() => removeFromDeck(cut.card.name)}
+                onReplace={async (rec) => {
+                  // Atomic: remove the cut card, then add the rec.
+                  setAdding((a) => ({ ...a, [rec.name]: true }));
+                  try {
+                    const card = await fetchCardByExactName(rec.name);
+                    let next = removeCardFromDeck(deck, cut.card.name);
+                    if (card) next = addCardsToDeck(next, [{ name: card.name, count: 1, scryfall: card }]);
+                    onUpdate(next);
+                  } finally {
+                    setAdding((a) => {
+                      const n = { ...a };
+                      delete n[rec.name];
+                      return n;
+                    });
+                  }
+                }}
+              />
             ))}
           </div>
         )
@@ -1698,8 +1720,9 @@ export function RecommendationsTab({ deck, onUpdate }) {
   );
 }
 
-function CutRow({ cut, onRemove }) {
+function CutRow({ cut, replacements, busy, onRemove, onReplace }) {
   const c = cut.card;
+  const [showPicker, setShowPicker] = useState(false);
   const reasonColor =
     cut.reason === 'missing-from-edhrec' ? ACCENT :
     cut.reason === 'low-synergy' ? '#d8b35a' :
@@ -1708,34 +1731,77 @@ function CutRow({ cut, onRemove }) {
     cut.reason === 'missing-from-edhrec' ? 'off-strategy' :
     cut.reason === 'low-synergy' ? 'low synergy' :
     'untagged';
+  // Top 5 EDHREC recs not already in the deck — what we offer as swaps.
+  const swapCandidates = (replacements || []).slice(0, 5);
+
   return (
-    <div className="border-r border-b flex items-center gap-3 px-3 py-2.5" style={{ borderColor: CREAM_FAINT }}>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-baseline gap-3">
-          <span className="font-serif font-bold uppercase tracking-tight truncate" style={{ color: CREAM, fontSize: '0.95rem' }}>
-            {c.name}
-          </span>
-          <span className="font-mono text-[10px] tracking-wider shrink-0" style={{ color: CREAM_DIM }}>
-            cmc {c.scryfall.cmc ?? 0}
+    <div className="border-r border-b" style={{ borderColor: CREAM_FAINT }}>
+      <div className="flex items-center gap-3 px-3 py-2.5">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-3">
+            <span className="font-serif font-bold uppercase tracking-tight truncate" style={{ color: CREAM, fontSize: '0.95rem' }}>
+              {c.name}
+            </span>
+            <span className="font-mono text-[10px] tracking-wider shrink-0" style={{ color: CREAM_DIM }}>
+              cmc {c.scryfall.cmc ?? 0}
+            </span>
+          </div>
+          <div className="font-serif text-xs italic mt-0.5" style={{ color: CREAM_DIM }}>
+            {cut.note}
+          </div>
+        </div>
+        <div className="hidden md:block shrink-0">
+          <span className="font-mono text-[10px] tracking-wider px-2 py-0.5 border" style={{ borderColor: reasonColor, color: reasonColor }}>
+            {reasonLabel}
           </span>
         </div>
-        <div className="font-serif text-xs italic mt-0.5" style={{ color: CREAM_DIM }}>
-          {cut.note}
+        {swapCandidates.length > 0 && onReplace && (
+          <button
+            onClick={() => setShowPicker(!showPicker)}
+            className="font-serif text-[10px] tracking-[0.3em] uppercase px-3 py-1 border transition shrink-0"
+            style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
+            title="Cut and replace with a recommended card"
+          >
+            {showPicker ? 'Close' : 'Swap'}
+          </button>
+        )}
+        <button
+          onClick={onRemove}
+          className="font-serif text-[10px] tracking-[0.3em] uppercase px-3 py-1 border transition shrink-0"
+          style={{ borderColor: CREAM_FAINT, color: CREAM }}
+          title="Remove this card from the deck"
+        >
+          Cut
+        </button>
+      </div>
+      {showPicker && swapCandidates.length > 0 && (
+        <div className="border-t px-3 py-2 space-y-1" style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.025)' }}>
+          <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+            Replace with — top EDHREC picks
+          </div>
+          {swapCandidates.map((rec) => (
+            <button
+              key={rec.name}
+              onClick={() => {
+                onReplace(rec);
+                setShowPicker(false);
+              }}
+              disabled={!!busy[rec.name]}
+              className="w-full flex items-center justify-between gap-3 px-2 py-1.5 border transition disabled:opacity-40"
+              style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.06)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.02)')}
+            >
+              <span className="font-serif font-bold uppercase tracking-tight truncate text-left" style={{ color: CREAM, fontSize: '0.85rem' }}>
+                {rec.name}
+              </span>
+              <span className="font-mono text-[10px] tracking-wider shrink-0" style={{ color: CREAM_DIM }}>
+                synergy {rec.synergy >= 0 ? '+' : ''}{(rec.synergy * 100).toFixed(0)}
+              </span>
+            </button>
+          ))}
         </div>
-      </div>
-      <div className="hidden md:block shrink-0">
-        <span className="font-mono text-[10px] tracking-wider px-2 py-0.5 border" style={{ borderColor: reasonColor, color: reasonColor }}>
-          {reasonLabel}
-        </span>
-      </div>
-      <button
-        onClick={onRemove}
-        className="font-serif text-[10px] tracking-[0.3em] uppercase px-3 py-1 border transition shrink-0"
-        style={{ borderColor: CREAM_FAINT, color: CREAM }}
-        title="Remove this card from the deck"
-      >
-        Cut
-      </button>
+      )}
     </div>
   );
 }
