@@ -14,6 +14,7 @@ function CommanderPicker({ deck, onSet }) {
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [highlight, setHighlight] = useState(0);
 
   useEffect(() => {
     if (!q || q.length < 2) {
@@ -23,6 +24,7 @@ function CommanderPicker({ deck, onSet }) {
     const t = setTimeout(async () => {
       const r = await searchCardAutocomplete(q);
       setSuggestions(r.slice(0, 6));
+      setHighlight(0);
     }, 200);
     return () => clearTimeout(t);
   }, [q]);
@@ -36,11 +38,31 @@ function CommanderPicker({ deck, onSet }) {
         onSet(card);
         setQ('');
         setSuggestions([]);
+        setHighlight(0);
       } else setError(`Could not find "${name}"`);
     } catch (e) {
       setError(`Error: ${e.message}`);
     }
     setLoading(false);
+  };
+
+  const onKey = (e) => {
+    if (suggestions.length === 0) {
+      if (e.key === 'Enter' && q.trim().length >= 2) handleSelect(q.trim());
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlight((h) => Math.min(h + 1, suggestions.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlight((h) => Math.max(h - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSelect(suggestions[highlight] || suggestions[0]);
+    } else if (e.key === 'Escape') {
+      setSuggestions([]);
+    }
   };
 
   if (deck.commander) {
@@ -124,9 +146,7 @@ function CommanderPicker({ deck, onSet }) {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && suggestions[0]) handleSelect(suggestions[0]);
-            }}
+            onKeyDown={onKey}
             placeholder="search by card name..."
             className="flex-1 bg-transparent focus:outline-none font-mono text-sm"
             style={{ color: CREAM }}
@@ -144,14 +164,17 @@ function CommanderPicker({ deck, onSet }) {
             className="absolute top-full left-6 right-6 border z-20 mt-px"
             style={{ background: BG, borderColor: CREAM_FAINT }}
           >
-            {suggestions.map((s) => (
+            {suggestions.map((s, i) => (
               <div
                 key={s}
                 onClick={() => handleSelect(s)}
+                onMouseEnter={() => setHighlight(i)}
                 className="px-4 py-2.5 cursor-pointer font-mono text-xs border-b last:border-0 transition"
-                style={{ borderColor: CREAM_FAINT, color: CREAM }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.06)')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                style={{
+                  borderColor: CREAM_FAINT,
+                  color: CREAM,
+                  background: i === highlight ? 'rgba(243,231,201,0.08)' : 'transparent',
+                }}
               >
                 {s}
               </div>
@@ -298,8 +321,8 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate }) {
       </div>
 
       <div
-        className="grid grid-cols-4 md:grid-cols-7 border-t border-l fade-up"
-        style={{ borderColor: CREAM_FAINT, animationDelay: '120ms' }}
+        className="grid grid-cols-4 md:grid-cols-7 border-t border-l fade-up sticky top-0 z-30"
+        style={{ borderColor: CREAM_FAINT, animationDelay: '120ms', background: BG }}
       >
         {tabs.map((t) => {
           const Icon = t.icon;

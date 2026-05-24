@@ -6,17 +6,19 @@ import { cardImageUrl, searchCardAutocomplete, fetchCardByExactName } from '../l
 
 // ───────────────────────────────────────────────────────────────────────────────
 
-export function CardThumb({ card, size = 'sm' }) {
+export function CardThumb({ card, size = 'sm', onClick }) {
   const [errored, setErrored] = useState(false);
   if (!card?.name) return null;
   const ver = size === 'sm' ? 'small' : 'normal';
   const url = cardImageUrl(card, ver);
   const sz = size === 'sm' ? 'w-10 h-14' : 'w-32 h-44';
+  const interactive = !!onClick;
   if (errored) {
     return (
       <div
-        className={`${sz} flex items-center justify-center text-[8px] text-center px-1 leading-tight font-serif`}
+        className={`${sz} flex items-center justify-center text-[8px] text-center px-1 leading-tight font-serif ${interactive ? 'cursor-pointer' : ''}`}
         style={{ background: BG, borderColor: CREAM_FAINT, borderWidth: 1, color: CREAM_DIM }}
+        onClick={onClick}
       >
         {card.name.slice(0, 14)}
       </div>
@@ -26,11 +28,80 @@ export function CardThumb({ card, size = 'sm' }) {
     <img
       src={url}
       alt={card.name}
-      className={`${sz} object-cover`}
+      className={`${sz} object-cover ${interactive ? 'cursor-pointer' : ''}`}
       style={{ background: BG, borderColor: CREAM_FAINT, borderWidth: 1 }}
       loading="lazy"
       onError={() => setErrored(true)}
+      onClick={onClick}
     />
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Centered card preview modal. Used when a user taps a card on touch
+ * devices (where the hover preview can't fire) or wants to inspect
+ * the full oracle text.
+ */
+export function CardPreview({ card, onClose }) {
+  if (!card) return null;
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(13,22,20,0.92)', backdropFilter: 'blur(6px)' }}
+      onClick={onClose}
+    >
+      <div
+        className="flex flex-col md:flex-row gap-4 md:gap-6 max-w-3xl w-full max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <img
+          src={cardImageUrl(card, 'normal')}
+          alt={card.name}
+          className="w-64 self-center md:self-start shrink-0"
+          style={{ borderColor: CREAM_FAINT, borderWidth: 1 }}
+          onError={(e) => (e.currentTarget.style.display = 'none')}
+        />
+        <div className="flex-1 min-w-0 overflow-auto border p-5" style={{ borderColor: CREAM_FAINT, background: BG }}>
+          <div className="flex items-baseline justify-between gap-3 mb-2">
+            <h3 className="font-serif font-black uppercase tracking-tight" style={{ color: CREAM, fontSize: 'clamp(1.1rem, 3vw, 1.5rem)' }}>
+              {card.name}
+            </h3>
+            <button onClick={onClose} style={{ color: CREAM_DIM }}>
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="font-serif text-sm italic mb-3" style={{ color: CREAM_DIM }}>
+            {card.type_line}
+          </div>
+          {card.mana_cost && (
+            <div className="font-mono text-sm mb-3" style={{ color: CREAM }}>
+              {card.mana_cost}
+            </div>
+          )}
+          {card.oracle_text && (
+            <div className="font-serif text-sm whitespace-pre-wrap leading-relaxed" style={{ color: CREAM }}>
+              {card.oracle_text}
+            </div>
+          )}
+          {(card.card_faces || []).map((face, i) => (
+            face.oracle_text ? (
+              <div key={i} className="mt-3 pt-3 border-t" style={{ borderColor: CREAM_FAINT }}>
+                <div className="font-serif text-sm whitespace-pre-wrap leading-relaxed" style={{ color: CREAM }}>
+                  {face.oracle_text}
+                </div>
+              </div>
+            ) : null
+          ))}
+          {(card.power || card.loyalty) && (
+            <div className="font-mono text-sm mt-3 pt-3 border-t" style={{ borderColor: CREAM_FAINT, color: CREAM }}>
+              {card.power ? `${card.power} / ${card.toughness}` : `Loyalty ${card.loyalty}`}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -151,6 +222,7 @@ export function CardRow({ entry, idx, onChangeCount, onRemove, onEditTags }) {
   const c = entry.scryfall;
   const [hoverPos, setHoverPos] = useState(null);
   const [imgError, setImgError] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   if (!c) return null;
 
   const handleMouseEnter = (e) => {
@@ -188,15 +260,16 @@ export function CardRow({ entry, idx, onChangeCount, onRemove, onEditTags }) {
       <div className="font-mono text-[10px] w-8 pt-1.5 shrink-0 tracking-wider" style={{ color: CREAM_DIM }}>
         {pad(idx + 1)}
       </div>
-      <CardThumb card={c} />
+      <CardThumb card={c} onClick={() => setShowPreview(true)} />
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-3">
-          <span
-            className="font-serif font-bold uppercase tracking-tight truncate"
+          <button
+            onClick={() => setShowPreview(true)}
+            className="font-serif font-bold uppercase tracking-tight truncate text-left"
             style={{ color: CREAM, fontSize: '0.95rem' }}
           >
             {c.name}
-          </span>
+          </button>
           <span className="font-serif text-xs italic shrink-0" style={{ color: CREAM_DIM }}>
             {c.type_line}
           </span>
@@ -243,7 +316,7 @@ export function CardRow({ entry, idx, onChangeCount, onRemove, onEditTags }) {
         </div>
       </div>
       {previewStyle && !imgError && (
-        <div style={previewStyle}>
+        <div style={previewStyle} className="hidden md:block">
           <img
             src={cardImageUrl(c, 'normal')}
             className="w-64"
@@ -253,6 +326,7 @@ export function CardRow({ entry, idx, onChangeCount, onRemove, onEditTags }) {
           />
         </div>
       )}
+      {showPreview && <CardPreview card={c} onClose={() => setShowPreview(false)} />}
     </div>
   );
 }
@@ -263,6 +337,7 @@ export function CardSearchBar({ onAdd }) {
   const [q, setQ] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [highlight, setHighlight] = useState(0);
 
   useEffect(() => {
     if (!q || q.length < 2) {
@@ -272,6 +347,7 @@ export function CardSearchBar({ onAdd }) {
     const t = setTimeout(async () => {
       const r = await searchCardAutocomplete(q);
       setSuggestions(r.slice(0, 8));
+      setHighlight(0);
     }, 200);
     return () => clearTimeout(t);
   }, [q]);
@@ -283,6 +359,26 @@ export function CardSearchBar({ onAdd }) {
     if (card) {
       onAdd([{ name: card.name, count: 1, scryfall: card }]);
       setQ('');
+      setSuggestions([]);
+      setHighlight(0);
+    }
+  };
+
+  const onKey = (e) => {
+    if (suggestions.length === 0) {
+      if (e.key === 'Enter' && q.trim().length >= 2) handleSelect(q.trim());
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlight((h) => Math.min(h + 1, suggestions.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlight((h) => Math.max(h - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSelect(suggestions[highlight] || suggestions[0]);
+    } else if (e.key === 'Escape') {
       setSuggestions([]);
     }
   };
@@ -300,9 +396,7 @@ export function CardSearchBar({ onAdd }) {
           placeholder="search card archive..."
           className="flex-1 bg-transparent focus:outline-none font-mono text-sm"
           style={{ color: CREAM }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && suggestions[0]) handleSelect(suggestions[0]);
-          }}
+          onKeyDown={onKey}
         />
         {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: CREAM_DIM }} />}
       </div>
@@ -311,14 +405,17 @@ export function CardSearchBar({ onAdd }) {
           className="absolute top-full left-0 right-0 border-t-0 border z-20 max-h-64 overflow-auto"
           style={{ background: BG, borderColor: CREAM_FAINT }}
         >
-          {suggestions.map((s) => (
+          {suggestions.map((s, i) => (
             <div
               key={s}
               onClick={() => handleSelect(s)}
+              onMouseEnter={() => setHighlight(i)}
               className="px-4 py-2.5 cursor-pointer font-mono text-xs border-b last:border-0 transition"
-              style={{ borderColor: CREAM_FAINT, color: CREAM }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.06)')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+              style={{
+                borderColor: CREAM_FAINT,
+                color: CREAM,
+                background: i === highlight ? 'rgba(243,231,201,0.08)' : 'transparent',
+              }}
             >
               {s}
             </div>
