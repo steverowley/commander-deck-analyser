@@ -470,7 +470,13 @@ export function CardRow({ entry, idx, onChangeCount, onRemove, onEditTags, onDem
 
 // ───────────────────────────────────────────────────────────────────────────────
 
-export function CardSearchBar({ onAdd }) {
+/**
+ * Card-name search with autocomplete. Hands resolved cards back to onAdd.
+ * Optional `target` tells the caller where to put the result — when "deck"
+ * or "wishlist" is offered via a small toggle the consumer renders, the
+ * label changes accordingly.
+ */
+export function CardSearchBar({ onAdd, target = 'deck', onTargetChange }) {
   const [q, setQ] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -520,6 +526,10 @@ export function CardSearchBar({ onAdd }) {
     }
   };
 
+  const placeholder = target === 'wishlist'
+    ? 'search and add to wishlist...'
+    : 'search card archive...';
+
   return (
     <div className="relative">
       <div
@@ -530,11 +540,29 @@ export function CardSearchBar({ onAdd }) {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="search card archive..."
+          placeholder={placeholder}
           className="flex-1 bg-transparent focus:outline-none font-mono text-sm"
           style={{ color: CREAM }}
           onKeyDown={onKey}
         />
+        {onTargetChange && (
+          <div className="flex border" style={{ borderColor: CREAM_FAINT }}>
+            {['deck', 'wishlist'].map((t) => (
+              <button
+                key={t}
+                onClick={() => onTargetChange(t)}
+                className="font-mono text-[9px] px-2 py-0.5 uppercase tracking-wider"
+                style={{
+                  color: target === t ? CREAM : CREAM_DIM,
+                  background: target === t ? 'rgba(243,231,201,0.08)' : 'transparent',
+                }}
+                title={t === 'deck' ? 'Add to deck' : 'Add to wishlist'}
+              >
+                {t === 'deck' ? '→ deck' : '→ wish'}
+              </button>
+            ))}
+          </div>
+        )}
         {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: CREAM_DIM }} />}
       </div>
       {suggestions.length > 0 && (

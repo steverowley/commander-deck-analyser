@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { X, Loader2, Check, BookOpen, Copy, Download, Link as LinkIcon, GitCompare, Archive, FileText } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { X, Loader2, Check, BookOpen, Copy, Download, Link as LinkIcon, GitCompare, Archive, FileText, Settings as SettingsIcon } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, parseDecklist, lc } from '../lib/utils.js';
 import { fetchCardsByName, fetchCardByExactName } from '../lib/scryfall.js';
@@ -8,6 +8,8 @@ import { buildShareUrl } from '../lib/share.js';
 import { deckTotalPrice, formatPrice } from '../lib/pricing.js';
 import { compareDecks } from '../lib/compare.js';
 import { buildBackup, parseBackup, backupFilename } from '../lib/backup.js';
+import { loadSettings, updateSetting } from '../lib/settings.js';
+import { cacheSize, clearIDBCache } from '../lib/idbcache.js';
 import { TagPill, RuleSection } from './UI.jsx';
 import { ManaSymbol } from './ManaCost.jsx';
 import { BRACKETS } from '../lib/constants.js';
@@ -1090,6 +1092,134 @@ function BackupRestore({ onRestore, onClose }) {
         </button>
       </div>
     </>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * App-wide settings. Stored in localStorage via lib/settings.js.
+ * Currently three rows: strict-default toggle, currency picker,
+ * and a cache info / clear panel.
+ */
+export function SettingsModal({ onClose }) {
+  const [settings, setSettings] = useState(loadSettings());
+  const [cacheCount, setCacheCount] = useState(null);
+  const [clearing, setClearing] = useState(false);
+
+  useEffect(() => {
+    cacheSize().then(setCacheCount);
+  }, []);
+
+  const update = (key, value) => setSettings(updateSetting(key, value));
+
+  const clear = async () => {
+    if (!confirm('Clear the entire card cache? Cards re-download from Scryfall as needed.')) return;
+    setClearing(true);
+    await clearIDBCache();
+    setCacheCount(0);
+    setClearing(false);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 flex items-center justify-center z-50 p-4"
+      style={{ background: 'rgba(13,22,20,0.92)', backdropFilter: 'blur(6px)' }}
+    >
+      <div className="w-full max-w-xl flex flex-col border" style={{ background: BG, borderColor: CREAM_FAINT }}>
+        <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
+          <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold flex items-center gap-2" style={{ color: CREAM }}>
+            <SettingsIcon className="w-3.5 h-3.5" /> Settings
+          </div>
+          <button onClick={onClose} style={{ color: CREAM_DIM }}>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-5 space-y-5">
+          <SettingsRow
+            label="Strict mode default"
+            description="Enable strict color-identity / banned-list blocking on every new deck. Per-deck override always available."
+          >
+            <ToggleSwitch
+              on={!!settings.strictIdentityDefault}
+              onChange={(v) => update('strictIdentityDefault', v)}
+            />
+          </SettingsRow>
+          <SettingsRow
+            label="Price currency"
+            description="Which Scryfall price field to display on deck cards + the Export modal."
+          >
+            <div className="flex border" style={{ borderColor: CREAM_FAINT }}>
+              {['usd', 'eur'].map((c) => (
+                <button
+                  key={c}
+                  onClick={() => update('currency', c)}
+                  className="font-mono text-[10px] px-3 py-1.5 uppercase tracking-wider"
+                  style={{
+                    color: settings.currency === c ? CREAM : CREAM_DIM,
+                    background: settings.currency === c ? 'rgba(243,231,201,0.08)' : 'transparent',
+                  }}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </SettingsRow>
+          <SettingsRow
+            label="Card cache"
+            description={cacheCount === null ? 'Querying IndexedDB...' : `${cacheCount} cards cached. Clearing forces re-download on next lookup.`}
+          >
+            <button
+              onClick={clear}
+              disabled={clearing || cacheCount === 0}
+              className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-1.5 disabled:opacity-40"
+              style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
+            >
+              {clearing ? 'Clearing...' : 'Clear cache'}
+            </button>
+          </SettingsRow>
+        </div>
+        <div className="px-5 py-4 border-t flex justify-end" style={{ borderColor: CREAM_FAINT }}>
+          <button onClick={onClose} className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM }}>
+            Done →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SettingsRow({ label, description, children }) {
+  return (
+    <div className="grid grid-cols-12 gap-4 items-start">
+      <div className="col-span-7">
+        <div className="font-serif text-sm tracking-wide" style={{ color: CREAM }}>
+          {label}
+        </div>
+        <div className="font-serif text-xs italic mt-0.5" style={{ color: CREAM_DIM }}>
+          {description}
+        </div>
+      </div>
+      <div className="col-span-5 flex justify-end">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ToggleSwitch({ on, onChange }) {
+  return (
+    <button
+      onClick={() => onChange(!on)}
+      className="font-mono text-[10px] tracking-wider px-3 py-1 border uppercase"
+      style={{
+        borderColor: on ? CREAM : CREAM_FAINT,
+        color: on ? CREAM : CREAM_DIM,
+        background: on ? 'rgba(243,231,201,0.08)' : 'transparent',
+      }}
+    >
+      {on ? 'ON' : 'OFF'}
+    </button>
   );
 }
 

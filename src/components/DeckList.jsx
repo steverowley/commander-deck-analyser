@@ -10,7 +10,7 @@ import { aggregateStats } from '../lib/stats.js';
 import { ManaSymbol } from './ManaCost.jsx';
 import { ImportDeckModal } from './Modals.jsx';
 
-export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup }) {
+export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup, onSettings }) {
   const [name, setName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showImport, setShowImport] = useState(false);
@@ -409,6 +409,14 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
             <span style={{ opacity: 0.4 }}>·</span>
             <button onClick={onBackup} className="hover:opacity-100 transition" style={{ color: CREAM_DIM }}>
               Backup ↓
+            </button>
+          </>
+        )}
+        {onSettings && (
+          <>
+            <span style={{ opacity: 0.4 }}>·</span>
+            <button onClick={onSettings} className="hover:opacity-100 transition" style={{ color: CREAM_DIM }}>
+              Settings
             </button>
           </>
         )}
