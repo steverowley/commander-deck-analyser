@@ -9,7 +9,7 @@ import { deckTotalPrice, formatPrice } from '../lib/pricing.js';
 import { ManaSymbol } from './ManaCost.jsx';
 import { ImportDeckModal } from './Modals.jsx';
 
-export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport }) {
+export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup }) {
   const [name, setName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showImport, setShowImport] = useState(false);
@@ -402,10 +402,18 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
       </div>
 
       <div
-        className="border-t mt-20 py-6 text-center font-serif text-[10px] tracking-[0.4em] uppercase"
+        className="border-t mt-20 py-6 flex items-center justify-center gap-4 font-serif text-[10px] tracking-[0.4em] uppercase"
         style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
       >
-        Vault · v{__APP_VERSION__} · MIT
+        <span>Vault · v{__APP_VERSION__} · MIT</span>
+        {onBackup && (
+          <>
+            <span style={{ opacity: 0.4 }}>·</span>
+            <button onClick={onBackup} className="hover:opacity-100 transition" style={{ color: CREAM_DIM }}>
+              Backup ↓
+            </button>
+          </>
+        )}
       </div>
 
       {showImport && (

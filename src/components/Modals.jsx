@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { X, Loader2, Check, BookOpen, Copy, Download, Link as LinkIcon, GitCompare } from 'lucide-react';
+import { X, Loader2, Check, BookOpen, Copy, Download, Link as LinkIcon, GitCompare, Archive } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, parseDecklist, lc } from '../lib/utils.js';
 import { fetchCardsByName, fetchCardByExactName } from '../lib/scryfall.js';
@@ -7,6 +7,7 @@ import { exportDecklist } from '../lib/deckops.js';
 import { buildShareUrl } from '../lib/share.js';
 import { deckTotalPrice, formatPrice } from '../lib/pricing.js';
 import { compareDecks } from '../lib/compare.js';
+import { buildBackup, parseBackup, backupFilename } from '../lib/backup.js';
 import { TagPill, RuleSection } from './UI.jsx';
 import { ManaSymbol } from './ManaCost.jsx';
 import { BRACKETS } from '../lib/constants.js';
@@ -865,4 +866,229 @@ function parseBlocks(text) {
     out[cur] += raw + '\n';
   }
   return out;
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Full archive backup + restore. Two tabs: Export (download JSON of
+ * all decks) and Restore (paste/upload a previous backup).
+ */
+export function BackupModal({ decks, onClose, onRestore }) {
+  const [tab, setTab] = useState('export');
+  return (
+    <div
+      className="fixed inset-0 flex items-center justify-center z-50 p-4"
+      style={{ background: 'rgba(13,22,20,0.92)', backdropFilter: 'blur(6px)' }}
+    >
+      <div className="w-full max-w-2xl max-h-[90vh] flex flex-col border" style={{ background: BG, borderColor: CREAM_FAINT }}>
+        <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
+          <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold flex items-center gap-2" style={{ color: CREAM }}>
+            <Archive className="w-3.5 h-3.5" /> Backup
+          </div>
+          <button onClick={onClose} style={{ color: CREAM_DIM }}>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="flex border-b" style={{ borderColor: CREAM_FAINT }}>
+          {[
+            { id: 'export', label: 'Export' },
+            { id: 'restore', label: 'Restore' },
+          ].map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className="flex-1 px-4 py-3 font-serif text-[10px] tracking-[0.3em] uppercase"
+              style={{
+                color: tab === t.id ? CREAM : CREAM_DIM,
+                background: tab === t.id ? 'rgba(243,231,201,0.05)' : 'transparent',
+                borderBottom: tab === t.id ? `1px solid ${CREAM}` : 'none',
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        {tab === 'export'
+          ? <BackupExport decks={decks} onClose={onClose} />
+          : <BackupRestore onRestore={onRestore} onClose={onClose} />
+        }
+      </div>
+    </div>
+  );
+}
+
+function BackupExport({ decks, onClose }) {
+  const payload = useMemo(
+    () => JSON.stringify(buildBackup(decks, typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : ''), null, 2),
+    [decks]
+  );
+  const sizeKb = (new Blob([payload]).size / 1024).toFixed(1);
+  const [copied, setCopied] = useState(false);
+
+  const download = () => {
+    const blob = new Blob([payload], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = backupFilename();
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(payload);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  };
+
+  return (
+    <>
+      <div className="p-5 flex-1 overflow-auto space-y-3">
+        <p className="font-serif text-sm italic" style={{ color: CREAM_DIM }}>
+          Every deck — cards, tags, notes, commanders — as one JSON file. Keep a copy somewhere safe; localStorage doesn't survive a cleared browser.
+        </p>
+        <div className="grid grid-cols-3 gap-3 border" style={{ borderColor: CREAM_FAINT }}>
+          <div className="p-3 border-r" style={{ borderColor: CREAM_FAINT }}>
+            <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>Decks</div>
+            <div className="font-serif font-black mt-1" style={{ color: CREAM, fontSize: '1.4rem' }}>{decks.length}</div>
+          </div>
+          <div className="p-3 border-r" style={{ borderColor: CREAM_FAINT }}>
+            <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>Cards</div>
+            <div className="font-serif font-black mt-1" style={{ color: CREAM, fontSize: '1.4rem' }}>
+              {decks.reduce((s, d) => s + d.cards.reduce((a, c) => a + c.count, 0), 0)}
+            </div>
+          </div>
+          <div className="p-3">
+            <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>Size</div>
+            <div className="font-serif font-black mt-1" style={{ color: CREAM, fontSize: '1.4rem' }}>{sizeKb} KB</div>
+          </div>
+        </div>
+        <textarea
+          value={payload}
+          readOnly
+          onClick={(e) => e.currentTarget.select()}
+          className="w-full h-44 p-3 border bg-transparent focus:outline-none font-mono text-[10px] leading-relaxed"
+          style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(243,231,201,0.02)' }}
+        />
+      </div>
+      <div className="px-5 py-4 border-t flex justify-end gap-4" style={{ borderColor: CREAM_FAINT }}>
+        <button onClick={onClose} className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+          Close
+        </button>
+        <button onClick={copy} className="font-serif text-[10px] tracking-[0.3em] uppercase flex items-center gap-2" style={{ color: CREAM }}>
+          {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+          {copied ? 'Copied' : 'Copy JSON'}
+        </button>
+        <button onClick={download} className="font-serif text-[10px] tracking-[0.3em] uppercase flex items-center gap-2" style={{ color: CREAM }}>
+          <Download className="w-3 h-3" /> Download
+        </button>
+      </div>
+    </>
+  );
+}
+
+function BackupRestore({ onRestore, onClose }) {
+  const [text, setText] = useState('');
+  const [error, setError] = useState(null);
+  const [warning, setWarning] = useState(null);
+  const [mode, setMode] = useState('replace'); // 'replace' | 'merge'
+
+  const onFile = async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setText(await f.text());
+  };
+
+  const handleRestore = () => {
+    setError(null);
+    setWarning(null);
+    let parsed;
+    try {
+      parsed = parseBackup(text);
+    } catch (e) {
+      setError(e.message);
+      return;
+    }
+    if (parsed.invalidCount > 0) {
+      setWarning(`${parsed.invalidCount} entry/entries skipped — malformed.`);
+    }
+    if (mode === 'replace' && !confirm(`Replace your current archive with ${parsed.decks.length} deck(s) from this backup? This can't be undone.`)) {
+      return;
+    }
+    onRestore(parsed.decks, mode);
+    if (!warning) onClose();
+  };
+
+  return (
+    <>
+      <div className="p-5 flex-1 overflow-auto space-y-3">
+        <p className="font-serif text-sm italic" style={{ color: CREAM_DIM }}>
+          Paste a previous backup JSON or upload one. Choose whether to merge with your current archive (additive, dedup by id) or replace it wholesale.
+        </p>
+        <div className="flex gap-3 items-center">
+          <label className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-2 cursor-pointer" style={{ borderColor: CREAM_FAINT, color: CREAM }}>
+            Upload .json
+            <input type="file" accept="application/json,.json" className="hidden" onChange={onFile} />
+          </label>
+          <span className="font-serif text-xs italic" style={{ color: CREAM_DIM }}>or paste below</span>
+        </div>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder='{ "vault": "v1", "decks": [...] }'
+          className="w-full h-44 p-3 border bg-transparent focus:outline-none font-mono text-[10px] leading-relaxed"
+          style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(243,231,201,0.02)' }}
+        />
+        <div className="flex items-center gap-3">
+          <span className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>Mode</span>
+          {['replace', 'merge'].map((m) => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className="font-serif text-[10px] tracking-[0.3em] uppercase px-3 py-1 border"
+              style={{
+                borderColor: mode === m ? CREAM : CREAM_FAINT,
+                color: mode === m ? CREAM : CREAM_DIM,
+                background: mode === m ? 'rgba(243,231,201,0.05)' : 'transparent',
+              }}
+            >
+              {m}
+            </button>
+          ))}
+          <span className="font-serif text-xs italic" style={{ color: CREAM_DIM }}>
+            {mode === 'replace' ? '— wipes current archive' : '— adds new decks, keeps your current ones'}
+          </span>
+        </div>
+        {warning && (
+          <div className="px-4 py-2 border font-mono text-xs" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
+            {warning}
+          </div>
+        )}
+        {error && (
+          <div className="px-4 py-3 border" style={{ borderColor: ACCENT, background: 'rgba(196,74,63,0.06)' }}>
+            <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-1" style={{ color: ACCENT }}>Error</div>
+            <div className="font-mono text-xs" style={{ color: CREAM }}>{error}</div>
+          </div>
+        )}
+      </div>
+      <div className="px-5 py-4 border-t flex justify-end gap-4" style={{ borderColor: CREAM_FAINT }}>
+        <button onClick={onClose} className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+          Cancel
+        </button>
+        <button
+          onClick={handleRestore}
+          disabled={!text.trim()}
+          className="font-serif text-[10px] tracking-[0.3em] uppercase disabled:opacity-30"
+          style={{ color: CREAM }}
+        >
+          Restore →
+        </button>
+      </div>
+    </>
+  );
 }
