@@ -8,7 +8,7 @@ import { buildStagePlans, synergyHubs, packageWeight } from '../lib/strategy.js'
 import { BRACKETS } from '../lib/constants.js';
 import { addCardsToDeck, setCardCount, removeCardFromDeck, setCardTags } from '../lib/deckops.js';
 import { simulateOpeners, simulatePlayout } from '../lib/goldfish.js';
-import { fetchRecommendations, topRecommendations, recommendationsByTheme } from '../lib/edhrec.js';
+import { fetchRecommendations, topRecommendations, recommendationsByTheme, suggestCuts } from '../lib/edhrec.js';
 import { fetchCardByExactName } from '../lib/scryfall.js';
 import { checkDeckLegality } from '../lib/legality.js';
 import { CardSearchBar, CardRow, TagPill, CardThumb, StatBox, FlagBox, ProbCard } from './UI.jsx';
@@ -1228,6 +1228,11 @@ export function RecommendationsTab({ deck, onUpdate }) {
     [recs, excludeNames]
   );
 
+  const cuts = useMemo(
+    () => (recs ? suggestCuts(deck, recs) : []),
+    [deck, recs]
+  );
+
   const addRec = async (rec) => {
     setAdding((a) => ({ ...a, [rec.name]: true }));
     try {
@@ -1239,6 +1244,42 @@ export function RecommendationsTab({ deck, onUpdate }) {
         delete next[rec.name];
         return next;
       });
+    }
+  };
+
+  const removeFromDeck = (cardName) => {
+    onUpdate(removeCardFromDeck(deck, cardName));
+  };
+
+  const [seeding, setSeeding] = useState(false);
+  const [seedProgress, setSeedProgress] = useState('');
+
+  /**
+   * Build a 99-card seed deck from EDHREC's top recommendations.
+   * Replaces the current cards (commander unchanged). Useful when
+   * a user wants the "typical Edgar Markov list" as a starting point.
+   */
+  const seedFromAverage = async () => {
+    if (!recs || !confirm('Replace current cards with EDHREC\'s top 99 picks for this commander?')) return;
+    setSeeding(true);
+    try {
+      const top = topRecommendations(recs, new Set([deck.commander.name.toLowerCase()]), 99);
+      const names = top.map((r) => r.name);
+      setSeedProgress(`Fetching ${names.length} cards from Scryfall...`);
+      // Use the batch endpoint via fetchCardsByName for efficiency.
+      const { fetchCardsByName } = await import('../lib/scryfall.js');
+      const { results } = await fetchCardsByName(names, setSeedProgress);
+      const cards = names
+        .map((n) => {
+          const card = results[n.toLowerCase()];
+          return card ? { name: card.name, count: 1, scryfall: card } : null;
+        })
+        .filter(Boolean);
+      onUpdate({ ...deck, cards: [] }); // clear
+      onUpdate(addCardsToDeck({ ...deck, cards: [] }, cards));
+      setSeedProgress('');
+    } finally {
+      setSeeding(false);
     }
   };
 
@@ -1255,13 +1296,14 @@ export function RecommendationsTab({ deck, onUpdate }) {
       <div className="flex flex-col md:flex-row md:items-baseline md:justify-between gap-3">
         <div>
           <div className="font-serif text-sm italic" style={{ color: CREAM_DIM }}>
-            Cards most often played alongside <span style={{ color: CREAM }}>{deck.commander.name}</span>, sourced from EDHREC. Filtered to ones you don't already have.
+            Based on EDHREC data for <span style={{ color: CREAM }}>{deck.commander.name}</span>. Recs are cards typical decks run; Cuts flags the weakest cards already in your list.
           </div>
         </div>
-        <div className="flex gap-px border self-start" style={{ borderColor: CREAM_FAINT }}>
+        <div className="flex gap-px border self-start flex-wrap" style={{ borderColor: CREAM_FAINT }}>
           {[
             { id: 'synergy', label: 'Top Synergy' },
             { id: 'theme', label: 'By Theme' },
+            { id: 'cuts', label: `Cuts${cuts.length ? ` · ${cuts.length}` : ''}` },
           ].map((v) => (
             <button
               key={v.id}
@@ -1277,6 +1319,30 @@ export function RecommendationsTab({ deck, onUpdate }) {
           ))}
         </div>
       </div>
+
+      {recs && deck.cards.length < 50 && (
+        <div className="border p-4 flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-5" style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.025)' }}>
+          <div className="flex-1">
+            <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-1" style={{ color: CREAM_DIM }}>
+              Quick start
+            </div>
+            <div className="font-serif text-sm" style={{ color: CREAM }}>
+              Build a 99-card baseline from EDHREC's top picks for {deck.commander.name}.
+            </div>
+            <div className="font-serif text-xs italic mt-0.5" style={{ color: CREAM_DIM }}>
+              Replaces the current cards. Use this as a starting point to iterate from.
+            </div>
+          </div>
+          <button
+            onClick={seedFromAverage}
+            disabled={seeding}
+            className="font-serif text-[10px] tracking-[0.3em] uppercase border px-4 py-2 shrink-0 disabled:opacity-40"
+            style={{ borderColor: CREAM_FAINT, color: CREAM }}
+          >
+            {seeding ? (seedProgress || 'Building...') : 'Seed 99-card deck →'}
+          </button>
+        </div>
+      )}
 
       {loading && (
         <div className="border p-8 text-center" style={{ borderColor: CREAM_FAINT }}>
@@ -1341,11 +1407,70 @@ export function RecommendationsTab({ deck, onUpdate }) {
         </div>
       )}
 
-      {!loading && !error && topList.length === 0 && byTheme.length === 0 && recs && (
+      {!loading && !error && view === 'cuts' && (
+        cuts.length === 0 ? (
+          <div className="border p-12 text-center font-serif text-sm italic" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
+            No obvious cuts. Every card in this deck is either commonly played with this commander or carries a detected role.
+          </div>
+        ) : (
+          <div className="border-t border-l" style={{ borderColor: CREAM_FAINT }}>
+            <div className="border-r border-b px-4 py-2 font-serif text-[10px] tracking-[0.3em] uppercase" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM, background: 'rgba(243,231,201,0.025)' }}>
+              {cuts.length} possible cut{cuts.length === 1 ? '' : 's'} — weakest first
+            </div>
+            {cuts.map((cut) => (
+              <CutRow key={cut.card.name} cut={cut} onRemove={() => removeFromDeck(cut.card.name)} />
+            ))}
+          </div>
+        )
+      )}
+
+      {!loading && !error && (view === 'synergy' || view === 'theme') && topList.length === 0 && byTheme.length === 0 && recs && (
         <div className="border p-12 text-center font-serif text-sm italic" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
           You already have all of EDHREC's top recommendations for this commander. Nice.
         </div>
       )}
+    </div>
+  );
+}
+
+function CutRow({ cut, onRemove }) {
+  const c = cut.card;
+  const reasonColor =
+    cut.reason === 'missing-from-edhrec' ? ACCENT :
+    cut.reason === 'low-synergy' ? '#d8b35a' :
+    CREAM_DIM;
+  const reasonLabel =
+    cut.reason === 'missing-from-edhrec' ? 'off-strategy' :
+    cut.reason === 'low-synergy' ? 'low synergy' :
+    'untagged';
+  return (
+    <div className="border-r border-b flex items-center gap-3 px-3 py-2.5" style={{ borderColor: CREAM_FAINT }}>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline gap-3">
+          <span className="font-serif font-bold uppercase tracking-tight truncate" style={{ color: CREAM, fontSize: '0.95rem' }}>
+            {c.name}
+          </span>
+          <span className="font-mono text-[10px] tracking-wider shrink-0" style={{ color: CREAM_DIM }}>
+            cmc {c.scryfall.cmc ?? 0}
+          </span>
+        </div>
+        <div className="font-serif text-xs italic mt-0.5" style={{ color: CREAM_DIM }}>
+          {cut.note}
+        </div>
+      </div>
+      <div className="hidden md:block shrink-0">
+        <span className="font-mono text-[10px] tracking-wider px-2 py-0.5 border" style={{ borderColor: reasonColor, color: reasonColor }}>
+          {reasonLabel}
+        </span>
+      </div>
+      <button
+        onClick={onRemove}
+        className="font-serif text-[10px] tracking-[0.3em] uppercase px-3 py-1 border transition shrink-0"
+        style={{ borderColor: CREAM_FAINT, color: CREAM }}
+        title="Remove this card from the deck"
+      >
+        Cut
+      </button>
     </div>
   );
 }
