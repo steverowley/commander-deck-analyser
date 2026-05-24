@@ -90,6 +90,56 @@ export function simulateOpeners(deck, samples = DEFAULT_SAMPLES) {
 }
 
 /**
+ * London-mulligan tree analysis. Returns the keepable rate at each hand
+ * size (7 / 6 / 5 / 4) from N samples, plus an implied "stops at this
+ * mulligan" probability derived from the conditional drops.
+ *
+ * Hand sizes < 7 are modelled by simply drawing fewer cards — the actual
+ * London rule lets you draw 7 and put N back, which is slightly more
+ * favourable, but this is a close-enough approximation for "if I have
+ * to mull, what are my odds?".
+ */
+export function simulateMulliganTree(deck, samples = DEFAULT_SAMPLES) {
+  const lib = buildLibrary(deck);
+  if (lib.length < HAND_SIZE) return null;
+
+  const sizes = [7, 6, 5, 4];
+  const keepable = { 7: 0, 6: 0, 5: 0, 4: 0 };
+
+  for (let i = 0; i < samples; i++) {
+    const shuffled = shuffle(lib);
+    for (const size of sizes) {
+      const hand = shuffled.slice(0, size);
+      const lands = hand.filter(isLand).length;
+      const ramp = hand.filter((c) => !isLand(c) && hasTag(c, 'Ramp', 'Mana rock')).length;
+      const draw = hand.filter((c) => hasTag(c, 'Card draw')).length;
+      // Same keepability rule as openers, scaled — at smaller hand sizes
+      // we get more permissive on the upper land bound.
+      const maxL = Math.min(size, 5);
+      const keep = lands >= 2 && lands <= maxL && (lands >= 3 || ramp + draw >= 1);
+      if (keep) keepable[size]++;
+    }
+  }
+
+  const rates = {};
+  for (const s of sizes) rates[s] = keepable[s] / samples;
+
+  // "Stops at mull N" = took until N mulligans for a keep. Modelled as
+  // sequential independent draws using the keepability rates (an upper
+  // bound on the true value since real mulligans correlate).
+  const stop = { 7: rates[7] };
+  let surviving = 1 - rates[7];
+  stop[6] = surviving * rates[6];
+  surviving *= (1 - rates[6]);
+  stop[5] = surviving * rates[5];
+  surviving *= (1 - rates[5]);
+  stop[4] = surviving * rates[4];
+  stop.further = Math.max(0, 1 - (stop[7] + stop[6] + stop[5] + stop[4]));
+
+  return { samples, keepable: rates, stop };
+}
+
+/**
  * Simulate the first `turns` turns of one game. Returns a per-turn log
  * the UI can display as a play sequence.
  *

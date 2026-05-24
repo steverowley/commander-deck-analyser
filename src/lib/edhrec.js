@@ -186,6 +186,55 @@ export function recommendationIndex(recommendations) {
 }
 
 /**
+ * Map detected archetype IDs to keyword fragments that appear in EDHREC
+ * theme headers. Used by `themesForArchetype` to rank themes.
+ */
+const ARCHETYPE_THEME_KEYWORDS = {
+  tribal: ['tribal', 'theme', 'kindred'],
+  aggro: ['aggro', 'attack', 'combat'],
+  combo: ['combo', 'infinite', 'wins?'],
+  control: ['control', 'counterspell', 'removal', 'board wipe'],
+  midrange: ['value', 'midrange'],
+  tokens: ['token', 'go wide', 'populate'],
+  reanimator: ['reanim', 'graveyard', 'recursion'],
+  voltron: ['voltron', 'equipment', 'aura'],
+  aristocrats: ['aristocrat', 'sacrifice', 'death'],
+  spellslinger: ['spellslinger', 'spells matter', 'instant', 'sorcery'],
+  stax: ['stax', 'lock', 'prison', 'taxes'],
+  'group-hug': ['group hug', 'politic'],
+  theft: ['theft', 'steal', 'threaten'],
+  'self-mill': ['mill', 'graveyard'],
+};
+
+/**
+ * Given a detected archetype id and EDHREC recommendations, return
+ * the themes most relevant to that archetype. Falls back to all themes
+ * sorted by card count if no archetype id supplied or no match found.
+ */
+export function themesForArchetype(recommendations, archetypeId, excludeNames) {
+  if (!recommendations?.themes) return [];
+  const keywords = ARCHETYPE_THEME_KEYWORDS[archetypeId] || [];
+  const matchRe = keywords.length
+    ? new RegExp(keywords.join('|'), 'i')
+    : null;
+
+  return recommendations.themes
+    .map((theme) => {
+      const cards = theme.cards
+        .filter((c) => !excludeNames.has(c.name.toLowerCase()))
+        .sort((a, b) => b.synergy - a.synergy);
+      const relevant = matchRe ? matchRe.test(theme.header) : false;
+      return { ...theme, cards, relevant };
+    })
+    .filter((t) => t.cards.length > 0)
+    .sort((a, b) => {
+      // Relevant themes first, then by card count desc.
+      if (a.relevant !== b.relevant) return a.relevant ? -1 : 1;
+      return b.cards.length - a.cards.length;
+    });
+}
+
+/**
  * Identify the weakest cards in the deck against EDHREC's recommendations
  * for the active commander. Each entry carries a reason and an optional
  * stat used to sort the list.

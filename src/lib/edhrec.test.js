@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { commanderSlug, recommendationIndex, suggestCuts, topRecommendations } from './edhrec.js';
+import { commanderSlug, recommendationIndex, suggestCuts, topRecommendations, themesForArchetype } from './edhrec.js';
 
 describe('commanderSlug', () => {
   it('lowercases and hyphenates', () => {
@@ -62,6 +62,34 @@ describe('topRecommendations', () => {
     const top = topRecommendations(recs, new Set(['sol ring']), 10);
     expect(top.find((c) => c.name === 'Sol Ring')).toBeUndefined();
     expect(top.find((c) => c.name === 'Bloodghast')).toBeDefined();
+  });
+});
+
+describe('themesForArchetype', () => {
+  const recs = {
+    themes: [
+      { header: 'Ramp', cards: [{ name: 'Cultivate', synergy: 0.1, inclusion: 0.5 }] },
+      { header: 'Vampire Tribal Theme', cards: [{ name: 'Bloodghast', synergy: 0.3, inclusion: 0.4 }] },
+      { header: 'Removal', cards: [{ name: 'Swords', synergy: 0.05, inclusion: 0.4 }] },
+    ],
+  };
+
+  it('puts archetype-matching themes first', () => {
+    const out = themesForArchetype(recs, 'tribal', new Set());
+    expect(out[0].header).toMatch(/Tribal/);
+    expect(out[0].relevant).toBe(true);
+  });
+
+  it('still returns all themes when no archetype matches', () => {
+    const out = themesForArchetype(recs, 'unknown-archetype', new Set());
+    expect(out.length).toBe(3);
+    expect(out.every((t) => !t.relevant)).toBe(true);
+  });
+
+  it('filters excluded names', () => {
+    const out = themesForArchetype(recs, 'tribal', new Set(['bloodghast']));
+    const tribal = out.find((t) => /Tribal/.test(t.header));
+    expect(tribal).toBeUndefined();
   });
 });
 

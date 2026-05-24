@@ -116,6 +116,40 @@ const ARCHETYPES = [
       return midCmc * 0.3 + (t['Card draw'] || 0) * 0.8 + (t['Targeted removal'] || 0) * 0.6;
     },
   },
+  {
+    id: 'stax',
+    name: 'Stax',
+    description: 'Resource denial — taxes, lockdowns, and asymmetric prison pieces grind opponents to a halt.',
+    score: (t) =>
+      (t['Stax piece'] || 0) * 2.5 +
+      (t['Mass Land Destruction'] || 0) * 1.5 +
+      (t['Protection'] || 0) * 0.5,
+  },
+  {
+    id: 'group-hug',
+    name: 'Group Hug',
+    description: 'Give everyone resources, then leverage the chaos — political and durdly.',
+    score: (t) =>
+      (t['Group hug'] || 0) * 3 +
+      (t['Card draw'] || 0) * 0.3,
+  },
+  {
+    id: 'theft',
+    name: 'Theft',
+    description: 'Borrow opponents\' creatures, copy their spells, win with their own threats.',
+    score: (t) =>
+      (t['Theft'] || 0) * 2.5 +
+      (t['Sacrifice outlet'] || 0) * 0.8,
+  },
+  {
+    id: 'self-mill',
+    name: 'Self-Mill',
+    description: 'Fill your own graveyard, then leverage it via reanimation, dredge, or escape.',
+    score: (t) =>
+      (t['Self-mill'] || 0) * 2.5 +
+      (t['Reanimation'] || 0) * 1.2 +
+      (t['Recursion'] || 0) * 0.8,
+  },
 ];
 
 function tagCounts(deck) {
@@ -304,6 +338,18 @@ export function buildStagePlans(deck) {
     case 'spellslinger':
       late.bullets.push(bullet('Chain spells for the trigger pile-on. One big turn often closes the game.', finisherCards));
       break;
+    case 'stax':
+      late.bullets.push(bullet('Lock established. Threats are mostly dead under your prison — close with a low-cost win condition.', finisherCards));
+      break;
+    case 'group-hug':
+      late.bullets.push(bullet('Your "boring" win condition: opponents kill each other, you fall behind, then steal the last damage. Have a finisher ready.', finisherCards));
+      break;
+    case 'theft':
+      late.bullets.push(bullet('Use opponents\' creatures as your wincon — Insurrection-style alpha-strike or sacrifice loops.', finisherCards));
+      break;
+    case 'self-mill':
+      late.bullets.push(bullet('Loop your graveyard. Reanimation chains and escape costs let one threat win in two turns.', [...reanimation, ...finisherCards.slice(0, 2)]));
+      break;
     case 'midrange':
     default:
       late.bullets.push(bullet('Deploy your most expensive threats. Whoever resolves the last bomb usually wins.', finisherCards));
@@ -370,6 +416,26 @@ function archetypeHeadline(id, stage) {
       early: 'Develop and dig',
       mid: 'Trigger the payoffs',
       late: 'Chain to lethal',
+    },
+    stax: {
+      early: 'Drop mana, hold a lock piece',
+      mid: 'Land the prison, deny answers',
+      late: 'Close behind the lock',
+    },
+    'group-hug': {
+      early: 'Feed the table, smile a lot',
+      mid: 'Steer the kingmaker spot',
+      late: 'Cash the chaos for a win',
+    },
+    theft: {
+      early: 'Develop, hold removal',
+      mid: 'Borrow the biggest threat on the board',
+      late: 'Win with their own toys',
+    },
+    'self-mill': {
+      early: 'Fill the yard',
+      mid: 'Reanimate the engine',
+      late: 'Recur to infinity',
     },
   };
   return map[id]?.[stage] || 'Play to your outs';

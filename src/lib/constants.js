@@ -153,6 +153,10 @@ export const TAG_PATTERNS = {
   "Mill": [/mill (a|an|\d+|x|that many) cards?/i],
   "Discard": [/discards? (a|an|\d+|x|that many|your hand) cards?/i],
   "Burn": [/deals? \d+ damage to (any target|target (creature|player|opponent|planeswalker))/i],
+  "Stax piece": [/each (player|opponent) sacrifices/i, /can't (cast|play|untap)/i, /skip (your|each opponent's) (untap|draw|upkeep)/i, /players can't .{0,30} more than/i],
+  "Group hug": [/each (player|opponent) draws? (a|an|\d+) cards?/i, /each (player|opponent) (gains|gets) \d+ life/i, /each player may search/i],
+  "Theft": [/gain control of target (creature|permanent|spell|artifact)/i, /untap target (creature|permanent) you don't control/i, /threaten/i],
+  "Self-mill": [/put the top \d+ cards of your library into your graveyard/i, /mill yourself/i],
   "Equipment": [], "Aura": [], "Vehicle": [], "Combo piece": [], "Game Changer": [],
 };
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { simulateOpeners, simulatePlayout } from './goldfish.js';
+import { simulateOpeners, simulatePlayout, simulateMulliganTree } from './goldfish.js';
 
 const land = (name = 'Forest') => ({
   count: 1,
@@ -46,6 +46,26 @@ describe('simulateOpeners', () => {
     const deck = buildDeck(15, 0, 0, 84); // 15 lands — very thin
     const sim = simulateOpeners(deck, 1500);
     expect(sim.keepableRate).toBeLessThan(0.6);
+  });
+});
+
+describe('simulateMulliganTree', () => {
+  it('returns null when the deck is too small', () => {
+    expect(simulateMulliganTree({ cards: [land()] })).toBeNull();
+  });
+
+  it('reports four keep rates that are monotonically decreasing-ish', () => {
+    const deck = buildDeck(37, 10, 10, 42);
+    const tree = simulateMulliganTree(deck, 800);
+    // Stricter keepability at smaller hand sizes — keep rates should decline.
+    expect(tree.keepable[7]).toBeGreaterThan(tree.keepable[4]);
+  });
+
+  it('stop probabilities sum to ~1 with the further-mulligan tail', () => {
+    const deck = buildDeck(37, 10, 10, 42);
+    const tree = simulateMulliganTree(deck, 800);
+    const sum = tree.stop[7] + tree.stop[6] + tree.stop[5] + tree.stop[4] + tree.stop.further;
+    expect(sum).toBeCloseTo(1, 2);
   });
 });
 
