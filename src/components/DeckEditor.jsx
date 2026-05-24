@@ -190,8 +190,8 @@ function CommanderPicker({ deck, onSet }) {
 
 // ───────────────────────────────────────────────────────────────────────────────
 
-export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, otherDecks = [] }) {
-  const [tab, setTab] = useState('cards');
+export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, otherDecks = [], initialTab }) {
+  const [tab, setTab] = useState(initialTab || 'cards');
   const [showRules, setShowRules] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showShare, setShowShare] = useState(false);

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Trash2, Crown, Copy, Upload } from 'lucide-react';
+import { Trash2, Crown, Copy, Upload, Calculator } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, ACCENT } from '../theme.js';
 import { pad } from '../lib/utils.js';
 import { cardImageUrl } from '../lib/scryfall.js';
@@ -351,6 +351,18 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
                       </div>
                     ) : (
                       <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition">
+                        {d.cards.length >= 7 && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelect(d.id, 'probs');
+                            }}
+                            style={{ color: CREAM_DIM }}
+                            title="Test opening hand → opens Probability tab"
+                          >
+                            <Calculator className="w-3.5 h-3.5 hover:opacity-100" />
+                          </button>
+                        )}
                         {onDuplicate && (
                           <button
                             onClick={(e) => {
