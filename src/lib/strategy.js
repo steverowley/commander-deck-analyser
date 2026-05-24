@@ -150,6 +150,30 @@ const ARCHETYPES = [
       (t['Reanimation'] || 0) * 1.2 +
       (t['Recursion'] || 0) * 0.8,
   },
+  {
+    id: 'counters',
+    name: 'Counters Matter',
+    description: 'Stack +1/+1, -1/-1, or loyalty counters; proliferate, scale, and explode.',
+    score: (t) =>
+      (t['Counters matter'] || 0) * 2.5 +
+      (t['+1/+1 counters'] || 0) * 1.2,
+  },
+  {
+    id: 'blink',
+    name: 'Blink / Flicker',
+    description: 'Repeatedly exile and return your own creatures to abuse ETB triggers.',
+    score: (t) =>
+      (t['Flicker'] || 0) * 2.5 +
+      (t['ETB trigger'] || 0) * 1,
+  },
+  {
+    id: 'wheels',
+    name: 'Wheels',
+    description: 'Refill hands repeatedly; punish opponents with discard / draw triggers.',
+    score: (t) =>
+      (t['Wheel'] || 0) * 3 +
+      (t['Card draw'] || 0) * 0.4,
+  },
 ];
 
 function tagCounts(deck) {
@@ -350,6 +374,15 @@ export function buildStagePlans(deck) {
     case 'self-mill':
       late.bullets.push(bullet('Loop your graveyard. Reanimation chains and escape costs let one threat win in two turns.', [...reanimation, ...finisherCards.slice(0, 2)]));
       break;
+    case 'counters':
+      late.bullets.push(bullet('Scale a single big threat. Proliferate doublers + +1/+1 stack quickly into one-shot kills.', anthemCards));
+      break;
+    case 'blink':
+      late.bullets.push(bullet('Loop your strongest ETB into a board lock. Flickering Sun Titan / Reflector Mage / Aetherling closes games.', finisherCards));
+      break;
+    case 'wheels':
+      late.bullets.push(bullet('Storm off on a fresh hand. Notion Thief / Underworld Breach turn wheels into kills.', finisherCards));
+      break;
     case 'midrange':
     default:
       late.bullets.push(bullet('Deploy your most expensive threats. Whoever resolves the last bomb usually wins.', finisherCards));
@@ -436,6 +469,21 @@ function archetypeHeadline(id, stage) {
       early: 'Fill the yard',
       mid: 'Reanimate the engine',
       late: 'Recur to infinity',
+    },
+    counters: {
+      early: 'Set up a counter target',
+      mid: 'Stack and proliferate',
+      late: 'Scale a single threat to lethal',
+    },
+    blink: {
+      early: 'Hold up flicker, develop mana',
+      mid: 'Loop high-impact ETBs',
+      late: 'Lock the board behind value',
+    },
+    wheels: {
+      early: 'Empty hand, refill on a wheel',
+      mid: 'Punish opponents on draw triggers',
+      late: 'Storm off on a fresh hand',
     },
   };
   return map[id]?.[stage] || 'Play to your outs';
