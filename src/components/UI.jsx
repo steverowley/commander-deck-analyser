@@ -257,6 +257,7 @@ export function CardRow({ entry, idx, onChangeCount, onRemove, onEditTags }) {
   const [hoverPos, setHoverPos] = useState(null);
   const [imgError, setImgError] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   if (!c) return null;
 
   const handleMouseEnter = (e) => {
@@ -308,7 +309,12 @@ export function CardRow({ entry, idx, onChangeCount, onRemove, onEditTags }) {
             {c.type_line}
           </span>
         </div>
-        <div className="font-serif text-xs mt-1 line-clamp-2 leading-snug" style={{ color: CREAM_DIM }}>
+        <div
+          className={`font-serif text-xs mt-1 leading-snug ${expanded ? 'whitespace-pre-wrap' : 'line-clamp-2'}`}
+          style={{ color: CREAM_DIM }}
+          onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+          title={expanded ? 'Collapse' : 'Expand oracle text'}
+        >
           <InlineOracle text={c.oracle_text || c.card_faces?.[0]?.oracle_text} />
         </div>
         <div className="flex flex-wrap gap-1 mt-2">

@@ -4,6 +4,8 @@ import { CREAM, CREAM_DIM, CREAM_FAINT, ACCENT } from '../theme.js';
 import { pad } from '../lib/utils.js';
 import { cardImageUrl } from '../lib/scryfall.js';
 import { assessBracket } from '../lib/analyzers.js';
+import { computeHealth } from '../lib/health.js';
+import { ManaSymbol } from './ManaCost.jsx';
 import { ImportDeckModal } from './Modals.jsx';
 
 export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport }) {
@@ -244,31 +246,17 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
                   <div className="font-serif text-sm mt-2 italic" style={{ color: CREAM_DIM }}>
                     {d.commander?.name || 'No commander set'}
                   </div>
-                  <div className="font-mono text-[10px] mt-3 tracking-wider flex items-center gap-3 flex-wrap" style={{ color: CREAM_DIM }}>
-                    <span>
-                      {pad(d.cards.reduce((s, c) => s + c.count, 0))} cards
-                    </span>
-                    <span>·</span>
-                    <span>
-                      {
-                        Object.keys(
-                          d.cards.reduce((m, c) => {
-                            (c.tags || []).forEach((t) => (m[t] = 1));
-                            return m;
-                          }, {})
-                        ).length
-                      }{' '}
-                      tags
-                    </span>
-                    {d.cards.length > 0 && (
-                      <>
-                        <span>·</span>
-                        <span style={{ color: CREAM }}>
-                          Bracket {assessBracket(d).bracket}
-                        </span>
-                      </>
-                    )}
-                  </div>
+                  <DeckCardMeta deck={d} />
+                  {d.commander?.color_identity?.length > 0 && (
+                    <div className="mt-2 flex items-center gap-1" style={{ fontSize: '0.9rem' }}>
+                      {d.commander.color_identity.map((c) => (
+                        <ManaSymbol key={c} sym={c} size="0.9em" title={c} />
+                      ))}
+                      {d.commander.color_identity.length === 0 && (
+                        <ManaSymbol sym="C" size="0.9em" title="Colorless" />
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -294,4 +282,45 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
       )}
     </div>
   );
+}
+
+function DeckCardMeta({ deck }) {
+  const total = deck.cards.reduce((s, c) => s + c.count, 0);
+  const tagCount = Object.keys(
+    deck.cards.reduce((m, c) => {
+      (c.tags || []).forEach((t) => (m[t] = 1));
+      return m;
+    }, {})
+  ).length;
+  const hasCards = deck.cards.length > 0;
+  const bracket = hasCards ? assessBracket(deck).bracket : null;
+  const health = hasCards ? computeHealth(deck) : null;
+  return (
+    <div className="font-mono text-[10px] mt-3 tracking-wider flex items-center gap-3 flex-wrap" style={{ color: CREAM_DIM }}>
+      <span>{pad(total)} cards</span>
+      <span>·</span>
+      <span>{tagCount} tags</span>
+      {bracket && (
+        <>
+          <span>·</span>
+          <span style={{ color: CREAM }}>Bracket {bracket}</span>
+        </>
+      )}
+      {health && !health.empty && (
+        <>
+          <span>·</span>
+          <span style={{ color: healthColor(health.score) }} title={`Grade ${health.grade}`}>
+            Health {health.score}
+          </span>
+        </>
+      )}
+    </div>
+  );
+}
+
+function healthColor(score) {
+  if (score >= 80) return '#a3c98a';
+  if (score >= 65) return CREAM;
+  if (score >= 50) return '#d8b35a';
+  return ACCENT;
 }

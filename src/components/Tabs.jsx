@@ -3,6 +3,7 @@ import { Upload, BookOpen } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, hypergeom } from '../lib/utils.js';
 import { assessBracket } from '../lib/analyzers.js';
+import { computeHealth } from '../lib/health.js';
 import { buildStagePlans, synergyHubs, packageWeight } from '../lib/strategy.js';
 import { BRACKETS } from '../lib/constants.js';
 import { addCardsToDeck, setCardCount, removeCardFromDeck, setCardTags } from '../lib/deckops.js';
@@ -39,6 +40,58 @@ function LegalityBanner({ legality }) {
           <li key={`w${i}`} style={{ color: CREAM_DIM }}>· {w}</li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HEALTH PANEL (shared between Bracket tab and elsewhere)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function HealthPanel({ health }) {
+  const tone =
+    health.score >= 80 ? '#a3c98a' :
+    health.score >= 65 ? CREAM :
+    health.score >= 50 ? '#d8b35a' :
+    ACCENT;
+  return (
+    <div className="border" style={{ borderColor: CREAM_FAINT }}>
+      <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
+        <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
+          Deck Health
+        </div>
+        <div className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>
+          fundamentals · 0-100
+        </div>
+      </div>
+      <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="flex flex-col items-start md:items-center justify-center md:border-r" style={{ borderColor: CREAM_FAINT }}>
+          <div className="font-serif font-black leading-none" style={{ color: tone, fontSize: 'clamp(4rem, 9vw, 6rem)' }}>
+            {health.score}
+          </div>
+          <div className="font-serif text-[10px] tracking-[0.4em] uppercase mt-2" style={{ color: CREAM_DIM }}>
+            grade · {health.grade}
+          </div>
+        </div>
+        <div className="md:col-span-3 space-y-2">
+          {Object.entries(health.breakdown).map(([key, comp]) => (
+            <div key={key} className="grid grid-cols-12 gap-2 items-center">
+              <div className="col-span-3 font-serif text-[11px] tracking-[0.2em] uppercase" style={{ color: CREAM_DIM }}>
+                {comp.label}
+              </div>
+              <div className="col-span-7 h-1.5 border" style={{ borderColor: CREAM_FAINT }}>
+                <div className="h-full" style={{ background: CREAM, opacity: 0.75, width: `${(comp.points / comp.weight) * 100}%` }}></div>
+              </div>
+              <div className="col-span-2 text-right font-mono text-[10px]" style={{ color: CREAM }}>
+                {comp.points}/{comp.weight}
+              </div>
+              <div className="col-span-12 ml-[8.33%] font-serif text-xs italic -mt-1" style={{ color: CREAM_DIM }}>
+                {comp.note}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -539,10 +592,12 @@ export function CurveTab({ deck }) {
 export function BracketTab({ deck }) {
   const assessment = useMemo(() => assessBracket(deck), [deck]);
   const legality = useMemo(() => checkDeckLegality(deck), [deck.cards, deck.commander]);
+  const health = useMemo(() => computeHealth(deck), [deck.cards, deck.commander]);
 
   return (
     <div className="space-y-6">
       <LegalityBanner legality={legality} />
+      {!health.empty && <HealthPanel health={health} />}
       <div className="border" style={{ borderColor: CREAM_FAINT }}>
         <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
           <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>

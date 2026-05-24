@@ -229,11 +229,11 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate }) {
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-8">
       <nav className="grid grid-cols-2 md:grid-cols-5 border-b mt-6" style={{ borderColor: CREAM_FAINT }}>
-        <div className="p-5 md:border-r flex items-center gap-3" style={{ borderColor: CREAM_FAINT }}>
-          <button onClick={onBack} className="hover:opacity-100 transition" style={{ color: CREAM_DIM }}>
+        <div className="p-5 md:border-r flex items-center gap-3 min-w-0" style={{ borderColor: CREAM_FAINT }}>
+          <button onClick={onBack} className="hover:opacity-100 transition shrink-0" style={{ color: CREAM_DIM }}>
             <ChevronLeft className="w-4 h-4" />
           </button>
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 overflow-hidden">
             {editingName ? (
               <input
                 value={nameDraft}
@@ -256,11 +256,11 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate }) {
                   setNameDraft(deck.name);
                   setEditingName(true);
                 }}
-                className="font-serif text-xl font-black leading-none tracking-wider truncate text-left flex items-center gap-2 group"
+                className="font-serif text-xl font-black leading-none tracking-wider text-left flex items-center gap-2 group w-full min-w-0"
                 style={{ color: CREAM }}
                 title="Rename"
               >
-                <span className="truncate">{deck.name.toUpperCase()}</span>
+                <span className="truncate min-w-0">{deck.name.toUpperCase()}</span>
                 <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 transition shrink-0" style={{ color: CREAM_DIM }} />
               </button>
             )}
