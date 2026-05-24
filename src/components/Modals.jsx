@@ -10,6 +10,7 @@ import { compareDecks } from '../lib/compare.js';
 import { buildBackup, parseBackup, backupFilename } from '../lib/backup.js';
 import { loadSettings, updateSetting } from '../lib/settings.js';
 import { cacheSize, clearIDBCache } from '../lib/idbcache.js';
+import { fetchRecommendations, topRecommendations } from '../lib/edhrec.js';
 import { TagPill, RuleSection } from './UI.jsx';
 import { ManaSymbol } from './ManaCost.jsx';
 import { BRACKETS } from '../lib/constants.js';
@@ -427,8 +428,63 @@ export function ExportModal({ deck, onClose }) {
  */
 export function CompareModal({ deck, otherDecks, onClose }) {
   const [pickedId, setPickedId] = useState(null);
-  const picked = otherDecks.find((d) => d.id === pickedId);
+  // When the user picks "EDHREC average", we synthesise a deck from the
+  // top-99 recs and hold it in state separately from otherDecks.
+  const [synthDeck, setSynthDeck] = useState(null);
+  const [synthLoading, setSynthLoading] = useState(false);
+  const [synthError, setSynthError] = useState(null);
+  const [synthProgress, setSynthProgress] = useState('');
+
+  const picked = synthDeck || otherDecks.find((d) => d.id === pickedId);
   const cmp = useMemo(() => (picked ? compareDecks(deck, picked) : null), [deck, picked]);
+
+  const compareWithAverage = async () => {
+    if (!deck.commander) {
+      setSynthError('Set a commander first — needed to look up EDHREC.');
+      return;
+    }
+    setSynthLoading(true);
+    setSynthError(null);
+    try {
+      const recs = await fetchRecommendations(deck.commander.name);
+      if (!recs) {
+        setSynthError('EDHREC has no page for this commander.');
+        return;
+      }
+      const top = topRecommendations(recs, new Set([deck.commander.name.toLowerCase()]), 99);
+      if (top.length === 0) {
+        setSynthError('No EDHREC recommendations available.');
+        return;
+      }
+      const names = top.map((r) => r.name);
+      setSynthProgress(`Fetching ${names.length} cards from Scryfall...`);
+      const { fetchCardsByName } = await import('../lib/scryfall.js');
+      const { results } = await fetchCardsByName(names, setSynthProgress);
+      const cards = names
+        .map((n) => {
+          const card = results[n.toLowerCase()];
+          return card ? { name: card.name, count: 1, scryfall: card, tags: [] } : null;
+        })
+        .filter(Boolean);
+      setSynthDeck({
+        id: 'edhrec-average',
+        name: `EDHREC avg · ${deck.commander.name}`,
+        commander: deck.commander,
+        cards,
+      });
+      setSynthProgress('');
+    } catch (e) {
+      setSynthError(e.message);
+    } finally {
+      setSynthLoading(false);
+    }
+  };
+
+  const goBack = () => {
+    setPickedId(null);
+    setSynthDeck(null);
+    setSynthError(null);
+  };
 
   return (
     <div
@@ -446,41 +502,79 @@ export function CompareModal({ deck, otherDecks, onClose }) {
         </div>
 
         {!picked ? (
-          <div className="p-5 flex-1 overflow-auto">
-            <p className="font-serif text-sm italic mb-4" style={{ color: CREAM_DIM }}>
-              Pick another deck to compare against <span style={{ color: CREAM }}>{deck.name}</span>.
+          <div className="p-5 flex-1 overflow-auto space-y-4">
+            <p className="font-serif text-sm italic" style={{ color: CREAM_DIM }}>
+              Pick something to compare against <span style={{ color: CREAM }}>{deck.name}</span>.
             </p>
+
+            {/* EDHREC average option — always present when a commander is set */}
+            {deck.commander && (
+              <button
+                onClick={compareWithAverage}
+                disabled={synthLoading}
+                className="w-full border px-4 py-3 text-left transition flex items-center justify-between disabled:opacity-50"
+                style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.025)' }}
+                onMouseEnter={(e) => !synthLoading && (e.currentTarget.style.background = 'rgba(243,231,201,0.06)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.025)')}
+              >
+                <div>
+                  <div className="font-serif text-sm uppercase tracking-tight" style={{ color: CREAM }}>
+                    EDHREC average · {deck.commander.name}
+                  </div>
+                  <div className="font-mono text-[10px] mt-0.5" style={{ color: CREAM_DIM }}>
+                    {synthLoading ? (synthProgress || 'Fetching...') : 'Top 99 cards typical decks run with this commander'}
+                  </div>
+                </div>
+                <span className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+                  {synthLoading ? '...' : 'Compare →'}
+                </span>
+              </button>
+            )}
+
+            {synthError && (
+              <div className="border px-4 py-3" style={{ borderColor: ACCENT, background: 'rgba(196,74,63,0.06)' }}>
+                <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-1" style={{ color: ACCENT }}>Error</div>
+                <div className="font-mono text-xs" style={{ color: CREAM }}>{synthError}</div>
+              </div>
+            )}
+
+            {/* Other-deck picker */}
             {otherDecks.length === 0 ? (
               <div className="border p-8 text-center font-serif text-sm italic" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
-                You only have one deck. Create another to use Compare.
+                No other decks in the archive to compare against.
               </div>
             ) : (
-              <div className="border-t border-l" style={{ borderColor: CREAM_FAINT }}>
-                {otherDecks.map((d) => (
-                  <button
-                    key={d.id}
-                    onClick={() => setPickedId(d.id)}
-                    className="w-full border-r border-b px-4 py-3 text-left transition flex items-center justify-between"
-                    style={{ borderColor: CREAM_FAINT }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.05)')}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                  >
-                    <div>
-                      <div className="font-serif text-sm uppercase tracking-tight" style={{ color: CREAM }}>{d.name}</div>
-                      <div className="font-mono text-[10px] mt-0.5" style={{ color: CREAM_DIM }}>
-                        {d.commander?.name || 'No commander'} · {d.cards.reduce((s, c) => s + c.count, 0)} cards
+              <div>
+                <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-2" style={{ color: CREAM_DIM }}>
+                  Or vs another deck in your archive
+                </div>
+                <div className="border-t border-l" style={{ borderColor: CREAM_FAINT }}>
+                  {otherDecks.map((d) => (
+                    <button
+                      key={d.id}
+                      onClick={() => setPickedId(d.id)}
+                      className="w-full border-r border-b px-4 py-3 text-left transition flex items-center justify-between"
+                      style={{ borderColor: CREAM_FAINT }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.05)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <div>
+                        <div className="font-serif text-sm uppercase tracking-tight" style={{ color: CREAM }}>{d.name}</div>
+                        <div className="font-mono text-[10px] mt-0.5" style={{ color: CREAM_DIM }}>
+                          {d.commander?.name || 'No commander'} · {d.cards.reduce((s, c) => s + c.count, 0)} cards
+                        </div>
                       </div>
-                    </div>
-                    <span className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
-                      Compare →
-                    </span>
-                  </button>
-                ))}
+                      <span className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+                        Compare →
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
         ) : (
-          <CompareView cmp={cmp} onChange={() => setPickedId(null)} />
+          <CompareView cmp={cmp} onChange={goBack} />
         )}
 
         <div className="px-5 py-3 border-t flex justify-end" style={{ borderColor: CREAM_FAINT }}>
