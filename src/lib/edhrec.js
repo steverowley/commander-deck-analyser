@@ -156,3 +156,83 @@ export function recommendationsByTheme(recommendations, excludeNames, perTheme =
     }))
     .filter((t) => t.cards.length > 0);
 }
+
+/**
+ * Build a lookup map from EDHREC data: card name (lowercased) → its best
+ * synergy + inclusion across all themes it appears in. Used by cut analysis
+ * to score the cards in the user's deck against typical play patterns.
+ */
+export function recommendationIndex(recommendations) {
+  const index = new Map();
+  if (!recommendations?.themes) return index;
+  for (const theme of recommendations.themes) {
+    for (const card of theme.cards) {
+      const key = card.name.toLowerCase();
+      const existing = index.get(key);
+      if (!existing) {
+        index.set(key, { synergy: card.synergy, inclusion: card.inclusion, themes: [theme.header] });
+        continue;
+      }
+      // Higher-synergy appearance wins for synergy/inclusion, but every theme
+      // the card shows up in is preserved.
+      if (card.synergy > existing.synergy) {
+        existing.synergy = card.synergy;
+        existing.inclusion = card.inclusion;
+      }
+      if (!existing.themes.includes(theme.header)) existing.themes.push(theme.header);
+    }
+  }
+  return index;
+}
+
+/**
+ * Identify the weakest cards in the deck against EDHREC's recommendations
+ * for the active commander. Each entry carries a reason and an optional
+ * stat used to sort the list.
+ *
+ * Reasons emitted:
+ *   - "missing-from-edhrec": card doesn't appear in any EDHREC theme for
+ *     this commander — possibly off-strategy
+ *   - "low-synergy": card appears but with low/negative synergy
+ *   - "untagged": card has no auto-tags at all
+ *
+ * Filters out the commander itself and basic lands (always fine).
+ */
+export function suggestCuts(deck, recommendations) {
+  const index = recommendationIndex(recommendations);
+  const cuts = [];
+
+  for (const c of deck.cards) {
+    if (!c.scryfall) continue;
+    if (c.scryfall.type_line?.toLowerCase().includes('basic land')) continue;
+    const name = c.name.toLowerCase();
+    const rec = index.get(name);
+    const tags = c.tags || [];
+
+    if (!rec) {
+      cuts.push({
+        card: c,
+        reason: 'missing-from-edhrec',
+        note: 'Not played in typical decks for this commander',
+        stat: -100,
+      });
+    } else if (rec.synergy < 0) {
+      cuts.push({
+        card: c,
+        reason: 'low-synergy',
+        note: `Low synergy (${(rec.synergy * 100).toFixed(0)}) — better-fit alternatives exist`,
+        stat: rec.synergy,
+      });
+    } else if (tags.length === 0) {
+      cuts.push({
+        card: c,
+        reason: 'untagged',
+        note: 'No detected role — likely doesn\'t pull weight',
+        stat: 0,
+      });
+    }
+  }
+
+  // Sort weakest first — missing-from-edhrec (stat -100), then low-synergy by score.
+  return cuts.sort((a, b) => a.stat - b.stat);
+}
