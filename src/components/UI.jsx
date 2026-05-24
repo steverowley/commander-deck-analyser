@@ -1,9 +1,45 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Loader2, Tag, Trash2, X } from 'lucide-react';
+import { Search, Loader2, Tag, Trash2, X, FileX } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad } from '../lib/utils.js';
 import { cardImageUrl, searchCardAutocomplete, fetchCardByExactName } from '../lib/scryfall.js';
 import { ManaCost, ManaSymbol } from './ManaCost.jsx';
+
+// ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Reusable empty-state block. Use anywhere a tab/section has nothing
+ * meaningful to show — pairs a one-line headline with optional helper
+ * text and a call-to-action button.
+ */
+export function EmptyState({ title, body, action, actionLabel, icon }) {
+  const Icon = icon || FileX;
+  return (
+    <div
+      className="border p-10 flex flex-col items-center text-center"
+      style={{ borderColor: CREAM_FAINT }}
+    >
+      <Icon className="w-6 h-6 mb-3" style={{ color: CREAM_DIM, opacity: 0.6 }} />
+      <div className="font-serif text-sm tracking-[0.2em] uppercase font-bold" style={{ color: CREAM }}>
+        {title}
+      </div>
+      {body && (
+        <div className="font-serif text-sm italic mt-2 max-w-md" style={{ color: CREAM_DIM }}>
+          {body}
+        </div>
+      )}
+      {action && actionLabel && (
+        <button
+          onClick={action}
+          className="mt-4 font-serif text-[10px] tracking-[0.3em] uppercase border px-4 py-2"
+          style={{ borderColor: CREAM_FAINT, color: CREAM }}
+        >
+          {actionLabel}
+        </button>
+      )}
+    </div>
+  );
+}
 
 // ───────────────────────────────────────────────────────────────────────────────
 

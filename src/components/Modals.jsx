@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
-import { X, Loader2, Check, BookOpen, Copy, Download, Link as LinkIcon } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { X, Loader2, Check, BookOpen, Copy, Download, Link as LinkIcon, GitCompare } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, parseDecklist, lc } from '../lib/utils.js';
 import { fetchCardsByName, fetchCardByExactName } from '../lib/scryfall.js';
 import { exportDecklist } from '../lib/deckops.js';
 import { buildShareUrl } from '../lib/share.js';
 import { deckTotalPrice, formatPrice } from '../lib/pricing.js';
+import { compareDecks } from '../lib/compare.js';
 import { TagPill, RuleSection } from './UI.jsx';
+import { ManaSymbol } from './ManaCost.jsx';
 import { BRACKETS } from '../lib/constants.js';
 
 // ───────────────────────────────────────────────────────────────────────────────
@@ -393,6 +395,213 @@ export function ExportModal({ deck, onClose }) {
             {copied ? 'Copied' : 'Copy →'}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Side-by-side deck comparison. Caller passes the active deck and a list
+ * of candidate decks. On a pick, the modal renders the comparison inline.
+ */
+export function CompareModal({ deck, otherDecks, onClose }) {
+  const [pickedId, setPickedId] = useState(null);
+  const picked = otherDecks.find((d) => d.id === pickedId);
+  const cmp = useMemo(() => (picked ? compareDecks(deck, picked) : null), [deck, picked]);
+
+  return (
+    <div
+      className="fixed inset-0 flex items-center justify-center z-50 p-4"
+      style={{ background: 'rgba(13,22,20,0.92)', backdropFilter: 'blur(6px)' }}
+    >
+      <div className="w-full max-w-5xl max-h-[92vh] flex flex-col border" style={{ background: BG, borderColor: CREAM_FAINT }}>
+        <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
+          <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold flex items-center gap-2" style={{ color: CREAM }}>
+            <GitCompare className="w-3.5 h-3.5" /> Compare Decks
+          </div>
+          <button onClick={onClose} style={{ color: CREAM_DIM }}>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {!picked ? (
+          <div className="p-5 flex-1 overflow-auto">
+            <p className="font-serif text-sm italic mb-4" style={{ color: CREAM_DIM }}>
+              Pick another deck to compare against <span style={{ color: CREAM }}>{deck.name}</span>.
+            </p>
+            {otherDecks.length === 0 ? (
+              <div className="border p-8 text-center font-serif text-sm italic" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
+                You only have one deck. Create another to use Compare.
+              </div>
+            ) : (
+              <div className="border-t border-l" style={{ borderColor: CREAM_FAINT }}>
+                {otherDecks.map((d) => (
+                  <button
+                    key={d.id}
+                    onClick={() => setPickedId(d.id)}
+                    className="w-full border-r border-b px-4 py-3 text-left transition flex items-center justify-between"
+                    style={{ borderColor: CREAM_FAINT }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.05)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <div>
+                      <div className="font-serif text-sm uppercase tracking-tight" style={{ color: CREAM }}>{d.name}</div>
+                      <div className="font-mono text-[10px] mt-0.5" style={{ color: CREAM_DIM }}>
+                        {d.commander?.name || 'No commander'} · {d.cards.reduce((s, c) => s + c.count, 0)} cards
+                      </div>
+                    </div>
+                    <span className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+                      Compare →
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <CompareView cmp={cmp} onChange={() => setPickedId(null)} />
+        )}
+
+        <div className="px-5 py-3 border-t flex justify-end" style={{ borderColor: CREAM_FAINT }}>
+          <button onClick={onClose} className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CompareView({ cmp, onChange }) {
+  const maxCurve = Math.max(...cmp.curve.a, ...cmp.curve.b, 1);
+  const sharedPct = (cmp.overlapPct * 100).toFixed(0);
+  return (
+    <div className="p-5 flex-1 overflow-auto space-y-5">
+      {/* Header strip with deck names */}
+      <div className="grid grid-cols-2 gap-4">
+        <DeckMini deck={cmp.a} title="A" />
+        <DeckMini deck={cmp.b} title="B" />
+      </div>
+
+      {/* Headline stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 border-t border-l" style={{ borderColor: CREAM_FAINT }}>
+        <StatPair label="Bracket" left={cmp.bracket.a} right={cmp.bracket.b} />
+        <StatPair label="Health" left={cmp.health.a.score} right={cmp.health.b.score} />
+        <StatPair label="Cards" left={cmp.a.cards.reduce((s, c) => s + c.count, 0)} right={cmp.b.cards.reduce((s, c) => s + c.count, 0)} />
+        <StatPair label="Price" left={formatPrice(cmp.prices.a)} right={formatPrice(cmp.prices.b)} />
+      </div>
+
+      {/* Pip comparison */}
+      <div className="border" style={{ borderColor: CREAM_FAINT }}>
+        <div className="px-4 py-2 border-b font-serif text-[10px] tracking-[0.3em] uppercase" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
+          Pip distribution
+        </div>
+        <div className="grid grid-cols-2 divide-x" style={{ borderColor: CREAM_FAINT }}>
+          {[['a', cmp.pips.a], ['b', cmp.pips.b]].map(([side, p]) => (
+            <div key={side} className="p-4 flex flex-wrap items-baseline gap-3" style={{ borderColor: CREAM_FAINT }}>
+              {['W', 'U', 'B', 'R', 'G'].filter((c) => p[c] > 0).map((c) => (
+                <div key={c} className="flex items-center gap-1">
+                  <ManaSymbol sym={c} size="0.95em" />
+                  <span className="font-mono text-xs" style={{ color: CREAM }}>{p[c]}</span>
+                </div>
+              ))}
+              {p.total === 0 && <span className="font-serif text-xs italic" style={{ color: CREAM_DIM }}>—</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Curve overlay */}
+      <div className="border" style={{ borderColor: CREAM_FAINT }}>
+        <div className="px-4 py-2 border-b font-serif text-[10px] tracking-[0.3em] uppercase" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
+          Mana curve (non-lands)
+        </div>
+        <div className="p-4 flex items-end gap-3" style={{ height: '140px' }}>
+          {['0','1','2','3','4','5','6','7+'].map((label, i) => (
+            <div key={i} className="flex-1 flex flex-col items-end justify-end h-full">
+              <div className="w-full flex gap-px h-full items-end">
+                <div className="flex-1" style={{ background: CREAM, opacity: 0.75, height: `${(cmp.curve.a[i] / maxCurve) * 100}%` }}></div>
+                <div className="flex-1" style={{ background: ACCENT, opacity: 0.75, height: `${(cmp.curve.b[i] / maxCurve) * 100}%` }}></div>
+              </div>
+              <div className="font-mono text-[10px] mt-1.5" style={{ color: CREAM_DIM }}>{label}</div>
+            </div>
+          ))}
+        </div>
+        <div className="px-4 pb-3 flex items-center gap-4 font-mono text-[10px]" style={{ color: CREAM_DIM }}>
+          <div className="flex items-center gap-1.5"><span style={{ width: 10, height: 10, background: CREAM, display: 'inline-block', opacity: 0.75 }}></span>A</div>
+          <div className="flex items-center gap-1.5"><span style={{ width: 10, height: 10, background: ACCENT, display: 'inline-block', opacity: 0.75 }}></span>B</div>
+        </div>
+      </div>
+
+      {/* Card overlap */}
+      <div className="border" style={{ borderColor: CREAM_FAINT }}>
+        <div className="px-4 py-2 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
+          <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+            Card overlap · {sharedPct}%
+          </div>
+          <div className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>
+            {cmp.shared.length} shared · {cmp.uniqueA.length} only-A · {cmp.uniqueB.length} only-B
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-px">
+          <CardCol title="Shared" cards={cmp.shared.map((c) => c.name)} />
+          <CardCol title="Only in A" cards={cmp.uniqueA.map((c) => c.name)} />
+          <CardCol title="Only in B" cards={cmp.uniqueB.map((c) => c.name)} />
+        </div>
+      </div>
+
+      <div>
+        <button onClick={onChange} className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+          ← Pick a different deck
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function DeckMini({ deck, title }) {
+  return (
+    <div className="border p-3" style={{ borderColor: CREAM_FAINT }}>
+      <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+        Deck {title}
+      </div>
+      <div className="font-serif text-sm uppercase tracking-tight mt-1 truncate" style={{ color: CREAM }}>{deck.name}</div>
+      <div className="font-mono text-[10px] mt-0.5 truncate" style={{ color: CREAM_DIM }}>
+        {deck.commander?.name || 'No commander'}
+      </div>
+    </div>
+  );
+}
+
+function StatPair({ label, left, right }) {
+  return (
+    <div className="border-r border-b p-3" style={{ borderColor: CREAM_FAINT }}>
+      <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+        {label}
+      </div>
+      <div className="flex items-baseline gap-2 mt-1 font-mono">
+        <span style={{ color: CREAM, fontSize: '1.2rem' }}>{left}</span>
+        <span style={{ color: CREAM_DIM, fontSize: '0.7rem' }}>vs</span>
+        <span style={{ color: CREAM, fontSize: '1.2rem' }}>{right}</span>
+      </div>
+    </div>
+  );
+}
+
+function CardCol({ title, cards }) {
+  return (
+    <div className="p-3">
+      <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-2" style={{ color: CREAM_DIM }}>
+        {title} · {cards.length}
+      </div>
+      <div className="space-y-0.5 max-h-72 overflow-auto pr-1">
+        {cards.length === 0 ? (
+          <div className="font-serif text-xs italic" style={{ color: CREAM_DIM }}>—</div>
+        ) : cards.map((name) => (
+          <div key={name} className="font-serif text-xs truncate" style={{ color: CREAM }}>{name}</div>
+        ))}
       </div>
     </div>
   );
