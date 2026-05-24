@@ -8,6 +8,7 @@ import { buildStagePlans, synergyHubs, packageWeight } from '../lib/strategy.js'
 import { BRACKETS } from '../lib/constants.js';
 import { addCardsToDeck, setCardCount, removeCardFromDeck, setCardTags } from '../lib/deckops.js';
 import { simulateOpeners, simulatePlayout } from '../lib/goldfish.js';
+import { analyzeLandBase } from '../lib/landbase.js';
 import { fetchRecommendations, topRecommendations, recommendationsByTheme, suggestCuts } from '../lib/edhrec.js';
 import { fetchCardByExactName } from '../lib/scryfall.js';
 import { checkDeckLegality } from '../lib/legality.js';
@@ -582,6 +583,133 @@ export function CurveTab({ deck }) {
             ))}
         </div>
       </div>
+
+      <LandBaseSection deck={deck} />
+    </div>
+  );
+}
+
+function LandBaseSection({ deck }) {
+  const analysis = useMemo(() => analyzeLandBase(deck), [deck.cards, deck.commander]);
+  if (analysis.colorCount === 0 && !deck.commander) {
+    return null;
+  }
+
+  const recBasicTotal = Object.values(analysis.recommendedBasics).reduce((s, n) => s + n, 0);
+  const landShort = analysis.currentLands < analysis.targetLands;
+
+  return (
+    <div className="border" style={{ borderColor: CREAM_FAINT }}>
+      <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
+        <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
+          Land Base
+        </div>
+        <div className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>
+          target · {analysis.targetLands} lands ({analysis.utilityReserved} utility)
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 border-b" style={{ borderColor: CREAM_FAINT }}>
+        <div className="p-4 border-r md:border-b-0" style={{ borderColor: CREAM_FAINT }}>
+          <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>Current</div>
+          <div className="font-serif font-black mt-1" style={{ color: landShort ? ACCENT : CREAM, fontSize: '1.6rem' }}>
+            {analysis.currentLands} lands
+          </div>
+          <div className="font-mono text-[10px] mt-1" style={{ color: CREAM_DIM }}>
+            {analysis.currentBasics} basic / {analysis.currentNonbasicLands} nonbasic
+          </div>
+        </div>
+        <div className="p-4 border-r md:border-b-0" style={{ borderColor: CREAM_FAINT }}>
+          <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>Identity</div>
+          <div className="flex items-center gap-2 mt-1" style={{ fontSize: '1.2rem' }}>
+            {analysis.commanderIdentity.length === 0
+              ? <ManaSymbol sym="C" />
+              : analysis.commanderIdentity.map((c) => <ManaSymbol key={c} sym={c} />)}
+          </div>
+          <div className="font-mono text-[10px] mt-1" style={{ color: CREAM_DIM }}>
+            {analysis.colorCount}-color
+          </div>
+        </div>
+        <div className="p-4">
+          <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>Pip distribution</div>
+          <div className="flex items-baseline gap-3 mt-1 flex-wrap">
+            {['W', 'U', 'B', 'R', 'G'].filter((c) => analysis.pipDistribution[c] > 0).map((c) => (
+              <div key={c} className="flex items-center gap-1">
+                <ManaSymbol sym={c} size="0.85em" />
+                <span className="font-mono text-xs" style={{ color: CREAM }}>{analysis.pipDistribution[c]}</span>
+              </div>
+            ))}
+            {analysis.pipDistribution.total === 0 && (
+              <span className="font-serif text-xs italic" style={{ color: CREAM_DIM }}>—</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="p-5">
+        <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-3" style={{ color: CREAM_DIM }}>
+          Recommended basics · {recBasicTotal} total
+        </div>
+        {Object.keys(analysis.recommendedBasics).length === 0 ? (
+          <div className="font-serif text-sm italic" style={{ color: CREAM_DIM }}>
+            Set a commander to compute a land base.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {Object.entries(analysis.recommendedBasics).map(([name, rec]) => {
+              const sym = name === 'Plains' ? 'W'
+                : name === 'Island' ? 'U'
+                : name === 'Swamp' ? 'B'
+                : name === 'Mountain' ? 'R'
+                : name === 'Forest' ? 'G' : 'C';
+              const have = analysis.diff.find((d) => d.name === name)?.have ?? rec;
+              const delta = rec - have;
+              return (
+                <div key={name} className="grid grid-cols-12 gap-2 items-center">
+                  <div className="col-span-1" style={{ fontSize: '1.05rem' }}>
+                    <ManaSymbol sym={sym} />
+                  </div>
+                  <div className="col-span-3 font-serif text-sm" style={{ color: CREAM }}>
+                    {name}
+                  </div>
+                  <div className="col-span-6 h-1.5 border" style={{ borderColor: CREAM_FAINT }}>
+                    <div className="h-full" style={{ background: CREAM, opacity: 0.75, width: `${(rec / 20) * 100}%` }}></div>
+                  </div>
+                  <div className="col-span-2 text-right font-mono text-xs" style={{ color: CREAM }}>
+                    {have} → {rec}
+                    {delta !== 0 && (
+                      <span className="ml-1" style={{ color: delta > 0 ? '#a3c98a' : ACCENT, fontSize: '0.85em' }}>
+                        ({delta > 0 ? '+' : ''}{delta})
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {analysis.utilityLands.length > 0 && (
+        <div className="border-t p-5" style={{ borderColor: CREAM_FAINT }}>
+          <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-3" style={{ color: CREAM_DIM }}>
+            Suggested utility / fixing lands ({analysis.utilityReserved} slots)
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-y-1.5 gap-x-4">
+            {analysis.utilityLands.slice(0, analysis.utilityReserved + 4).map((u) => (
+              <div key={u.name} className="flex items-center gap-3 text-sm">
+                <span className="font-serif flex-1 truncate" style={{ color: CREAM }}>{u.name}</span>
+                <span className="font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 border" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
+                  {u.tag}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="font-serif text-xs italic mt-3" style={{ color: CREAM_DIM }}>
+            Shortlist for {analysis.colorCount}-color identity. Mix and match — these are common picks, not a fixed answer.
+          </div>
+        </div>
+      )}
     </div>
   );
 }
