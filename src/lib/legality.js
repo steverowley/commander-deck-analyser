@@ -10,6 +10,7 @@
  */
 
 import { lc } from './utils.js';
+import { BANNED_CARDS } from './constants.js';
 
 const BASIC_LANDS = new Set([
   'plains', 'island', 'swamp', 'mountain', 'forest', 'wastes',
@@ -84,6 +85,11 @@ export function checkDeckLegality(deck) {
     );
   }
 
+  const banned = checkBannedCards(deck);
+  if (banned.length > 0) {
+    errors.push(`Banned in Commander: ${banned.join(', ')}.`);
+  }
+
   if (deck.commander) {
     const offColor = deck.cards
       .filter((c) => c.scryfall)
@@ -96,7 +102,25 @@ export function checkDeckLegality(deck) {
     }
   }
 
-  return { errors, warnings, size, target };
+  return { errors, warnings, size, target, banned };
+}
+
+/**
+ * Return names of any cards in the deck that appear on the Commander
+ * banned list. Checks the commander as well — banned commanders are
+ * banned commanders.
+ */
+export function checkBannedCards(deck) {
+  const hits = [];
+  for (const c of deck.cards) {
+    if (c.scryfall && BANNED_CARDS.has(lc(c.scryfall.name))) {
+      hits.push(c.scryfall.name);
+    }
+  }
+  if (deck.commander && BANNED_CARDS.has(lc(deck.commander.name))) {
+    hits.push(deck.commander.name);
+  }
+  return hits;
 }
 
 /**
@@ -124,6 +148,9 @@ export function previewAdditions(deck, newCards) {
     const reasons = [];
     if (!isBasicLand(card) && (present.has(lc(nc.name)) || nc.count > 1)) {
       reasons.push('singleton');
+    }
+    if (BANNED_CARDS.has(lc(card.name))) {
+      reasons.push('banned');
     }
     if (deck.commander) {
       const ci = checkColorIdentity(card, deck.commander);

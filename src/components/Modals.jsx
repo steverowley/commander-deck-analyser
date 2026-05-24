@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { X, Loader2, Check, BookOpen, Copy, Download } from 'lucide-react';
+import { X, Loader2, Check, BookOpen, Copy, Download, Link as LinkIcon } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, parseDecklist, lc } from '../lib/utils.js';
 import { fetchCardsByName, fetchCardByExactName } from '../lib/scryfall.js';
 import { exportDecklist } from '../lib/deckops.js';
+import { buildShareUrl } from '../lib/share.js';
+import { deckTotalPrice, formatPrice } from '../lib/pricing.js';
 import { TagPill, RuleSection } from './UI.jsx';
 import { BRACKETS } from '../lib/constants.js';
 
@@ -346,9 +348,23 @@ export function ExportModal({ deck, onClose }) {
           </button>
         </div>
         <div className="p-5 flex-1 overflow-auto">
-          <p className="font-serif text-sm mb-4 italic" style={{ color: CREAM_DIM }}>
+          <p className="font-serif text-sm mb-3 italic" style={{ color: CREAM_DIM }}>
             Moxfield/MTGA-compatible text. Paste this into any deck builder that accepts plain decklists.
           </p>
+          {(() => {
+            const price = deckTotalPrice(deck);
+            if (price.priced === 0) return null;
+            const approx = price.unpriced > 0 ? '~' : '';
+            return (
+              <div className="flex items-center gap-3 mb-3 font-mono text-[11px]" style={{ color: CREAM_DIM }}>
+                <span>Deck price ·</span>
+                <span style={{ color: CREAM, fontSize: '1.1rem', fontFamily: 'inherit' }}>
+                  {approx}{formatPrice(price.total)} USD
+                </span>
+                {price.unpriced > 0 && <span>({price.unpriced} card{price.unpriced === 1 ? '' : 's'} unpriced)</span>}
+              </div>
+            );
+          })()}
           <textarea
             value={text}
             readOnly
@@ -375,6 +391,65 @@ export function ExportModal({ deck, onClose }) {
           >
             {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
             {copied ? 'Copied' : 'Copy →'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+
+export function ShareModal({ deck, onClose }) {
+  const url = buildShareUrl(deck);
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  };
+  return (
+    <div
+      className="fixed inset-0 flex items-center justify-center z-50 p-4"
+      style={{ background: 'rgba(13,22,20,0.92)', backdropFilter: 'blur(6px)' }}
+    >
+      <div className="w-full max-w-xl border" style={{ background: BG, borderColor: CREAM_FAINT }}>
+        <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
+          <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold flex items-center gap-2" style={{ color: CREAM }}>
+            <LinkIcon className="w-3.5 h-3.5" /> Share Deck
+          </div>
+          <button onClick={onClose} style={{ color: CREAM_DIM }}>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-5 space-y-3">
+          <p className="font-serif text-sm italic" style={{ color: CREAM_DIM }}>
+            Anyone with this link can open the deck. No accounts — the deck is encoded in the URL. Card data refetches from Scryfall on import.
+          </p>
+          <textarea
+            value={url}
+            readOnly
+            onClick={(e) => e.currentTarget.select()}
+            className="w-full h-24 p-3 border bg-transparent focus:outline-none font-mono text-[10px] leading-relaxed break-all"
+            style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(243,231,201,0.02)' }}
+          />
+          <div className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>
+            {url.length} characters · {deck.cards.length} cards
+          </div>
+        </div>
+        <div className="px-5 py-4 border-t flex justify-end gap-4" style={{ borderColor: CREAM_FAINT }}>
+          <button onClick={onClose} className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+            Close
+          </button>
+          <button
+            onClick={copy}
+            className="font-serif text-[10px] tracking-[0.3em] uppercase flex items-center gap-2"
+            style={{ color: CREAM }}
+          >
+            {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+            {copied ? 'Copied' : 'Copy link →'}
           </button>
         </div>
       </div>
