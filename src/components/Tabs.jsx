@@ -7,6 +7,7 @@ import { computeHealth } from '../lib/health.js';
 import { buildStagePlans, synergyHubs, packageWeight } from '../lib/strategy.js';
 import { BRACKETS } from '../lib/constants.js';
 import { addCardsToDeck, setCardCount, removeCardFromDeck, setCardTags } from '../lib/deckops.js';
+import { simulateOpeners, simulatePlayout } from '../lib/goldfish.js';
 import { fetchRecommendations, topRecommendations, recommendationsByTheme } from '../lib/edhrec.js';
 import { fetchCardByExactName } from '../lib/scryfall.js';
 import { checkDeckLegality } from '../lib/legality.js';
@@ -795,6 +796,258 @@ export function StagesTab({ deck }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// GOLDFISH SECTION (used inside ProbabilitiesTab)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function GoldfishSection({ deck }) {
+  const [sim, setSim] = useState(null);
+  const [playout, setPlayout] = useState(null);
+  const [running, setRunning] = useState(false);
+
+  const totalCards = deck.cards.reduce((s, c) => s + c.count, 0);
+  const canSim = totalCards >= 7;
+
+  const runOpeners = () => {
+    setRunning(true);
+    // Run on next tick so the UI shows "running" feedback for the brief
+    // moment 1000 samples takes (~5ms on a modern machine).
+    setTimeout(() => {
+      setSim(simulateOpeners(deck, 1000));
+      setRunning(false);
+    }, 10);
+  };
+
+  const runPlayout = () => {
+    setPlayout(simulatePlayout(deck, 6));
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-baseline gap-4">
+        <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
+          Goldfish
+        </div>
+        <div className="flex-1 border-t" style={{ borderColor: CREAM_FAINT }}></div>
+        <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+          mulligan + curve health
+        </div>
+      </div>
+
+      <div className="font-serif text-sm italic" style={{ color: CREAM_DIM }}>
+        Sample 1,000 opening hands and play out a representative 6-turn opening.
+        Lands, ramp, draw, and curve come from the cards' detected tags.
+      </div>
+
+      {!canSim && (
+        <div className="border p-8 text-center font-serif text-sm italic" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
+          Need at least 7 cards in the deck to simulate.
+        </div>
+      )}
+
+      {canSim && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <button
+            onClick={runOpeners}
+            disabled={running}
+            className="border p-5 text-left transition disabled:opacity-50"
+            style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.05)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.02)')}
+          >
+            <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+              {running ? 'Sampling...' : 'Sample 1,000 hands →'}
+            </div>
+            <div className="font-serif text-sm mt-1" style={{ color: CREAM }}>
+              Opening-hand distribution
+            </div>
+          </button>
+          <button
+            onClick={runPlayout}
+            className="border p-5 text-left transition"
+            style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.05)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.02)')}
+          >
+            <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+              Play a sample game →
+            </div>
+            <div className="font-serif text-sm mt-1" style={{ color: CREAM }}>
+              6 turns, simple AI
+            </div>
+          </button>
+        </div>
+      )}
+
+      {sim && <OpenersResult sim={sim} />}
+      {playout && <PlayoutResult log={playout} onReroll={runPlayout} />}
+    </div>
+  );
+}
+
+function OpenersResult({ sim }) {
+  const maxLand = Math.max(...sim.landDistribution, 1);
+  const keepPct = (sim.keepableRate * 100).toFixed(1);
+  const keepTone =
+    sim.keepableRate >= 0.85 ? '#a3c98a' :
+    sim.keepableRate >= 0.7 ? CREAM :
+    sim.keepableRate >= 0.55 ? '#d8b35a' : ACCENT;
+  return (
+    <div className="border" style={{ borderColor: CREAM_FAINT }}>
+      <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
+        <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
+          Openers · 1,000 samples
+        </div>
+        <div className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>
+          London mulligan model
+        </div>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-5 border-b" style={{ borderColor: CREAM_FAINT }}>
+        <div className="p-4 border-r" style={{ borderColor: CREAM_FAINT }}>
+          <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>Keepable</div>
+          <div className="font-serif font-black mt-1" style={{ color: keepTone, fontSize: '1.6rem' }}>
+            {keepPct}%
+          </div>
+        </div>
+        <div className="p-4 border-r" style={{ borderColor: CREAM_FAINT }}>
+          <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>Avg lands</div>
+          <div className="font-serif font-black mt-1" style={{ color: CREAM, fontSize: '1.6rem' }}>
+            {sim.avgLands.toFixed(2)}
+          </div>
+        </div>
+        <div className="p-4 border-r" style={{ borderColor: CREAM_FAINT }}>
+          <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>Avg ramp</div>
+          <div className="font-serif font-black mt-1" style={{ color: CREAM, fontSize: '1.6rem' }}>
+            {sim.avgRamp.toFixed(2)}
+          </div>
+        </div>
+        <div className="p-4 border-r" style={{ borderColor: CREAM_FAINT }}>
+          <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>Avg draw</div>
+          <div className="font-serif font-black mt-1" style={{ color: CREAM, fontSize: '1.6rem' }}>
+            {sim.avgDraw.toFixed(2)}
+          </div>
+        </div>
+        <div className="p-4">
+          <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>Avg removal</div>
+          <div className="font-serif font-black mt-1" style={{ color: CREAM, fontSize: '1.6rem' }}>
+            {sim.avgRemoval.toFixed(2)}
+          </div>
+        </div>
+      </div>
+      <div className="p-5">
+        <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-3" style={{ color: CREAM_DIM }}>
+          Land count distribution
+        </div>
+        <div className="flex items-end gap-2" style={{ height: '120px' }}>
+          {sim.landDistribution.map((n, i) => {
+            const barHeight = n > 0 ? Math.max((n / maxLand) * 100, 2) : 0;
+            const pct = ((n / sim.samples) * 100).toFixed(0);
+            const sweet = i >= 2 && i <= 5;
+            return (
+              <div key={i} className="flex-1 flex flex-col items-center justify-end h-full">
+                <div className="font-mono text-[9px] mb-1" style={{ color: CREAM_DIM }}>
+                  {pct}%
+                </div>
+                <div className="w-full" style={{ background: sweet ? CREAM : ACCENT, opacity: 0.8, height: `${barHeight}px` }}></div>
+                <div className="font-mono text-[10px] mt-2" style={{ color: CREAM_DIM }}>
+                  {i === 7 ? '7+' : i}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="font-serif text-xs italic mt-3" style={{ color: CREAM_DIM }}>
+          2-5 lands is the keepable range. 0-1 means mulligan; 6+ means flood.
+        </div>
+      </div>
+      {sim.sampleHands.length > 0 && (
+        <div className="border-t p-5" style={{ borderColor: CREAM_FAINT }}>
+          <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-3" style={{ color: CREAM_DIM }}>
+            Sample hands
+          </div>
+          <div className="space-y-3">
+            {sim.sampleHands.slice(0, 4).map((h, i) => (
+              <div key={i} className="border-t pt-2" style={{ borderColor: CREAM_FAINT }}>
+                <div className="flex items-baseline gap-3 mb-1">
+                  <span className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>
+                    hand {i + 1}
+                  </span>
+                  <span className="font-mono text-[10px]" style={{ color: h.keep ? '#a3c98a' : ACCENT }}>
+                    {h.keep ? 'keep' : 'mulligan'}
+                  </span>
+                  <span className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>
+                    {h.lands}L · {h.ramp}R · {h.draw}D
+                  </span>
+                </div>
+                <div className="font-serif text-xs flex flex-wrap gap-x-3 gap-y-0.5" style={{ color: CREAM }}>
+                  {h.hand.map((c, j) => (
+                    <span key={j} title={c.scryfall.type_line}>{c.name}</span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PlayoutResult({ log, onReroll }) {
+  return (
+    <div className="border" style={{ borderColor: CREAM_FAINT }}>
+      <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
+        <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
+          Sample Playout · 6 turns
+        </div>
+        <button
+          onClick={onReroll}
+          className="font-serif text-[10px] tracking-[0.3em] uppercase"
+          style={{ color: CREAM_DIM }}
+        >
+          Reroll →
+        </button>
+      </div>
+      <div className="p-5 space-y-3">
+        {log.map((t) => (
+          <div key={t.turn} className="grid grid-cols-12 gap-3 items-baseline border-b pb-2" style={{ borderColor: CREAM_FAINT }}>
+            <div className="col-span-1 font-serif font-black text-lg" style={{ color: CREAM }}>
+              T{t.turn}
+            </div>
+            <div className="col-span-2 font-mono text-[10px]" style={{ color: CREAM_DIM }}>
+              {t.mana} mana · {t.lands}L · {pad(t.handSize)} in hand
+            </div>
+            <div className="col-span-9">
+              {t.landPlayed && (
+                <div className="font-serif text-xs" style={{ color: CREAM_DIM }}>
+                  → played <span style={{ color: CREAM }}>{t.landPlayed}</span>
+                </div>
+              )}
+              {t.casts.length > 0 ? (
+                <div className="font-serif text-xs mt-0.5" style={{ color: CREAM_DIM }}>
+                  → cast{' '}
+                  {t.casts.map((c, i) => (
+                    <span key={i} style={{ color: CREAM }}>
+                      {c.name} <span style={{ color: CREAM_DIM, fontSize: '0.85em' }}>({c.cmc})</span>{i < t.casts.length - 1 ? ', ' : ''}
+                    </span>
+                  ))}
+                </div>
+              ) : !t.landPlayed ? (
+                <div className="font-serif text-xs italic" style={{ color: ACCENT }}>
+                  → stalled — no land, nothing castable
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="border-t px-5 py-3 font-serif text-xs italic" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
+        Simple model — drops a land, casts the biggest affordable spells, no mulligan / blocking / interaction. Reroll for another sample.
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // PROBABILITIES TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -831,9 +1084,21 @@ export function ProbabilitiesTab({ deck }) {
   }, [deckSize, successes, drawCount]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      <GoldfishSection deck={deck} />
+
+      <div className="flex items-baseline gap-4">
+        <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
+          Tag Probability
+        </div>
+        <div className="flex-1 border-t" style={{ borderColor: CREAM_FAINT }}></div>
+        <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+          hypergeometric
+        </div>
+      </div>
+
       <div className="font-serif text-sm italic" style={{ color: CREAM_DIM }}>
-        Hypergeometric probability — opening hand of 7 plus 1 draw per turn (approximate).
+        Opening hand of 7 plus 1 draw per turn (approximate).
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 border-t border-l" style={{ borderColor: CREAM_FAINT }}>
         <div className="border-r border-b p-5" style={{ borderColor: CREAM_FAINT }}>
