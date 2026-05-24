@@ -157,6 +157,7 @@ const COMMON_TAGS = [
 
 export function TagEditModal({ entry, onClose, onSave }) {
   const [tags, setTags] = useState(entry.tags || []);
+  const [note, setNote] = useState(entry.note || '');
   const [newTag, setNewTag] = useState('');
 
   const add = () => {
@@ -174,7 +175,7 @@ export function TagEditModal({ entry, onClose, onSave }) {
       <div className="w-full max-w-lg border" style={{ background: BG, borderColor: CREAM_FAINT }}>
         <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
           <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
-            Edit Tags
+            Card Details
           </div>
           <button onClick={onClose} style={{ color: CREAM_DIM }}>
             <X className="w-4 h-4" />
@@ -199,6 +200,21 @@ export function TagEditModal({ entry, onClose, onSave }) {
           </div>
           <div>
             <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-2" style={{ color: CREAM_DIM }}>
+              Note
+            </div>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value.slice(0, 160))}
+              placeholder="why this card is in the deck..."
+              className="w-full h-16 p-3 border bg-transparent focus:outline-none font-mono text-xs resize-none"
+              style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(243,231,201,0.02)' }}
+            />
+            <div className="font-mono text-[9px] mt-1 text-right" style={{ color: CREAM_DIM }}>
+              {note.length} / 160
+            </div>
+          </div>
+          <div>
+            <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-2" style={{ color: CREAM_DIM }}>
               Presets
             </div>
             <div className="flex flex-wrap gap-1">
@@ -216,7 +232,7 @@ export function TagEditModal({ entry, onClose, onSave }) {
           </div>
           <div>
             <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-2" style={{ color: CREAM_DIM }}>
-              Custom
+              Custom tag
             </div>
             <div
               className="flex gap-2 border px-3 py-2"
@@ -244,7 +260,7 @@ export function TagEditModal({ entry, onClose, onSave }) {
           </button>
           <button
             onClick={() => {
-              onSave(tags);
+              onSave({ tags, note });
               onClose();
             }}
             className="font-serif text-[10px] tracking-[0.3em] uppercase"
