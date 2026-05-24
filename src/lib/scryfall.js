@@ -313,3 +313,59 @@ export function cardImageUrl(card, version = 'small') {
     )}&format=image&version=${version}`;
   return `https://images.weserv.nl/?url=${encodeURIComponent(direct)}`;
 }
+
+/**
+ * Re-fetch every card currently in the cache from Scryfall and overwrite
+ * the cached entry. Useful for refreshing prices + oracle text after a
+ * Scryfall update without rebuilding the cache from zero.
+ *
+ * Reports per-batch progress via onProgress({ done, total }). Returns
+ * { updated, failed } counts when complete.
+ */
+export async function refreshCachedCards(onProgress) {
+  // Distinct canonical names — the cache also stores aliases that map to
+  // the same canonical card; we only need to re-fetch each canonical once.
+  const seenName = new Set();
+  for (const card of Object.values(cardCache)) {
+    if (card?.name) seenName.add(card.name);
+  }
+  const names = Array.from(seenName);
+  if (names.length === 0) {
+    onProgress?.({ done: 0, total: 0 });
+    return { updated: 0, failed: 0 };
+  }
+
+  const BATCH = 75;
+  let updated = 0;
+  let failed = 0;
+
+  for (let i = 0; i < names.length; i += BATCH) {
+    const batch = names.slice(i, i + BATCH);
+    onProgress?.({ done: i, total: names.length });
+
+    try {
+      const res = await fetch(`${SCRYFALL}/cards/collection`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifiers: batch.map((name) => ({ name })) }),
+      });
+      if (!res.ok) {
+        failed += batch.length;
+        continue;
+      }
+      const data = await res.json();
+      for (const card of data.data || []) {
+        cacheCard(card); // overwrites the existing entry + queues persist
+        updated++;
+      }
+      failed += (data.not_found || []).length;
+    } catch {
+      failed += batch.length;
+    }
+
+    if (i + BATCH < names.length) await sleep(REQUEST_DELAY_MS);
+  }
+
+  onProgress?.({ done: names.length, total: names.length });
+  return { updated, failed };
+}

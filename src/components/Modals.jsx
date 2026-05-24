@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { X, Loader2, Check, BookOpen, Copy, Download, Link as LinkIcon, GitCompare, Archive, FileText, Settings as SettingsIcon } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, parseDecklist, lc } from '../lib/utils.js';
-import { fetchCardsByName, fetchCardByExactName } from '../lib/scryfall.js';
+import { fetchCardsByName, fetchCardByExactName, refreshCachedCards } from '../lib/scryfall.js';
 import { exportDecklist } from '../lib/deckops.js';
 import { buildShareUrl } from '../lib/share.js';
 import { deckTotalPrice, formatPrice } from '../lib/pricing.js';
@@ -1200,6 +1200,8 @@ export function SettingsModal({ onClose }) {
   const [settings, setSettings] = useState(loadSettings());
   const [cacheCount, setCacheCount] = useState(null);
   const [clearing, setClearing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshStatus, setRefreshStatus] = useState(null); // { done, total } | { updated, failed } | null
 
   useEffect(() => {
     cacheSize().then(setCacheCount);
@@ -1213,6 +1215,20 @@ export function SettingsModal({ onClose }) {
     await clearIDBCache();
     setCacheCount(0);
     setClearing(false);
+  };
+
+  const refresh = async () => {
+    setRefreshing(true);
+    setRefreshStatus({ done: 0, total: cacheCount || 0 });
+    try {
+      const result = await refreshCachedCards((p) => setRefreshStatus(p));
+      setRefreshStatus(result);
+      // Brief pause so the user sees the "updated N" message before
+      // it clears.
+      setTimeout(() => setRefreshStatus(null), 4000);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   return (
@@ -1261,16 +1277,36 @@ export function SettingsModal({ onClose }) {
           </SettingsRow>
           <SettingsRow
             label="Card cache"
-            description={cacheCount === null ? 'Querying IndexedDB...' : `${cacheCount} cards cached. Clearing forces re-download on next lookup.`}
+            description={cacheCount === null ? 'Querying IndexedDB...' : `${cacheCount} cards cached.`}
           >
-            <button
-              onClick={clear}
-              disabled={clearing || cacheCount === 0}
-              className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-1.5 disabled:opacity-40"
-              style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
-            >
-              {clearing ? 'Clearing...' : 'Clear cache'}
-            </button>
+            <div className="flex flex-col items-end gap-1.5">
+              <div className="flex gap-2">
+                <button
+                  onClick={refresh}
+                  disabled={refreshing || clearing || !cacheCount}
+                  className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-1.5 disabled:opacity-40"
+                  style={{ borderColor: CREAM_FAINT, color: CREAM }}
+                  title="Re-download every cached card from Scryfall — refreshes prices + oracle text"
+                >
+                  {refreshing ? 'Refreshing...' : 'Refresh'}
+                </button>
+                <button
+                  onClick={clear}
+                  disabled={clearing || refreshing || cacheCount === 0}
+                  className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-1.5 disabled:opacity-40"
+                  style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
+                >
+                  {clearing ? 'Clearing...' : 'Clear'}
+                </button>
+              </div>
+              {refreshStatus && (
+                <div className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>
+                  {refreshStatus.total !== undefined
+                    ? `${refreshStatus.done} / ${refreshStatus.total}`
+                    : `${refreshStatus.updated} updated${refreshStatus.failed ? ` · ${refreshStatus.failed} failed` : ''}`}
+                </div>
+              )}
+            </div>
           </SettingsRow>
         </div>
         <div className="px-5 py-4 border-t flex justify-end" style={{ borderColor: CREAM_FAINT }}>
