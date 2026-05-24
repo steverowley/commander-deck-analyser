@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Loader2, Tag, Trash2, X, FileX } from 'lucide-react';
+import { Search, Loader2, Tag, Trash2, X, FileX, Bookmark } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad } from '../lib/utils.js';
 import { cardImageUrl, searchCardAutocomplete, fetchCardByExactName } from '../lib/scryfall.js';
@@ -288,7 +288,7 @@ export function RuleSection({ title, children }) {
 
 // ───────────────────────────────────────────────────────────────────────────────
 
-export function CardRow({ entry, idx, onChangeCount, onRemove, onEditTags }) {
+export function CardRow({ entry, idx, onChangeCount, onRemove, onEditTags, onDemoteToWishlist }) {
   const c = entry.scryfall;
   const [hoverPos, setHoverPos] = useState(null);
   const [imgError, setImgError] = useState(false);
@@ -392,10 +392,20 @@ export function CardRow({ entry, idx, onChangeCount, onRemove, onEditTags }) {
           </button>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => onEditTags(entry)} className="hover:opacity-100" style={{ color: CREAM_DIM }} title="Edit tags">
+          <button onClick={() => onEditTags(entry)} className="hover:opacity-100" style={{ color: CREAM_DIM }} title="Edit tags / notes">
             <Tag className="w-3 h-3" />
           </button>
-          <button onClick={() => onRemove(entry)} className="hover:text-red-400" style={{ color: CREAM_DIM }}>
+          {onDemoteToWishlist && (
+            <button
+              onClick={() => onDemoteToWishlist(entry)}
+              className="hover:opacity-100"
+              style={{ color: CREAM_DIM }}
+              title="Move to wishlist (set aside, doesn't count against 100)"
+            >
+              <Bookmark className="w-3 h-3" />
+            </button>
+          )}
+          <button onClick={() => onRemove(entry)} className="hover:text-red-400" style={{ color: CREAM_DIM }} title="Remove from deck">
             <Trash2 className="w-3 h-3" />
           </button>
         </div>

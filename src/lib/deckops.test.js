@@ -10,6 +10,10 @@ import {
   duplicateDeck,
   renameDeck,
   exportDecklist,
+  addToWishlist,
+  removeFromWishlist,
+  promoteFromWishlist,
+  demoteToWishlist,
 } from './deckops.js';
 
 const baseDeck = () => ({
@@ -176,5 +180,55 @@ describe('setDeckNotes', () => {
   it('handles null/undefined as empty string', () => {
     expect(setDeckNotes(baseDeck(), null).notes).toBe('');
     expect(setDeckNotes(baseDeck(), undefined).notes).toBe('');
+  });
+});
+
+describe('wishlist', () => {
+  it('adds a card to the wishlist (initialised on the fly)', () => {
+    const d = addToWishlist(baseDeck(), [sampleCard('Bloodghast')]);
+    expect(d.wishlist.length).toBe(1);
+    expect(d.wishlist[0].name).toBe('Bloodghast');
+  });
+
+  it('does not add a card already in the deck', () => {
+    const d = addCardsToDeck(baseDeck(), [sampleCard('Bloodghast')]);
+    const d2 = addToWishlist(d, [sampleCard('Bloodghast')]);
+    expect(d2.wishlist).toEqual([]);
+  });
+
+  it('increments count for an already-wishlisted card', () => {
+    let d = addToWishlist(baseDeck(), [sampleCard('Bloodghast')]);
+    d = addToWishlist(d, [sampleCard('Bloodghast')]);
+    expect(d.wishlist[0].count).toBe(2);
+  });
+
+  it('removeFromWishlist drops the entry', () => {
+    let d = addToWishlist(baseDeck(), [sampleCard('Bloodghast')]);
+    d = removeFromWishlist(d, 'Bloodghast');
+    expect(d.wishlist).toEqual([]);
+  });
+
+  it('promote moves wishlist → cards and re-tags', () => {
+    let d = addToWishlist(baseDeck(), [sampleCard('Bloodghast')]);
+    d = promoteFromWishlist(d, 'Bloodghast');
+    expect(d.wishlist).toEqual([]);
+    expect(d.cards.length).toBe(1);
+    expect(d.cards[0].tags).toContain('Lifegain');
+  });
+
+  it('demote moves cards → wishlist', () => {
+    let d = addCardsToDeck(baseDeck(), [sampleCard('Bloodghast')]);
+    d = demoteToWishlist(d, 'Bloodghast');
+    expect(d.cards).toEqual([]);
+    expect(d.wishlist.length).toBe(1);
+    expect(d.wishlist[0].name).toBe('Bloodghast');
+  });
+
+  it('demote then promote round-trips', () => {
+    let d = addCardsToDeck(baseDeck(), [sampleCard('Bloodghast')]);
+    d = demoteToWishlist(d, 'Bloodghast');
+    d = promoteFromWishlist(d, 'Bloodghast');
+    expect(d.cards.length).toBe(1);
+    expect(d.wishlist).toEqual([]);
   });
 });
