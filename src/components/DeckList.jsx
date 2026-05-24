@@ -47,7 +47,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
           className="hidden md:flex items-center justify-end px-5 text-[11px] tracking-[0.3em] uppercase font-serif"
           style={{ color: CREAM_DIM }}
         >
-          v0.1
+          v{__APP_VERSION__}
         </div>
       </nav>
 
@@ -280,7 +280,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
         className="border-t mt-20 py-6 text-center font-serif text-[10px] tracking-[0.4em] uppercase"
         style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
       >
-        Vault · v0.1 · MIT
+        Vault · v{__APP_VERSION__} · MIT
       </div>
 
       {showImport && (

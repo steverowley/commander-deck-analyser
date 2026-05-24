@@ -96,7 +96,12 @@ export const TAG_PATTERNS = {
   "Token producer": [/create.{1,40}token/i, /creates?.{1,40}token/i],
   "Token doubler": [/twice that many|double the number of (those |.{0,10})?(creature )?tokens/i],
   "Counter doubler": [/twice that many \+1\/\+1 counters|double the number of \+1\/\+1 counters/i],
-  "Ramp": [/search your library for an? (basic )?(forest|island|swamp|mountain|plains|land)/i, /\{t\}: add (\{[wubrgc]\}|one mana|two mana)/i, /adds? (an additional )?\{[wubrgc]\}/i],
+  "Ramp": [
+    /search your library for (an?|up to (one|two|three|four|five|six|\d+)) (basic )?(forest|island|swamp|mountain|plains|land)/i,
+    /\{t\}: add (\{[wubrgc]\}|one mana|two mana)/i,
+    /adds? (an additional )?\{[wubrgc]\}/i,
+    /put (a|an|that|target) land card .{0,40}(onto the battlefield|into play)/i,
+  ],
   "Card draw": [/draw (a|an|one|two|three|four|x|\d+) cards?/i, /draws? (a|an|one|two|three|x|\d+) cards?/i],
   "Tutor": [/search your library for an? .{1,40} card/i],
   "Targeted removal": [/destroy target|exile target (creature|permanent|nonland)/i, /counter target/i],
