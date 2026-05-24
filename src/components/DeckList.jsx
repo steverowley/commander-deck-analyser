@@ -6,6 +6,7 @@ import { cardImageUrl } from '../lib/scryfall.js';
 import { assessBracket } from '../lib/analyzers.js';
 import { computeHealth } from '../lib/health.js';
 import { deckTotalPrice, formatPrice } from '../lib/pricing.js';
+import { aggregateStats } from '../lib/stats.js';
 import { ManaSymbol } from './ManaCost.jsx';
 import { ImportDeckModal } from './Modals.jsx';
 
@@ -188,6 +189,8 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
           </button>
         </div>
       </div>
+
+      {decks.length >= 2 && <ArchiveDashboard decks={decks} />}
 
       {/* Stored decks */}
       <div className="mt-12 fade-up" style={{ animationDelay: '240ms' }}>
@@ -424,6 +427,118 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
             setShowImport(false);
           }}
         />
+      )}
+    </div>
+  );
+}
+
+function ArchiveDashboard({ decks }) {
+  const stats = useMemo(() => aggregateStats(decks), [decks]);
+  const maxBracket = Math.max(...stats.bracketHistogram, 1);
+  const totalColors = Object.values(stats.colorHistogram).reduce((s, n) => s + n, 0);
+  const priceLabel = stats.totalPriceUnpriced > 0 ? `~${formatPrice(stats.totalPrice)}` : formatPrice(stats.totalPrice);
+
+  return (
+    <div className="mt-12 fade-up" style={{ animationDelay: '180ms' }}>
+      <div className="flex items-baseline gap-4 mb-3">
+        <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
+          Archive Stats
+        </div>
+        <div className="flex-1 border-t" style={{ borderColor: CREAM_FAINT }}></div>
+        <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+          across {pad(stats.deckCount)} decks
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 border-t border-l" style={{ borderColor: CREAM_FAINT }}>
+        <DashStat label="Decks" value={stats.deckCount} />
+        <DashStat label="Cards" value={stats.cardCount} />
+        <DashStat label="Total value" value={priceLabel} sub={stats.totalPriceUnpriced > 0 ? `${stats.totalPriceUnpriced} unpriced` : null} />
+        <DashStat label="Avg health" value={stats.avgHealth || '—'} />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+        {/* Bracket distribution */}
+        <div className="border" style={{ borderColor: CREAM_FAINT }}>
+          <div className="px-4 py-2 border-b font-serif text-[10px] tracking-[0.3em] uppercase" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
+            Bracket distribution
+          </div>
+          <div className="p-4 flex items-end gap-2" style={{ height: '110px' }}>
+            {stats.bracketHistogram.map((n, i) => {
+              const h = n > 0 ? Math.max((n / maxBracket) * 80, 4) : 0;
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center justify-end h-full">
+                  <span className="font-mono text-[10px] mb-1" style={{ color: CREAM_DIM }}>{n}</span>
+                  <div className="w-full" style={{ background: CREAM, opacity: 0.75, height: `${h}px` }}></div>
+                  <span className="font-mono text-[10px] mt-1.5" style={{ color: CREAM_DIM }}>{i + 1}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Color usage */}
+        <div className="border" style={{ borderColor: CREAM_FAINT }}>
+          <div className="px-4 py-2 border-b font-serif text-[10px] tracking-[0.3em] uppercase" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
+            Colors played
+          </div>
+          <div className="p-4 space-y-2">
+            {['W', 'U', 'B', 'R', 'G', 'C'].filter((c) => stats.colorHistogram[c] > 0).map((c) => {
+              const n = stats.colorHistogram[c];
+              const pct = totalColors > 0 ? (n / totalColors) * 100 : 0;
+              return (
+                <div key={c} className="grid grid-cols-12 gap-2 items-center">
+                  <div className="col-span-1 flex items-center" style={{ fontSize: '1rem' }}>
+                    <ManaSymbol sym={c} size="1em" />
+                  </div>
+                  <div className="col-span-9 h-1.5 border" style={{ borderColor: CREAM_FAINT }}>
+                    <div className="h-full" style={{ background: CREAM, opacity: 0.7, width: `${pct}%` }}></div>
+                  </div>
+                  <div className="col-span-2 text-right font-mono text-[10px]" style={{ color: CREAM }}>
+                    {n} deck{n === 1 ? '' : 's'}
+                  </div>
+                </div>
+              );
+            })}
+            {totalColors === 0 && (
+              <div className="font-serif text-xs italic" style={{ color: CREAM_DIM }}>
+                Set commanders to populate this chart.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {stats.archetypeHistogram.length > 0 && (
+        <div className="border mt-3" style={{ borderColor: CREAM_FAINT }}>
+          <div className="px-4 py-2 border-b font-serif text-[10px] tracking-[0.3em] uppercase" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
+            Top archetypes
+          </div>
+          <div className="p-4 flex flex-wrap gap-x-5 gap-y-1.5">
+            {stats.archetypeHistogram.slice(0, 8).map((a) => (
+              <div key={a.name} className="flex items-baseline gap-1.5">
+                <span className="font-serif text-sm" style={{ color: CREAM }}>{a.name}</span>
+                <span className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>×{a.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DashStat({ label, value, sub }) {
+  return (
+    <div className="border-r border-b p-4" style={{ borderColor: CREAM_FAINT }}>
+      <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+        {label}
+      </div>
+      <div className="font-serif font-black mt-1" style={{ color: CREAM, fontSize: '1.6rem' }}>
+        {value}
+      </div>
+      {sub && (
+        <div className="font-mono text-[10px] mt-1" style={{ color: CREAM_DIM }}>{sub}</div>
       )}
     </div>
   );
