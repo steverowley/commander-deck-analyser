@@ -3,6 +3,7 @@ import { Search, Loader2, Tag, Trash2, X } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad } from '../lib/utils.js';
 import { cardImageUrl, searchCardAutocomplete, fetchCardByExactName } from '../lib/scryfall.js';
+import { ManaCost, ManaSymbol } from './ManaCost.jsx';
 
 // ───────────────────────────────────────────────────────────────────────────────
 
@@ -38,6 +39,43 @@ export function CardThumb({ card, size = 'sm', onClick }) {
 }
 
 // ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Inline oracle splitter — emits a fragment instead of a block,
+ * so it can be embedded in line-clamped row text without breaking layout.
+ */
+export function InlineOracle({ text }) {
+  if (!text) return null;
+  const parts = text.split(/(\{[^}]+\})/g);
+  return (
+    <>
+      {parts.map((part, i) => {
+        const m = part.match(/^\{([^}]+)\}$/);
+        if (m) return <ManaSymbol key={i} sym={m[1].replace('/', '')} size="0.9em" title={part} />;
+        return <span key={i}>{part}</span>;
+      })}
+    </>
+  );
+}
+
+/**
+ * Render rules text with inline mana symbols. Splits on `{X}` patterns,
+ * keeps the surrounding prose, and inserts a ManaSymbol for each match.
+ */
+export function OracleText({ text }) {
+  if (!text) return null;
+  // Split keeping the delimiters so we can map them back to symbols.
+  const parts = text.split(/(\{[^}]+\})/g);
+  return (
+    <div className="font-serif text-sm whitespace-pre-wrap leading-relaxed" style={{ color: CREAM }}>
+      {parts.map((part, i) => {
+        const m = part.match(/^\{([^}]+)\}$/);
+        if (m) return <ManaSymbol key={i} sym={m[1].replace('/', '')} size="0.95em" title={part} />;
+        return <span key={i}>{part}</span>;
+      })}
+    </div>
+  );
+}
 
 /**
  * Centered card preview modal. Used when a user taps a card on touch
@@ -76,21 +114,17 @@ export function CardPreview({ card, onClose }) {
             {card.type_line}
           </div>
           {card.mana_cost && (
-            <div className="font-mono text-sm mb-3" style={{ color: CREAM }}>
-              {card.mana_cost}
+            <div className="mb-3" style={{ color: CREAM, fontSize: '1.25rem' }}>
+              <ManaCost cost={card.mana_cost} />
             </div>
           )}
           {card.oracle_text && (
-            <div className="font-serif text-sm whitespace-pre-wrap leading-relaxed" style={{ color: CREAM }}>
-              {card.oracle_text}
-            </div>
+            <OracleText text={card.oracle_text} />
           )}
           {(card.card_faces || []).map((face, i) => (
             face.oracle_text ? (
               <div key={i} className="mt-3 pt-3 border-t" style={{ borderColor: CREAM_FAINT }}>
-                <div className="font-serif text-sm whitespace-pre-wrap leading-relaxed" style={{ color: CREAM }}>
-                  {face.oracle_text}
-                </div>
+                <OracleText text={face.oracle_text} />
               </div>
             ) : null
           ))}
@@ -275,7 +309,7 @@ export function CardRow({ entry, idx, onChangeCount, onRemove, onEditTags }) {
           </span>
         </div>
         <div className="font-serif text-xs mt-1 line-clamp-2 leading-snug" style={{ color: CREAM_DIM }}>
-          {c.oracle_text || c.card_faces?.[0]?.oracle_text}
+          <InlineOracle text={c.oracle_text || c.card_faces?.[0]?.oracle_text} />
         </div>
         <div className="flex flex-wrap gap-1 mt-2">
           {(entry.tags || []).map((t) => (

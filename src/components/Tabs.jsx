@@ -10,6 +10,7 @@ import { fetchRecommendations, topRecommendations, recommendationsByTheme } from
 import { fetchCardByExactName } from '../lib/scryfall.js';
 import { checkDeckLegality } from '../lib/legality.js';
 import { CardSearchBar, CardRow, TagPill, CardThumb, StatBox, FlagBox, ProbCard } from './UI.jsx';
+import { ManaSymbol } from './ManaCost.jsx';
 import { BulkAddModal, TagEditModal } from './Modals.jsx';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -453,12 +454,12 @@ export function CurveTab({ deck }) {
             {Object.entries(stats.colors)
               .filter(([_, v]) => v > 0)
               .map(([k, v]) => (
-                <div key={k} className="flex flex-col items-center">
+                <div key={k} className="flex flex-col items-center gap-1">
                   <span className="font-serif font-black text-lg" style={{ color: CREAM }}>
                     {v}
                   </span>
-                  <span className="font-mono text-[9px] tracking-widest mt-0.5" style={{ color: CREAM_DIM }}>
-                    {k}
+                  <span style={{ fontSize: '0.9rem' }}>
+                    <ManaSymbol sym={k} size="1em" title={k} />
                   </span>
                 </div>
               ))}
