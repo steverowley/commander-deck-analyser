@@ -12,7 +12,7 @@ import { analyzeLandBase } from '../lib/landbase.js';
 import { fetchRecommendations, topRecommendations, recommendationsByTheme, themesForArchetype, suggestCuts } from '../lib/edhrec.js';
 import { fetchCardByExactName } from '../lib/scryfall.js';
 import { checkDeckLegality } from '../lib/legality.js';
-import { CardSearchBar, CardRow, TagPill, CardThumb, StatBox, FlagBox, ProbCard } from './UI.jsx';
+import { CardSearchBar, CardRow, TagPill, CardThumb, StatBox, FlagBox, ProbCard, EmptyState } from './UI.jsx';
 import { ManaSymbol } from './ManaCost.jsx';
 import { BulkAddModal, TagEditModal } from './Modals.jsx';
 
@@ -255,9 +255,10 @@ export function PackagesTab({ deck }) {
 
   if (deck.cards.length === 0) {
     return (
-      <div className="border p-12 text-center font-serif text-sm italic" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
-        Add cards on the Cards tab to see packages.
-      </div>
+      <EmptyState
+        title="No packages yet"
+        body="Add cards on the Cards tab. The auto-tag engine detects ~25 strategic roles (Ramp, Card draw, Token producer, etc.) and groups cards by tag."
+      />
     );
   }
 
@@ -863,9 +864,10 @@ export function StagesTab({ deck }) {
 
   if (deck.cards.length === 0) {
     return (
-      <div className="border p-12 text-center font-serif text-sm italic" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
-        Add cards to generate a stage-by-stage action plan.
-      </div>
+      <EmptyState
+        title="No stage plan yet"
+        body="Add cards on the Cards tab. The strategy engine classifies the deck into an archetype (Tribal, Combo, Control, Tokens, etc.) and writes turn-by-turn guidance citing your actual cards."
+      />
     );
   }
 
@@ -969,9 +971,10 @@ function GoldfishSection({ deck }) {
       </div>
 
       {!canSim && (
-        <div className="border p-8 text-center font-serif text-sm italic" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
-          Need at least 7 cards in the deck to simulate.
-        </div>
+        <EmptyState
+          title="Need cards to simulate"
+          body="Add at least 7 cards to the deck — opening-hand size — and the goldfish + mulligan tools light up."
+        />
       )}
 
       {canSim && (
@@ -1489,9 +1492,10 @@ export function RecommendationsTab({ deck, onUpdate }) {
 
   if (!deck.commander) {
     return (
-      <div className="border p-12 text-center font-serif text-sm italic" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
-        Set a commander to see recommendations.
-      </div>
+      <EmptyState
+        title="No commander set"
+        body="Pick a commander (above the tabs) and we'll fetch EDHREC's top cards played alongside it, ranked by synergy. Also unlocks cut suggestions and the seed-99-card builder."
+      />
     );
   }
 

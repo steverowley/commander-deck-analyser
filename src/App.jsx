@@ -151,6 +151,7 @@ export default function App() {
           onUpdate={handleUpdate}
           onBack={() => setActiveId(null)}
           onDuplicate={() => handleDuplicate(activeDeck)}
+          otherDecks={decks.filter((d) => d.id !== activeDeck.id)}
         />
       ) : (
         <DeckListView
