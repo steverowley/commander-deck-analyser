@@ -26,6 +26,22 @@ npm run preview
 
 The built files go into `dist/` — those are what you'd upload to a static host (Vercel, Netlify, Cloudflare Pages, GitHub Pages).
 
+### Tests
+
+Unit + integration tests run via Vitest:
+
+```bash
+npm test          # one-shot
+npm run test:watch  # re-run on change
+```
+
+End-to-end smoke tests via Playwright (boots the dev server, mocks Scryfall + EDHREC):
+
+```bash
+npm run e2e:install  # one-time browser install
+npm run e2e
+```
+
 ---
 
 ## What it does

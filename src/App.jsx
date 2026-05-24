@@ -7,6 +7,7 @@ import { duplicateDeck, addCardsToDeck } from './lib/deckops.js';
 import { decodeDeckUrl } from './lib/share.js';
 import { DeckListView } from './components/DeckList.jsx';
 import { DeckEditor } from './components/DeckEditor.jsx';
+import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 
 export default function App() {
   const [decks, setDecks] = useState([]);
@@ -145,24 +146,26 @@ export default function App() {
           progress={importProgress}
         />
       )}
-      {activeDeck ? (
-        <DeckEditor
-          deck={activeDeck}
-          onUpdate={handleUpdate}
-          onBack={() => setActiveId(null)}
-          onDuplicate={() => handleDuplicate(activeDeck)}
-          otherDecks={decks.filter((d) => d.id !== activeDeck.id)}
-        />
-      ) : (
-        <DeckListView
-          decks={decks}
-          onSelect={setActiveId}
-          onCreate={handleCreate}
-          onDelete={handleDelete}
-          onDuplicate={handleDuplicate}
-          onImport={handleImport}
-        />
-      )}
+      <ErrorBoundary label="Vault hit an unexpected error">
+        {activeDeck ? (
+          <DeckEditor
+            deck={activeDeck}
+            onUpdate={handleUpdate}
+            onBack={() => setActiveId(null)}
+            onDuplicate={() => handleDuplicate(activeDeck)}
+            otherDecks={decks.filter((d) => d.id !== activeDeck.id)}
+          />
+        ) : (
+          <DeckListView
+            decks={decks}
+            onSelect={setActiveId}
+            onCreate={handleCreate}
+            onDelete={handleDelete}
+            onDuplicate={handleDuplicate}
+            onImport={handleImport}
+          />
+        )}
+      </ErrorBoundary>
     </div>
   );
 }
