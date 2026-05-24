@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react';
 import { CREAM, CREAM_DIM, BG } from './theme.js';
 import { loadDecks, saveDeck, deleteDeck } from './lib/storage.js';
 import { loadCardCache } from './lib/scryfall.js';
+import { duplicateDeck, addCardsToDeck } from './lib/deckops.js';
 import { DeckListView } from './components/DeckList.jsx';
 import { DeckEditor } from './components/DeckEditor.jsx';
 
@@ -46,6 +47,29 @@ export default function App() {
     if (activeId === id) setActiveId(null);
   };
 
+  const handleDuplicate = async (deck) => {
+    const copy = duplicateDeck(deck);
+    await saveDeck(copy);
+    setDecks([copy, ...decks]);
+    setActiveId(copy.id);
+  };
+
+  const handleImport = async ({ name, commander, cards }) => {
+    const base = {
+      id: 'deck_' + Date.now(),
+      name,
+      commander: commander || null,
+      cards: [],
+      created: Date.now(),
+      updated: Date.now(),
+    };
+    // Run cards through addCardsToDeck so tags get assigned consistently.
+    const populated = addCardsToDeck(base, cards);
+    await saveDeck(populated);
+    setDecks([populated, ...decks]);
+    setActiveId(populated.id);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: BG }}>
@@ -62,9 +86,21 @@ export default function App() {
   return (
     <div className="min-h-screen relative" style={{ background: BG, color: CREAM }}>
       {activeDeck ? (
-        <DeckEditor deck={activeDeck} onUpdate={handleUpdate} onBack={() => setActiveId(null)} />
+        <DeckEditor
+          deck={activeDeck}
+          onUpdate={handleUpdate}
+          onBack={() => setActiveId(null)}
+          onDuplicate={() => handleDuplicate(activeDeck)}
+        />
       ) : (
-        <DeckListView decks={decks} onSelect={setActiveId} onCreate={handleCreate} onDelete={handleDelete} />
+        <DeckListView
+          decks={decks}
+          onSelect={setActiveId}
+          onCreate={handleCreate}
+          onDelete={handleDelete}
+          onDuplicate={handleDuplicate}
+          onImport={handleImport}
+        />
       )}
     </div>
   );

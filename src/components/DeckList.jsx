@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { Trash2, Crown } from 'lucide-react';
+import { Trash2, Crown, Copy, Upload } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, ACCENT } from '../theme.js';
 import { pad } from '../lib/utils.js';
 import { cardImageUrl } from '../lib/scryfall.js';
 import { assessBracket } from '../lib/analyzers.js';
+import { ImportDeckModal } from './Modals.jsx';
 
-export function DeckListView({ decks, onSelect, onCreate, onDelete }) {
+export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport }) {
   const [name, setName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [showImport, setShowImport] = useState(false);
 
   const totalCards = decks.reduce((s, d) => s + d.cards.reduce((a, c) => a + c.count, 0), 0);
 
@@ -69,15 +71,15 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete }) {
         </p>
       </div>
 
-      {/* Numbered create section */}
+      {/* Numbered create / import section */}
       <div
-        className="grid grid-cols-1 border-t border-l fade-up"
+        className="grid grid-cols-1 md:grid-cols-2 border-t border-l fade-up"
         style={{ borderColor: CREAM_FAINT, animationDelay: '120ms' }}
       >
         <div className="border-r border-b p-6 md:p-8" style={{ borderColor: CREAM_FAINT }}>
           <div className="flex items-baseline justify-between mb-4">
             <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
-              <span style={{ color: CREAM_DIM }}>1.</span> Initialize new deck
+              <span style={{ color: CREAM_DIM }}>1.</span> New deck
             </div>
             <button
               onClick={() => {
@@ -110,13 +112,37 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete }) {
             />
           </div>
         </div>
+        <div className="border-r border-b p-6 md:p-8" style={{ borderColor: CREAM_FAINT }}>
+          <div className="flex items-baseline justify-between mb-4">
+            <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
+              <span style={{ color: CREAM_DIM }}>2.</span> Import existing
+            </div>
+            <button
+              onClick={() => setShowImport(true)}
+              className="font-serif text-[10px] tracking-[0.35em] uppercase hover:opacity-100 transition"
+              style={{ color: CREAM_DIM }}
+            >
+              Paste →
+            </button>
+          </div>
+          <button
+            onClick={() => setShowImport(true)}
+            className="w-full border px-4 py-3 text-left flex items-center gap-3"
+            style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.03)' }}
+          >
+            <Upload className="w-4 h-4" style={{ color: CREAM_DIM }} />
+            <span className="font-mono text-sm" style={{ color: CREAM_DIM }}>
+              paste a Moxfield-format decklist...
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* Stored decks */}
       <div className="mt-12 fade-up" style={{ animationDelay: '240ms' }}>
         <div className="flex items-baseline gap-4 mb-1">
           <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
-            <span style={{ color: CREAM_DIM }}>2.</span> Archive
+            <span style={{ color: CREAM_DIM }}>3.</span> Archive
           </div>
           <div className="flex-1 border-t" style={{ borderColor: CREAM_FAINT }}></div>
           <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
@@ -183,16 +209,30 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete }) {
                         </button>
                       </div>
                     ) : (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setConfirmDelete(d.id);
-                        }}
-                        className="opacity-0 group-hover:opacity-100 transition"
-                        style={{ color: CREAM_DIM }}
-                      >
-                        <Trash2 className="w-3.5 h-3.5 hover:text-red-400" />
-                      </button>
+                      <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition">
+                        {onDuplicate && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDuplicate(d);
+                            }}
+                            style={{ color: CREAM_DIM }}
+                            title="Duplicate"
+                          >
+                            <Copy className="w-3.5 h-3.5 hover:opacity-100" />
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmDelete(d.id);
+                          }}
+                          style={{ color: CREAM_DIM }}
+                          title="Delete"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 hover:text-red-400" />
+                        </button>
+                      </div>
                     )}
                   </div>
                   <h3
@@ -242,6 +282,16 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete }) {
       >
         Vault · v0.1 · MIT
       </div>
+
+      {showImport && (
+        <ImportDeckModal
+          onClose={() => setShowImport(false)}
+          onImport={(payload) => {
+            onImport(payload);
+            setShowImport(false);
+          }}
+        />
+      )}
     </div>
   );
 }
