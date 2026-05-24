@@ -4,12 +4,12 @@ import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, hypergeom } from '../lib/utils.js';
 import { assessBracket } from '../lib/analyzers.js';
 import { computeHealth } from '../lib/health.js';
-import { buildStagePlans, synergyHubs, packageWeight } from '../lib/strategy.js';
+import { buildStagePlans, synergyHubs, packageWeight, classifyArchetype } from '../lib/strategy.js';
 import { BRACKETS } from '../lib/constants.js';
 import { addCardsToDeck, setCardCount, removeCardFromDeck, setCardTags } from '../lib/deckops.js';
-import { simulateOpeners, simulatePlayout } from '../lib/goldfish.js';
+import { simulateOpeners, simulatePlayout, simulateMulliganTree } from '../lib/goldfish.js';
 import { analyzeLandBase } from '../lib/landbase.js';
-import { fetchRecommendations, topRecommendations, recommendationsByTheme, suggestCuts } from '../lib/edhrec.js';
+import { fetchRecommendations, topRecommendations, recommendationsByTheme, themesForArchetype, suggestCuts } from '../lib/edhrec.js';
 import { fetchCardByExactName } from '../lib/scryfall.js';
 import { checkDeckLegality } from '../lib/legality.js';
 import { CardSearchBar, CardRow, TagPill, CardThumb, StatBox, FlagBox, ProbCard } from './UI.jsx';
@@ -929,6 +929,7 @@ export function StagesTab({ deck }) {
 
 function GoldfishSection({ deck }) {
   const [sim, setSim] = useState(null);
+  const [tree, setTree] = useState(null);
   const [playout, setPlayout] = useState(null);
   const [running, setRunning] = useState(false);
 
@@ -937,10 +938,11 @@ function GoldfishSection({ deck }) {
 
   const runOpeners = () => {
     setRunning(true);
-    // Run on next tick so the UI shows "running" feedback for the brief
-    // moment 1000 samples takes (~5ms on a modern machine).
     setTimeout(() => {
+      // Always compute both opener stats AND the mulligan tree so the
+      // user gets the full picture in one click.
       setSim(simulateOpeners(deck, 1000));
+      setTree(simulateMulliganTree(deck, 1000));
       setRunning(false);
     }, 10);
   };
@@ -1007,7 +1009,79 @@ function GoldfishSection({ deck }) {
       )}
 
       {sim && <OpenersResult sim={sim} />}
+      {tree && <MulliganTreeResult tree={tree} />}
       {playout && <PlayoutResult log={playout} onReroll={runPlayout} />}
+    </div>
+  );
+}
+
+function MulliganTreeResult({ tree }) {
+  const sizes = [7, 6, 5, 4];
+  const tone = (rate) =>
+    rate >= 0.7 ? '#a3c98a' :
+    rate >= 0.5 ? CREAM :
+    rate >= 0.3 ? '#d8b35a' : ACCENT;
+
+  return (
+    <div className="border" style={{ borderColor: CREAM_FAINT }}>
+      <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
+        <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
+          Mulligan Tree
+        </div>
+        <div className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>
+          London model
+        </div>
+      </div>
+      <div className="p-5 space-y-4">
+        <div className="grid grid-cols-4 gap-3">
+          {sizes.map((s) => (
+            <div key={s} className="border p-3" style={{ borderColor: CREAM_FAINT }}>
+              <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+                Keep {s}
+              </div>
+              <div className="font-serif font-black leading-none mt-1" style={{ color: tone(tree.keepable[s]), fontSize: '1.5rem' }}>
+                {(tree.keepable[s] * 100).toFixed(0)}%
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="border p-4" style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}>
+          <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-2" style={{ color: CREAM_DIM }}>
+            Expected mulligan depth
+          </div>
+          <div className="space-y-1.5">
+            {sizes.map((s) => (
+              <div key={s} className="grid grid-cols-12 items-center gap-2">
+                <div className="col-span-2 font-serif text-xs" style={{ color: CREAM }}>
+                  {s === 7 ? 'No mull' : `Mull to ${s}`}
+                </div>
+                <div className="col-span-8 h-1.5 border" style={{ borderColor: CREAM_FAINT }}>
+                  <div className="h-full" style={{ background: CREAM, opacity: 0.75, width: `${tree.stop[s] * 100}%` }}></div>
+                </div>
+                <div className="col-span-2 text-right font-mono text-xs" style={{ color: CREAM }}>
+                  {(tree.stop[s] * 100).toFixed(1)}%
+                </div>
+              </div>
+            ))}
+            {tree.stop.further > 0.005 && (
+              <div className="grid grid-cols-12 items-center gap-2">
+                <div className="col-span-2 font-serif text-xs" style={{ color: CREAM_DIM }}>
+                  Mull 4 or fewer
+                </div>
+                <div className="col-span-8 h-1.5 border" style={{ borderColor: CREAM_FAINT }}>
+                  <div className="h-full" style={{ background: ACCENT, opacity: 0.75, width: `${tree.stop.further * 100}%` }}></div>
+                </div>
+                <div className="col-span-2 text-right font-mono text-xs" style={{ color: ACCENT }}>
+                  {(tree.stop.further * 100).toFixed(1)}%
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="font-serif text-xs italic mt-3" style={{ color: CREAM_DIM }}>
+            Where you'd stop mulliganing across {tree.samples} simulated openers. Higher concentration on "No mull" is healthier.
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1351,9 +1425,11 @@ export function RecommendationsTab({ deck, onUpdate }) {
     [recs, excludeNames]
   );
 
+  const archetype = useMemo(() => classifyArchetype(deck).primary, [deck.cards, deck.commander]);
+
   const byTheme = useMemo(
-    () => (recs ? recommendationsByTheme(recs, excludeNames, 8) : []),
-    [recs, excludeNames]
+    () => (recs ? themesForArchetype(recs, archetype?.id, excludeNames).map((t) => ({ ...t, cards: t.cards.slice(0, 8) })) : []),
+    [recs, excludeNames, archetype]
   );
 
   const cuts = useMemo(
@@ -1506,14 +1582,26 @@ export function RecommendationsTab({ deck, onUpdate }) {
 
       {!loading && !error && view === 'theme' && byTheme.length > 0 && (
         <div className="space-y-3">
+          {archetype && (
+            <div className="font-serif text-xs italic" style={{ color: CREAM_DIM }}>
+              Themes matching the detected archetype (<span style={{ color: CREAM }}>{archetype.name}</span>) are highlighted and shown first.
+            </div>
+          )}
           {byTheme.map((theme) => (
-            <div key={theme.header} className="border" style={{ borderColor: CREAM_FAINT }}>
+            <div key={theme.header} className="border" style={{ borderColor: theme.relevant ? CREAM : CREAM_FAINT }}>
               <div
                 className="px-4 py-2 border-b flex items-center justify-between"
-                style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}
+                style={{ borderColor: theme.relevant ? CREAM : CREAM_FAINT, background: theme.relevant ? 'rgba(243,231,201,0.06)' : 'rgba(243,231,201,0.02)' }}
               >
-                <div className="font-serif text-sm tracking-[0.2em] uppercase font-bold" style={{ color: CREAM }}>
-                  {theme.header}
+                <div className="flex items-center gap-3">
+                  <div className="font-serif text-sm tracking-[0.2em] uppercase font-bold" style={{ color: CREAM }}>
+                    {theme.header}
+                  </div>
+                  {theme.relevant && (
+                    <span className="font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 border" style={{ borderColor: CREAM, color: CREAM }}>
+                      on archetype
+                    </span>
+                  )}
                 </div>
                 <span className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>
                   {pad(theme.cards.length)} cards
