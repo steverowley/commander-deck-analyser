@@ -12,6 +12,7 @@
  */
 
 import { lc } from './utils.js';
+import { loadCacheFromIDB, saveCacheToIDB, idbAvailable } from './idbcache.js';
 
 const SCRYFALL = 'https://api.scryfall.com';
 const CACHE_KEY = 'vault:card-cache-v1';
@@ -61,20 +62,46 @@ function normalize(card) {
 }
 
 export async function loadCardCache() {
+  // Prefer IndexedDB (50MB+ quota, async). Falls back to localStorage if
+  // IDB isn't available. idbcache.loadCacheFromIDB also migrates the
+  // legacy localStorage cache on first run.
+  if (idbAvailable()) {
+    try {
+      const fromIdb = await loadCacheFromIDB();
+      Object.assign(cardCache, fromIdb);
+      return;
+    } catch (e) {
+      console.warn('Vault: IDB load failed, falling back to localStorage', e);
+    }
+  }
   try {
     const stored = localStorage.getItem(CACHE_KEY);
     if (stored) Object.assign(cardCache, JSON.parse(stored));
   } catch {}
 }
 
+// Track cards added since the last save so we only put delta-rows
+// rather than rewriting the whole cache on every fetch.
+const pendingWrites = {};
+
 function persistCacheSoon() {
   if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
+  saveTimer = setTimeout(async () => {
+    const writes = { ...pendingWrites };
+    for (const k of Object.keys(pendingWrites)) delete pendingWrites[k];
+    if (Object.keys(writes).length === 0) return;
+    if (idbAvailable()) {
+      try {
+        await saveCacheToIDB(writes);
+        return;
+      } catch (e) {
+        console.warn('Vault: IDB save failed, falling back to localStorage', e);
+      }
+    }
+    // localStorage fallback path — same eviction-on-quota logic as before.
     try {
       localStorage.setItem(CACHE_KEY, JSON.stringify(cardCache));
     } catch (e) {
-      // Most likely cause: localStorage quota exceeded.
-      // Drop half the cache and try again so we don't permanently fail to cache.
       const keys = Object.keys(cardCache);
       const drop = Math.floor(keys.length / 2);
       for (let i = 0; i < drop; i++) delete cardCache[keys[i]];
@@ -89,8 +116,13 @@ function persistCacheSoon() {
 
 function cacheCard(card, alias) {
   const norm = normalize(card);
-  cardCache[lc(card.name)] = norm;
-  if (alias && lc(alias) !== lc(card.name)) cardCache[lc(alias)] = norm;
+  const canonical = lc(card.name);
+  cardCache[canonical] = norm;
+  pendingWrites[canonical] = norm;
+  if (alias && lc(alias) !== canonical) {
+    cardCache[lc(alias)] = norm;
+    pendingWrites[lc(alias)] = norm;
+  }
   persistCacheSoon();
   return norm;
 }
@@ -169,6 +201,7 @@ export async function fetchCardsByName(names, onProgress) {
           if (match) {
             results[key] = match;
             cardCache[key] = match;
+            pendingWrites[key] = match;
           } else {
             notFound.push(inputName);
           }
