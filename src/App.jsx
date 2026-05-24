@@ -15,6 +15,13 @@ import { BackupModal, SettingsModal } from './components/Modals.jsx';
 export default function App() {
   const [decks, setDecks] = useState([]);
   const [activeId, setActiveId] = useState(null);
+  // Optional tab to open the editor on (e.g. 'probs' when the user clicks
+  // a "Test hand" shortcut from the archive). Reset on back-to-list.
+  const [initialTab, setInitialTab] = useState(null);
+  const selectDeck = (id, tab) => {
+    setActiveId(id);
+    setInitialTab(tab || null);
+  };
   const [loading, setLoading] = useState(true);
   const [pendingShare, setPendingShare] = useState(null); // decoded deck from URL hash
   const [importingShare, setImportingShare] = useState(false);
@@ -175,14 +182,15 @@ export default function App() {
           <DeckEditor
             deck={activeDeck}
             onUpdate={handleUpdate}
-            onBack={() => setActiveId(null)}
+            onBack={() => { setActiveId(null); setInitialTab(null); }}
             onDuplicate={() => handleDuplicate(activeDeck)}
             otherDecks={decks.filter((d) => d.id !== activeDeck.id)}
+            initialTab={initialTab}
           />
         ) : (
           <DeckListView
             decks={decks}
-            onSelect={setActiveId}
+            onSelect={selectDeck}
             onCreate={handleCreate}
             onDelete={handleDelete}
             onDuplicate={handleDuplicate}
