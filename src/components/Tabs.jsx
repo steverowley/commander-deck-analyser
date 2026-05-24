@@ -6,7 +6,7 @@ import { assessBracket } from '../lib/analyzers.js';
 import { computeHealth } from '../lib/health.js';
 import { buildStagePlans, synergyHubs, packageWeight, classifyArchetype } from '../lib/strategy.js';
 import { BRACKETS } from '../lib/constants.js';
-import { addCardsToDeck, safeAddCards, setCardCount, removeCardFromDeck, setCardTags, setCardNote, setStrictIdentity } from '../lib/deckops.js';
+import { addCardsToDeck, safeAddCards, setCardCount, removeCardFromDeck, setCardTags, setCardNote, setStrictIdentity, promoteFromWishlist, demoteToWishlist, removeFromWishlist } from '../lib/deckops.js';
 import { simulateOpeners, simulatePlayout, simulateMulliganTree } from '../lib/goldfish.js';
 import { analyzeLandBase } from '../lib/landbase.js';
 import { fetchRecommendations, topRecommendations, recommendationsByTheme, themesForArchetype, suggestCuts } from '../lib/edhrec.js';
@@ -19,6 +19,73 @@ import { BulkAddModal, TagEditModal } from './Modals.jsx';
 // ═══════════════════════════════════════════════════════════════════════════════
 // LEGALITY BANNER (shared)
 // ═══════════════════════════════════════════════════════════════════════════════
+
+function WishlistPanel({ deck, onPromote, onRemove }) {
+  const wishlist = deck.wishlist || [];
+  const [open, setOpen] = useState(false);
+  // Open by default if there's anything to show.
+  useEffect(() => {
+    if (wishlist.length > 0 && !open) setOpen(true);
+  }, [wishlist.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (wishlist.length === 0) return null;
+
+  return (
+    <div className="my-3 border" style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full px-4 py-2.5 flex items-center justify-between"
+        style={{ color: CREAM }}
+      >
+        <div className="flex items-center gap-3">
+          <span className="font-serif text-[10px]" style={{ color: CREAM_DIM }}>{open ? '▾' : '▸'}</span>
+          <span className="font-serif text-sm tracking-[0.2em] uppercase font-bold">Wishlist</span>
+          <span className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>
+            {wishlist.length} card{wishlist.length === 1 ? '' : 's'} on hold
+          </span>
+        </div>
+      </button>
+      {open && (
+        <div className="border-t" style={{ borderColor: CREAM_FAINT }}>
+          {wishlist.map((w) => (
+            <div
+              key={w.name}
+              className="border-b last:border-b-0 px-4 py-2 flex items-center gap-3"
+              style={{ borderColor: CREAM_FAINT }}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="font-serif font-bold uppercase tracking-tight truncate" style={{ color: CREAM, fontSize: '0.9rem' }}>
+                  {w.name}
+                </div>
+                {w.scryfall && (
+                  <div className="font-serif text-xs italic truncate" style={{ color: CREAM_DIM }}>
+                    {w.scryfall.type_line} · cmc {w.scryfall.cmc ?? 0}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => onPromote(w.name)}
+                className="font-serif text-[10px] tracking-[0.3em] uppercase px-3 py-1 border shrink-0"
+                style={{ borderColor: CREAM_FAINT, color: CREAM }}
+                title="Move into the main deck"
+              >
+                ↑ Promote
+              </button>
+              <button
+                onClick={() => onRemove(w.name)}
+                className="font-serif text-[10px] tracking-[0.3em] uppercase px-3 py-1 border shrink-0"
+                style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
+                title="Remove from wishlist"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function LegalityBanner({ legality }) {
   if (legality.errors.length === 0 && legality.warnings.length === 0) return null;
@@ -217,6 +284,11 @@ export function CardsTab({ deck, onUpdate }) {
         </div>
       )}
 
+      <WishlistPanel
+        deck={deck}
+        onPromote={(name) => onUpdate(promoteFromWishlist(deck, name))}
+        onRemove={(name) => onUpdate(removeFromWishlist(deck, name))}
+      />
 
       <div className="grid grid-cols-3 gap-3 my-3">
         <input
@@ -254,6 +326,7 @@ export function CardsTab({ deck, onUpdate }) {
               idx={i}
               onChangeCount={changeCount}
               onRemove={removeCard}
+              onDemoteToWishlist={() => onUpdate(demoteToWishlist(deck, c.name))}
               onEditTags={setEditingTags}
             />
           ))

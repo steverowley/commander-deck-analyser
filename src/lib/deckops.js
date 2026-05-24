@@ -53,6 +53,58 @@ export function setDeckNotes(deck, notes) {
   return { ...deck, notes: (notes || '').slice(0, 2000) };
 }
 
+// ───────────────────────────────────────────────────────────────────────────────
+// Wishlist — cards held aside while you decide whether to slot them in.
+// Doesn't count toward legality, stats, or the 100-card cap.
+// ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Add cards to the deck's wishlist (creating it if missing). Cards
+ * already present in the wishlist have their count incremented.
+ * Cards already present in the deck's main list are silently ignored —
+ * the wishlist is for cards you haven't committed to yet.
+ */
+export function addToWishlist(deck, newCards) {
+  const wishlist = (deck.wishlist || []).map((c) => ({ ...c }));
+  const deckNames = new Set(deck.cards.map((c) => lc(c.name)));
+  for (const nc of newCards) {
+    if (deckNames.has(lc(nc.name))) continue;
+    const existing = wishlist.find((c) => lc(c.name) === lc(nc.name));
+    if (existing) existing.count = Math.min(99, existing.count + nc.count);
+    else wishlist.push({ ...nc });
+  }
+  return { ...deck, wishlist };
+}
+
+export function removeFromWishlist(deck, name) {
+  const wishlist = (deck.wishlist || []).filter((c) => lc(c.name) !== lc(name));
+  return { ...deck, wishlist };
+}
+
+/**
+ * Move a wishlist card into the deck. Removes from wishlist, adds to
+ * cards, re-tags so combo detection works.
+ */
+export function promoteFromWishlist(deck, name) {
+  const wishlist = deck.wishlist || [];
+  const entry = wishlist.find((c) => lc(c.name) === lc(name));
+  if (!entry) return deck;
+  const remaining = wishlist.filter((c) => lc(c.name) !== lc(name));
+  const withWishlist = { ...deck, wishlist: remaining };
+  return addCardsToDeck(withWishlist, [{ name: entry.name, count: entry.count, scryfall: entry.scryfall }]);
+}
+
+/**
+ * Move a deck card out to the wishlist. Useful for "thinking about
+ * cutting this" without committing to the cut yet.
+ */
+export function demoteToWishlist(deck, name) {
+  const entry = deck.cards.find((c) => lc(c.name) === lc(name));
+  if (!entry) return deck;
+  const withoutCard = removeCardFromDeck(deck, name);
+  return addToWishlist(withoutCard, [{ name: entry.name, count: entry.count, scryfall: entry.scryfall }]);
+}
+
 /**
  * Merge new cards into a deck.
  * - Adds counts for cards already present.
