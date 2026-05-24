@@ -285,12 +285,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
         )}
 
         {decks.length === 0 ? (
-          <div
-            className="border border-dashed p-16 text-center font-serif text-sm"
-            style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
-          >
-            No decks yet — initialize one above.
-          </div>
+          <EmptyArchive onCreate={onCreate} onImport={() => setShowImport(true)} />
         ) : visibleDecks.length === 0 ? (
           <div
             className="border border-dashed p-16 text-center font-serif text-sm"
@@ -587,6 +582,85 @@ function DeckCardMeta({ deck }) {
           </>
         );
       })()}
+    </div>
+  );
+}
+
+/**
+ * First-time-user onboarding. Shown when the archive is empty —
+ * pitches three example commanders covering different archetypes
+ * so a new user can click one and immediately see the tools work.
+ */
+function EmptyArchive({ onCreate, onImport }) {
+  const examples = [
+    { name: 'Edgar Markov',     archetype: 'Tribal · WBR · Vampires going wide' },
+    { name: 'Atraxa, Praetors\' Voice', archetype: 'Counters · WUBG · Proliferate engine' },
+    { name: 'Krenko, Mob Boss', archetype: 'Tribal · R · Goblin token swarm' },
+  ];
+  return (
+    <div className="border border-dashed p-8 md:p-12" style={{ borderColor: CREAM_FAINT }}>
+      <div className="text-center mb-8">
+        <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
+          Welcome to Vault
+        </div>
+        <p className="font-serif text-sm italic mt-2 max-w-lg mx-auto" style={{ color: CREAM_DIM }}>
+          A deck builder for Magic Commander. Auto-tags every card by role, classifies your archetype, surfaces synergy hubs, recommends cuts and adds, simulates openers, and assesses bracket.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+        {examples.map((ex) => (
+          <button
+            key={ex.name}
+            onClick={() => onCreate(ex.name)}
+            className="border p-4 text-left transition"
+            style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.06)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.02)')}
+          >
+            <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+              Start with
+            </div>
+            <div className="font-serif font-bold mt-1" style={{ color: CREAM, fontSize: '0.95rem' }}>
+              {ex.name}
+            </div>
+            <div className="font-serif text-xs italic mt-1" style={{ color: CREAM_DIM }}>
+              {ex.archetype}
+            </div>
+          </button>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-center">
+        <div>
+          <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-2" style={{ color: CREAM_DIM }}>1 · Pick a commander</div>
+          <div className="font-serif text-xs italic" style={{ color: CREAM_DIM }}>
+            Above, or in the editor.
+          </div>
+        </div>
+        <div>
+          <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-2" style={{ color: CREAM_DIM }}>2 · Add 99 cards</div>
+          <div className="font-serif text-xs italic" style={{ color: CREAM_DIM }}>
+            Bulk-paste a list, or let the Recs tab seed one from EDHREC.
+          </div>
+        </div>
+        <div>
+          <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-2" style={{ color: CREAM_DIM }}>3 · Analyse</div>
+          <div className="font-serif text-xs italic" style={{ color: CREAM_DIM }}>
+            Packages, Stages, Bracket, Probability — seven tabs of tools.
+          </div>
+        </div>
+      </div>
+
+      <div className="text-center mt-6">
+        <button
+          onClick={onImport}
+          className="font-serif text-[10px] tracking-[0.3em] uppercase border px-4 py-2"
+          style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
+        >
+          or import an existing list →
+        </button>
+      </div>
     </div>
   );
 }
