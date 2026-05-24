@@ -8,6 +8,42 @@
 
 import { detectTags, AUTO_TAGS } from './tags.js';
 import { lc } from './utils.js';
+import { previewAdditions } from './legality.js';
+
+/**
+ * Add cards, honouring the deck's `strictIdentity` setting. When strict,
+ * cards rejected by previewAdditions (off-colour, singleton, banned) are
+ * filtered out and returned in the `rejected` array so the UI can
+ * surface them. When not strict, every card is added and `rejected` is
+ * empty — same shape as calling addCardsToDeck directly.
+ *
+ * This is the safer entry point and should be preferred over
+ * addCardsToDeck everywhere new cards enter the deck (search bar, bulk
+ * import, recommendations, share import).
+ */
+export function safeAddCards(deck, newCards) {
+  if (!deck.strictIdentity) {
+    return { deck: addCardsToDeck(deck, newCards), rejected: [] };
+  }
+  const { accepted, rejected } = previewAdditions(deck, newCards);
+  return { deck: addCardsToDeck(deck, accepted), rejected };
+}
+
+/**
+ * Set/replace a card's user note. Note is a short free-text string the
+ * user can attach to explain why a card is in the deck.
+ */
+export function setCardNote(deck, entry, note) {
+  const cards = deck.cards.map((c) => (c === entry ? { ...c, note } : c));
+  return { ...deck, cards };
+}
+
+/**
+ * Toggle strict color-identity mode on or off for a deck.
+ */
+export function setStrictIdentity(deck, strict) {
+  return { ...deck, strictIdentity: !!strict };
+}
 
 /**
  * Merge new cards into a deck.

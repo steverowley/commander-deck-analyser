@@ -353,6 +353,15 @@ export function CardRow({ entry, idx, onChangeCount, onRemove, onEditTags }) {
         >
           <InlineOracle text={c.oracle_text || c.card_faces?.[0]?.oracle_text} />
         </div>
+        {entry.note && (
+          <div
+            className="font-serif text-xs mt-1.5 italic flex items-start gap-2 pl-2 border-l-2"
+            style={{ color: CREAM, borderColor: CREAM_FAINT }}
+          >
+            <span style={{ color: CREAM_DIM, fontSize: '0.7rem' }}>note ·</span>
+            <span className="flex-1">{entry.note}</span>
+          </div>
+        )}
         <div className="flex flex-wrap gap-1 mt-2">
           {(entry.tags || []).map((t) => (
             <TagPill key={t} tag={t} />

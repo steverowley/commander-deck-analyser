@@ -6,7 +6,7 @@ import { assessBracket } from '../lib/analyzers.js';
 import { computeHealth } from '../lib/health.js';
 import { buildStagePlans, synergyHubs, packageWeight, classifyArchetype } from '../lib/strategy.js';
 import { BRACKETS } from '../lib/constants.js';
-import { addCardsToDeck, setCardCount, removeCardFromDeck, setCardTags } from '../lib/deckops.js';
+import { addCardsToDeck, safeAddCards, setCardCount, removeCardFromDeck, setCardTags, setCardNote, setStrictIdentity } from '../lib/deckops.js';
 import { simulateOpeners, simulatePlayout, simulateMulliganTree } from '../lib/goldfish.js';
 import { analyzeLandBase } from '../lib/landbase.js';
 import { fetchRecommendations, topRecommendations, recommendationsByTheme, themesForArchetype, suggestCuts } from '../lib/edhrec.js';
@@ -108,10 +108,23 @@ export function CardsTab({ deck, onUpdate }) {
   const [filter, setFilter] = useState('');
   const [sortBy, setSortBy] = useState('type');
 
-  const addCards = (newCards) => onUpdate(addCardsToDeck(deck, newCards));
+  const [recentlyRejected, setRecentlyRejected] = useState([]);
+  const addCards = (newCards) => {
+    const { deck: next, rejected } = safeAddCards(deck, newCards);
+    onUpdate(next);
+    if (rejected.length > 0) {
+      setRecentlyRejected(rejected);
+      setTimeout(() => setRecentlyRejected([]), 6000);
+    }
+  };
   const changeCount = (entry, count) => onUpdate(setCardCount(deck, entry, count));
   const removeCard = (entry) => onUpdate(removeCardFromDeck(deck, entry.name));
-  const saveTagsForCard = (entry, tags) => onUpdate(setCardTags(deck, entry, tags));
+  const saveCardDetails = (entry, { tags, note }) => {
+    let next = setCardTags(deck, entry, tags);
+    const updatedEntry = next.cards.find((c) => c === entry || (c.scryfall && entry.scryfall && c.name === entry.name));
+    if (updatedEntry) next = setCardNote(next, updatedEntry, note);
+    onUpdate(next);
+  };
 
   const legality = useMemo(() => checkDeckLegality(deck), [deck.cards, deck.commander]);
 
@@ -167,10 +180,42 @@ export function CardsTab({ deck, onUpdate }) {
         </span>
         {deck.commander && <span>+1 commander</span>}
         <span className="flex-1 border-t" style={{ borderColor: CREAM_FAINT }}></span>
+        {deck.commander && (
+          <button
+            onClick={() => onUpdate(setStrictIdentity(deck, !deck.strictIdentity))}
+            className="font-mono text-[10px] tracking-wider px-2 py-0.5 border transition"
+            style={{
+              borderColor: deck.strictIdentity ? CREAM : CREAM_FAINT,
+              color: deck.strictIdentity ? CREAM : CREAM_DIM,
+              background: deck.strictIdentity ? 'rgba(243,231,201,0.06)' : 'transparent',
+            }}
+            title={deck.strictIdentity
+              ? 'Strict mode: blocks off-color, banned, and duplicate adds. Click to disable.'
+              : 'Click to enable strict mode (blocks off-color / banned / duplicates).'}
+          >
+            {deck.strictIdentity ? 'STRICT · ON' : 'STRICT · OFF'}
+          </button>
+        )}
         <span>{filtered.length === total ? `${filtered.length} visible` : `${filtered.length} / ${total} visible`}</span>
       </div>
 
       <LegalityBanner legality={legality} />
+
+      {recentlyRejected.length > 0 && (
+        <div className="my-3 border px-4 py-3" style={{ borderColor: ACCENT, background: 'rgba(196,74,63,0.06)' }}>
+          <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-2" style={{ color: ACCENT }}>
+            Blocked by strict mode · {recentlyRejected.length} card{recentlyRejected.length === 1 ? '' : 's'}
+          </div>
+          <ul className="font-mono text-[11px] space-y-0.5" style={{ color: CREAM }}>
+            {recentlyRejected.slice(0, 5).map((r, i) => (
+              <li key={i}>· {r.name} <span style={{ color: CREAM_DIM }}>({r.reasons.join(', ')})</span></li>
+            ))}
+            {recentlyRejected.length > 5 && (
+              <li style={{ color: CREAM_DIM }}>+ {recentlyRejected.length - 5} more</li>
+            )}
+          </ul>
+        </div>
+      )}
 
 
       <div className="grid grid-cols-3 gap-3 my-3">
@@ -220,7 +265,7 @@ export function CardsTab({ deck, onUpdate }) {
         <TagEditModal
           entry={editingTags}
           onClose={() => setEditingTags(null)}
-          onSave={(t) => saveTagsForCard(editingTags, t)}
+          onSave={(payload) => saveCardDetails(editingTags, payload)}
         />
       )}
     </div>

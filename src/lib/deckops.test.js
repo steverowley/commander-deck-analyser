@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   addCardsToDeck,
+  safeAddCards,
   removeCardFromDeck,
   setCardCount,
+  setCardNote,
+  setStrictIdentity,
   duplicateDeck,
   renameDeck,
   exportDecklist,
@@ -106,5 +109,57 @@ describe('exportDecklist', () => {
     const wurmIdx = text.indexOf('Wurm');
     const anthemIdx = text.indexOf('Anthem');
     expect(anthemIdx).toBeLessThan(wurmIdx);
+  });
+});
+
+describe('setStrictIdentity', () => {
+  it('toggles the flag', () => {
+    const d = baseDeck();
+    expect(setStrictIdentity(d, true).strictIdentity).toBe(true);
+    expect(setStrictIdentity(d, false).strictIdentity).toBe(false);
+  });
+});
+
+describe('safeAddCards', () => {
+  it('passes through to addCardsToDeck when strict is off', () => {
+    const deck = baseDeck();
+    const offColor = {
+      name: 'Counterspell',
+      count: 1,
+      scryfall: { name: 'Counterspell', type_line: 'Instant', color_identity: ['U'] },
+    };
+    const { deck: next, rejected } = safeAddCards(deck, [offColor]);
+    expect(next.cards.length).toBe(1);
+    expect(rejected).toEqual([]);
+  });
+
+  it('blocks off-color adds when strict is on', () => {
+    const deck = { ...baseDeck(), strictIdentity: true };
+    const offColor = {
+      name: 'Counterspell',
+      count: 1,
+      scryfall: { name: 'Counterspell', type_line: 'Instant', color_identity: ['U'] },
+    };
+    const { deck: next, rejected } = safeAddCards(deck, [offColor]);
+    expect(next.cards.length).toBe(0);
+    expect(rejected.length).toBe(1);
+    expect(rejected[0].reasons.some((r) => /off-color/.test(r))).toBe(true);
+  });
+
+  it('still adds in-color cards under strict mode', () => {
+    const deck = { ...baseDeck(), strictIdentity: true };
+    const inColor = sampleCard('Bloodghast');
+    const { deck: next, rejected } = safeAddCards(deck, [inColor]);
+    expect(next.cards.length).toBe(1);
+    expect(rejected.length).toBe(0);
+  });
+});
+
+describe('setCardNote', () => {
+  it('attaches a note to a specific card entry', () => {
+    const deck = addCardsToDeck(baseDeck(), [sampleCard('Bloodghast')]);
+    const entry = deck.cards[0];
+    const after = setCardNote(deck, entry, 'core engine piece');
+    expect(after.cards[0].note).toBe('core engine piece');
   });
 });
