@@ -7,6 +7,7 @@ import { renameDeck } from '../lib/deckops.js';
 import { CardsTab, PackagesTab, CurveTab, BracketTab, StagesTab, ProbabilitiesTab, RecommendationsTab } from './Tabs.jsx';
 import { RulesModal, ExportModal, ShareModal, CompareModal } from './Modals.jsx';
 import { ManaCost } from './ManaCost.jsx';
+import { ErrorBoundary } from './ErrorBoundary.jsx';
 
 // ───────────────────────────────────────────────────────────────────────────────
 
@@ -365,13 +366,15 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, otherDecks = [
       </div>
 
       <div className="py-8 fade-up" style={{ animationDelay: '180ms' }}>
-        {tab === 'cards' && <CardsTab deck={deck} onUpdate={onUpdate} />}
-        {tab === 'packages' && <PackagesTab deck={deck} />}
-        {tab === 'stages' && <StagesTab deck={deck} />}
-        {tab === 'recs' && <RecommendationsTab deck={deck} onUpdate={onUpdate} />}
-        {tab === 'curve' && <CurveTab deck={deck} />}
-        {tab === 'bracket' && <BracketTab deck={deck} />}
-        {tab === 'probs' && <ProbabilitiesTab deck={deck} />}
+        <ErrorBoundary key={tab} label={`${tab} tab crashed`}>
+          {tab === 'cards' && <CardsTab deck={deck} onUpdate={onUpdate} />}
+          {tab === 'packages' && <PackagesTab deck={deck} />}
+          {tab === 'stages' && <StagesTab deck={deck} />}
+          {tab === 'recs' && <RecommendationsTab deck={deck} onUpdate={onUpdate} />}
+          {tab === 'curve' && <CurveTab deck={deck} />}
+          {tab === 'bracket' && <BracketTab deck={deck} />}
+          {tab === 'probs' && <ProbabilitiesTab deck={deck} />}
+        </ErrorBoundary>
       </div>
 
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}
