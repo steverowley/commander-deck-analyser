@@ -3,6 +3,7 @@ import { Trash2, Crown } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, ACCENT } from '../theme.js';
 import { pad } from '../lib/utils.js';
 import { cardImageUrl } from '../lib/scryfall.js';
+import { assessBracket } from '../lib/analyzers.js';
 
 export function DeckListView({ decks, onSelect, onCreate, onDelete }) {
   const [name, setName] = useState('');
@@ -203,17 +204,30 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete }) {
                   <div className="font-serif text-sm mt-2 italic" style={{ color: CREAM_DIM }}>
                     {d.commander?.name || 'No commander set'}
                   </div>
-                  <div className="font-mono text-[10px] mt-3 tracking-wider" style={{ color: CREAM_DIM }}>
-                    {pad(d.cards.reduce((s, c) => s + c.count, 0))} cards ·{' '}
-                    {
-                      Object.keys(
-                        d.cards.reduce((m, c) => {
-                          (c.tags || []).forEach((t) => (m[t] = 1));
-                          return m;
-                        }, {})
-                      ).length
-                    }{' '}
-                    tags
+                  <div className="font-mono text-[10px] mt-3 tracking-wider flex items-center gap-3 flex-wrap" style={{ color: CREAM_DIM }}>
+                    <span>
+                      {pad(d.cards.reduce((s, c) => s + c.count, 0))} cards
+                    </span>
+                    <span>·</span>
+                    <span>
+                      {
+                        Object.keys(
+                          d.cards.reduce((m, c) => {
+                            (c.tags || []).forEach((t) => (m[t] = 1));
+                            return m;
+                          }, {})
+                        ).length
+                      }{' '}
+                      tags
+                    </span>
+                    {d.cards.length > 0 && (
+                      <>
+                        <span>·</span>
+                        <span style={{ color: CREAM }}>
+                          Bracket {assessBracket(d).bracket}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
