@@ -87,6 +87,115 @@ function WishlistPanel({ deck, onPromote, onRemove }) {
   );
 }
 
+/**
+ * Detailed legality panel — used on the Bracket tab as the deeper
+ * companion to the compact LegalityBanner. Breaks down each issue
+ * type into its own section with per-card lists + cut buttons so
+ * users can act on findings directly.
+ */
+function LegalityPanel({ deck, onUpdate }) {
+  const legality = useMemo(() => checkDeckLegality(deck), [deck.cards, deck.commander]);
+  const { issues } = legality;
+  const cut = (name) => onUpdate(removeCardFromDeck(deck, name));
+
+  const hasAny =
+    issues.singleton.length > 0 ||
+    issues.offColor.length > 0 ||
+    issues.banned.length > 0 ||
+    issues.size !== null;
+
+  if (!hasAny) {
+    return (
+      <div className="border p-5" style={{ borderColor: CREAM_FAINT, background: 'rgba(163,201,138,0.04)' }}>
+        <div className="font-serif text-sm tracking-[0.2em] uppercase font-bold" style={{ color: '#a3c98a' }}>
+          ✓ Legal
+        </div>
+        <div className="font-serif text-xs italic mt-1" style={{ color: CREAM_DIM }}>
+          No format violations. Deck is at {legality.size}/{legality.target} cards.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border" style={{ borderColor: CREAM_FAINT }}>
+      <div className="px-5 py-3 border-b font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ borderColor: CREAM_FAINT, color: CREAM }}>
+        Legality Issues
+      </div>
+      <div className="divide-y" style={{ borderColor: CREAM_FAINT }}>
+        {issues.size && (
+          <LegalitySection
+            title="Deck size"
+            severity={issues.size.over ? 'error' : 'warning'}
+            note={issues.size.over
+              ? `${issues.size.current}/${issues.size.target} — ${issues.size.current - issues.size.target} over the legal limit.`
+              : `${issues.size.current}/${issues.size.target} — short by ${issues.size.target - issues.size.current}.`}
+          />
+        )}
+        {issues.banned.length > 0 && (
+          <LegalitySection title="Banned in Commander" severity="error">
+            <CardActionList items={issues.banned.map((name) => ({ name }))} onCut={cut} />
+          </LegalitySection>
+        )}
+        {issues.offColor.length > 0 && (
+          <LegalitySection title="Color identity violations" severity="error">
+            <CardActionList
+              items={issues.offColor.map((c) => ({ name: c.name, hint: `pips: ${c.violation.join('')}` }))}
+              onCut={cut}
+            />
+          </LegalitySection>
+        )}
+        {issues.singleton.length > 0 && (
+          <LegalitySection title="Singleton violations" severity="error">
+            <CardActionList
+              items={issues.singleton.map((d) => ({ name: d.name, hint: `×${d.count}` }))}
+              onCut={cut}
+            />
+          </LegalitySection>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LegalitySection({ title, severity, note, children }) {
+  const tone = severity === 'error' ? ACCENT : '#d8b35a';
+  return (
+    <div className="p-4" style={{ borderColor: CREAM_FAINT }}>
+      <div className="flex items-baseline gap-3 mb-2">
+        <span className="font-serif text-[10px] tracking-[0.3em] uppercase font-bold" style={{ color: tone }}>
+          {title}
+        </span>
+        {note && <span className="font-serif text-xs italic" style={{ color: CREAM_DIM }}>{note}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function CardActionList({ items, onCut }) {
+  return (
+    <div className="space-y-1">
+      {items.map((it) => (
+        <div key={it.name} className="flex items-center gap-3 border-l-2 pl-3 py-1" style={{ borderColor: CREAM_FAINT }}>
+          <span className="font-serif text-sm flex-1 truncate" style={{ color: CREAM }}>{it.name}</span>
+          {it.hint && (
+            <span className="font-mono text-[10px] shrink-0" style={{ color: CREAM_DIM }}>{it.hint}</span>
+          )}
+          <button
+            onClick={() => onCut(it.name)}
+            className="font-serif text-[10px] tracking-[0.3em] uppercase px-2 py-0.5 border shrink-0"
+            style={{ borderColor: CREAM_FAINT, color: CREAM }}
+            title="Remove from deck"
+          >
+            Cut
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function LegalityBanner({ legality }) {
   if (legality.errors.length === 0 && legality.warnings.length === 0) return null;
   const hasErrors = legality.errors.length > 0;
@@ -858,14 +967,13 @@ function LandBaseSection({ deck }) {
 // BRACKET TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export function BracketTab({ deck }) {
+export function BracketTab({ deck, onUpdate }) {
   const assessment = useMemo(() => assessBracket(deck), [deck]);
-  const legality = useMemo(() => checkDeckLegality(deck), [deck.cards, deck.commander]);
   const health = useMemo(() => computeHealth(deck), [deck.cards, deck.commander]);
 
   return (
     <div className="space-y-6">
-      <LegalityBanner legality={legality} />
+      {onUpdate && deck.cards.length > 0 && <LegalityPanel deck={deck} onUpdate={onUpdate} />}
       {!health.empty && <HealthPanel health={health} />}
       <div className="border" style={{ borderColor: CREAM_FAINT }}>
         <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>

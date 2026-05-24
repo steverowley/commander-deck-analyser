@@ -381,7 +381,7 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, otherDecks = [
           {tab === 'stages' && <StagesTab deck={deck} />}
           {tab === 'recs' && <RecommendationsTab deck={deck} onUpdate={onUpdate} />}
           {tab === 'curve' && <CurveTab deck={deck} />}
-          {tab === 'bracket' && <BracketTab deck={deck} />}
+          {tab === 'bracket' && <BracketTab deck={deck} onUpdate={onUpdate} />}
           {tab === 'probs' && <ProbabilitiesTab deck={deck} />}
         </ErrorBoundary>
       </div>
