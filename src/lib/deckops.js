@@ -46,6 +46,14 @@ export function setStrictIdentity(deck, strict) {
 }
 
 /**
+ * Set the deck's free-text notes field — used as a scratchpad for the
+ * builder. Soft-capped at 2000 chars so it stays storage-friendly.
+ */
+export function setDeckNotes(deck, notes) {
+  return { ...deck, notes: (notes || '').slice(0, 2000) };
+}
+
+/**
  * Merge new cards into a deck.
  * - Adds counts for cards already present.
  * - Runs tag detection on freshly added cards.

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { X, Loader2, Check, BookOpen, Copy, Download, Link as LinkIcon, GitCompare, Archive } from 'lucide-react';
+import { X, Loader2, Check, BookOpen, Copy, Download, Link as LinkIcon, GitCompare, Archive, FileText } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, parseDecklist, lc } from '../lib/utils.js';
 import { fetchCardsByName, fetchCardByExactName } from '../lib/scryfall.js';
@@ -1090,5 +1090,71 @@ function BackupRestore({ onRestore, onClose }) {
         </button>
       </div>
     </>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Free-text deck notes — a per-deck scratchpad for the builder.
+ * Auto-saves on blur; cancel discards in-flight edits.
+ */
+export function NotesModal({ deck, onClose, onSave }) {
+  const [draft, setDraft] = useState(deck.notes || '');
+  const commit = () => {
+    if (draft !== (deck.notes || '')) onSave(draft);
+    onClose();
+  };
+  return (
+    <div
+      className="fixed inset-0 flex items-center justify-center z-50 p-4"
+      style={{ background: 'rgba(13,22,20,0.92)', backdropFilter: 'blur(6px)' }}
+    >
+      <div className="w-full max-w-2xl flex flex-col border" style={{ background: BG, borderColor: CREAM_FAINT }}>
+        <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
+          <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold flex items-center gap-2" style={{ color: CREAM }}>
+            <FileText className="w-3.5 h-3.5" /> Notes — {deck.name}
+          </div>
+          <button onClick={onClose} style={{ color: CREAM_DIM }}>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-5 space-y-2">
+          <p className="font-serif text-sm italic" style={{ color: CREAM_DIM }}>
+            Scratchpad for this deck — strategy reminders, sideboard ideas, cards to test, notes from games. Saved with the deck.
+          </p>
+          <textarea
+            value={draft}
+            autoFocus
+            onChange={(e) => setDraft(e.target.value.slice(0, 2000))}
+            placeholder="aggressive vampire opener; mulligan for ramp; watch out for board wipes after T5; consider Sword of Hearth and Home..."
+            className="w-full h-72 p-4 border bg-transparent focus:outline-none font-mono text-sm leading-relaxed resize-none"
+            style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(243,231,201,0.02)' }}
+          />
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>
+              {draft.length} / 2000
+            </span>
+            {draft.length >= 2000 && (
+              <span className="font-mono text-[10px]" style={{ color: ACCENT }}>
+                Limit reached
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="px-5 py-4 border-t flex justify-end gap-4" style={{ borderColor: CREAM_FAINT }}>
+          <button onClick={onClose} className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+            Cancel
+          </button>
+          <button
+            onClick={commit}
+            className="font-serif text-[10px] tracking-[0.3em] uppercase"
+            style={{ color: CREAM }}
+          >
+            Save →
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

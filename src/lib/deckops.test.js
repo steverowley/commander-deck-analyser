@@ -6,6 +6,7 @@ import {
   setCardCount,
   setCardNote,
   setStrictIdentity,
+  setDeckNotes,
   duplicateDeck,
   renameDeck,
   exportDecklist,
@@ -161,5 +162,19 @@ describe('setCardNote', () => {
     const entry = deck.cards[0];
     const after = setCardNote(deck, entry, 'core engine piece');
     expect(after.cards[0].note).toBe('core engine piece');
+  });
+});
+
+describe('setDeckNotes', () => {
+  it('stores the notes string', () => {
+    expect(setDeckNotes(baseDeck(), 'play aggressive').notes).toBe('play aggressive');
+  });
+  it('caps at 2000 chars', () => {
+    const long = 'a'.repeat(3000);
+    expect(setDeckNotes(baseDeck(), long).notes.length).toBe(2000);
+  });
+  it('handles null/undefined as empty string', () => {
+    expect(setDeckNotes(baseDeck(), null).notes).toBe('');
+    expect(setDeckNotes(baseDeck(), undefined).notes).toBe('');
   });
 });
