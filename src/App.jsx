@@ -5,10 +5,11 @@ import { loadDecks, saveDeck, deleteDeck } from './lib/storage.js';
 import { loadCardCache, fetchCardsByName } from './lib/scryfall.js';
 import { duplicateDeck, addCardsToDeck } from './lib/deckops.js';
 import { decodeDeckUrl } from './lib/share.js';
+import { loadSettings } from './lib/settings.js';
 import { DeckListView } from './components/DeckList.jsx';
 import { DeckEditor } from './components/DeckEditor.jsx';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
-import { BackupModal } from './components/Modals.jsx';
+import { BackupModal, SettingsModal } from './components/Modals.jsx';
 
 export default function App() {
   const [decks, setDecks] = useState([]);
@@ -18,6 +19,7 @@ export default function App() {
   const [importingShare, setImportingShare] = useState(false);
   const [importProgress, setImportProgress] = useState('');
   const [showBackup, setShowBackup] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     loadDecks().then((d) => {
@@ -38,11 +40,13 @@ export default function App() {
   const activeDeck = decks.find((d) => d.id === activeId);
 
   const handleCreate = async (name) => {
+    const settings = loadSettings();
     const deck = {
       id: 'deck_' + Date.now(),
       name,
       cards: [],
       commander: null,
+      strictIdentity: !!settings.strictIdentityDefault,
       created: Date.now(),
       updated: Date.now(),
     };
@@ -183,6 +187,7 @@ export default function App() {
             onDuplicate={handleDuplicate}
             onImport={handleImport}
             onBackup={() => setShowBackup(true)}
+            onSettings={() => setShowSettings(true)}
           />
         )}
       </ErrorBoundary>
@@ -193,6 +198,7 @@ export default function App() {
           onClose={() => setShowBackup(false)}
         />
       )}
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { assessBracket } from '../lib/analyzers.js';
 import { computeHealth } from '../lib/health.js';
 import { buildStagePlans, synergyHubs, packageWeight, classifyArchetype } from '../lib/strategy.js';
 import { BRACKETS } from '../lib/constants.js';
-import { addCardsToDeck, safeAddCards, setCardCount, removeCardFromDeck, setCardTags, setCardNote, setStrictIdentity, promoteFromWishlist, demoteToWishlist, removeFromWishlist } from '../lib/deckops.js';
+import { addCardsToDeck, safeAddCards, setCardCount, removeCardFromDeck, setCardTags, setCardNote, setStrictIdentity, promoteFromWishlist, demoteToWishlist, removeFromWishlist, addToWishlist } from '../lib/deckops.js';
 import { simulateOpeners, simulatePlayout, simulateMulliganTree } from '../lib/goldfish.js';
 import { analyzeLandBase } from '../lib/landbase.js';
 import { fetchRecommendations, topRecommendations, recommendationsByTheme, themesForArchetype, suggestCuts } from '../lib/edhrec.js';
@@ -179,6 +179,17 @@ export function CardsTab({ deck, onUpdate }) {
   const [sortBy, setSortBy] = useState('type');
 
   const [recentlyRejected, setRecentlyRejected] = useState([]);
+  const [searchTarget, setSearchTarget] = useState('deck');
+  // The CardSearchBar hands resolved cards back here. We branch on the
+  // target toggle: deck (default) routes through safeAddCards; wishlist
+  // adds without consuming a slot in the 100-card cap.
+  const addFromSearch = (cards) => {
+    if (searchTarget === 'wishlist') {
+      onUpdate(addToWishlist(deck, cards));
+    } else {
+      addCards(cards);
+    }
+  };
   const addCards = (newCards) => {
     const { deck: next, rejected } = safeAddCards(deck, newCards);
     onUpdate(next);
@@ -227,7 +238,11 @@ export function CardsTab({ deck, onUpdate }) {
     <div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
         <div className="md:col-span-2">
-          <CardSearchBar onAdd={addCards} />
+          <CardSearchBar
+            onAdd={addFromSearch}
+            target={searchTarget}
+            onTargetChange={setSearchTarget}
+          />
         </div>
         <button
           onClick={() => setShowBulk(true)}
