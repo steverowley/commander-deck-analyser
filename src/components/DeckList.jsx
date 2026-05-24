@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Trash2, Crown, Copy, Upload } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, ACCENT } from '../theme.js';
 import { pad } from '../lib/utils.js';
@@ -13,6 +13,54 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
   const [name, setName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showImport, setShowImport] = useState(false);
+  const [search, setSearch] = useState('');
+  const [bracketFilter, setBracketFilter] = useState(null); // 1..5
+  const [colorFilter, setColorFilter] = useState(null);     // 'W' | 'U' | 'B' | 'R' | 'G' | 'C'
+  const [sortBy, setSortBy] = useState('recent');           // recent | name | bracket | health
+
+  // Compute filtered + sorted deck list. Memoised on inputs so editing
+  // unrelated state doesn't recompute.
+  const visibleDecks = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    let list = decks.filter((d) => {
+      if (q) {
+        const nameHit = d.name.toLowerCase().includes(q);
+        const cmdrHit = d.commander?.name?.toLowerCase().includes(q);
+        if (!nameHit && !cmdrHit) return false;
+      }
+      if (bracketFilter && d.cards.length > 0) {
+        if (assessBracket(d).bracket !== bracketFilter) return false;
+      }
+      if (colorFilter) {
+        const id = d.commander?.color_identity || [];
+        if (colorFilter === 'C') {
+          if (id.length !== 0) return false;
+        } else if (!id.includes(colorFilter)) {
+          return false;
+        }
+      }
+      return true;
+    });
+    if (sortBy === 'name') list = list.slice().sort((a, b) => a.name.localeCompare(b.name));
+    else if (sortBy === 'bracket') {
+      list = list.slice().sort((a, b) => {
+        const ab = a.cards.length ? assessBracket(a).bracket : 0;
+        const bb = b.cards.length ? assessBracket(b).bracket : 0;
+        return bb - ab;
+      });
+    }
+    else if (sortBy === 'health') {
+      list = list.slice().sort((a, b) => {
+        const ah = a.cards.length ? computeHealth(a).score : 0;
+        const bh = b.cards.length ? computeHealth(b).score : 0;
+        return bh - ah;
+      });
+    }
+    // 'recent' is the default storage order — already sorted by updated desc.
+    return list;
+  }, [decks, search, bracketFilter, colorFilter, sortBy]);
+
+  const hasFilter = !!(search.trim() || bracketFilter || colorFilter);
 
   const totalCards = decks.reduce((s, d) => s + d.cards.reduce((a, c) => a + c.count, 0), 0);
 
@@ -143,15 +191,96 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
 
       {/* Stored decks */}
       <div className="mt-12 fade-up" style={{ animationDelay: '240ms' }}>
-        <div className="flex items-baseline gap-4 mb-1">
+        <div className="flex items-baseline gap-4 mb-3">
           <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
             <span style={{ color: CREAM_DIM }}>3.</span> Archive
           </div>
           <div className="flex-1 border-t" style={{ borderColor: CREAM_FAINT }}></div>
           <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
-            {pad(decks.length)} on file
+            {hasFilter ? `${pad(visibleDecks.length)} of ${pad(decks.length)}` : `${pad(decks.length)} on file`}
           </div>
         </div>
+
+        {decks.length >= 3 && (
+          <div className="border mb-4 p-3 grid grid-cols-1 md:grid-cols-12 gap-3 items-center" style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}>
+            <div className="md:col-span-5">
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="search deck or commander..."
+                className="w-full bg-transparent border px-3 py-2 focus:outline-none font-mono text-xs"
+                style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(243,231,201,0.02)' }}
+              />
+            </div>
+            <div className="md:col-span-4 flex items-center gap-1.5">
+              <span className="font-mono text-[9px] tracking-wider shrink-0" style={{ color: CREAM_DIM }}>BRACKET</span>
+              {[1, 2, 3, 4, 5].map((b) => (
+                <button
+                  key={b}
+                  onClick={() => setBracketFilter(bracketFilter === b ? null : b)}
+                  className="font-mono text-[10px] w-6 h-6 border transition"
+                  style={{
+                    borderColor: bracketFilter === b ? CREAM : CREAM_FAINT,
+                    color: bracketFilter === b ? CREAM : CREAM_DIM,
+                    background: bracketFilter === b ? 'rgba(243,231,201,0.08)' : 'transparent',
+                  }}
+                >
+                  {b}
+                </button>
+              ))}
+            </div>
+            <div className="md:col-span-3 flex items-center gap-1.5 justify-end">
+              <span className="font-mono text-[9px] tracking-wider shrink-0" style={{ color: CREAM_DIM }}>COLOR</span>
+              {['W', 'U', 'B', 'R', 'G', 'C'].map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setColorFilter(colorFilter === c ? null : c)}
+                  className="w-5 h-5 border transition flex items-center justify-center"
+                  style={{
+                    borderColor: colorFilter === c ? CREAM : CREAM_FAINT,
+                    background: colorFilter === c ? 'rgba(243,231,201,0.08)' : 'transparent',
+                  }}
+                  title={c}
+                >
+                  <ManaSymbol sym={c} size="0.7em" />
+                </button>
+              ))}
+            </div>
+            <div className="md:col-span-12 flex items-center justify-between pt-1 border-t mt-1" style={{ borderColor: CREAM_FAINT }}>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[9px] tracking-wider" style={{ color: CREAM_DIM }}>SORT</span>
+                {[
+                  { id: 'recent', label: 'recent' },
+                  { id: 'name', label: 'name' },
+                  { id: 'bracket', label: 'bracket' },
+                  { id: 'health', label: 'health' },
+                ].map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => setSortBy(s.id)}
+                    className="font-mono text-[10px] px-2 py-0.5 border transition"
+                    style={{
+                      borderColor: sortBy === s.id ? CREAM : CREAM_FAINT,
+                      color: sortBy === s.id ? CREAM : CREAM_DIM,
+                    }}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+              {hasFilter && (
+                <button
+                  onClick={() => { setSearch(''); setBracketFilter(null); setColorFilter(null); }}
+                  className="font-serif text-[10px] tracking-[0.3em] uppercase"
+                  style={{ color: CREAM_DIM }}
+                >
+                  Clear ×
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {decks.length === 0 ? (
           <div
             className="border border-dashed p-16 text-center font-serif text-sm"
@@ -159,9 +288,16 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
           >
             No decks yet — initialize one above.
           </div>
+        ) : visibleDecks.length === 0 ? (
+          <div
+            className="border border-dashed p-16 text-center font-serif text-sm"
+            style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
+          >
+            No decks match those filters.
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 border-t border-l" style={{ borderColor: CREAM_FAINT }}>
-            {decks.map((d, idx) => (
+            {visibleDecks.map((d, idx) => (
               <div
                 key={d.id}
                 className="group border-r border-b p-6 cursor-pointer transition fade-up flex items-start gap-5"
