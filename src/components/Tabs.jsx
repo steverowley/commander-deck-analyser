@@ -8,8 +8,39 @@ import { BRACKETS } from '../lib/constants.js';
 import { addCardsToDeck, setCardCount, removeCardFromDeck, setCardTags } from '../lib/deckops.js';
 import { fetchRecommendations, topRecommendations, recommendationsByTheme } from '../lib/edhrec.js';
 import { fetchCardByExactName } from '../lib/scryfall.js';
+import { checkDeckLegality } from '../lib/legality.js';
 import { CardSearchBar, CardRow, TagPill, CardThumb, StatBox, FlagBox, ProbCard } from './UI.jsx';
 import { BulkAddModal, TagEditModal } from './Modals.jsx';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LEGALITY BANNER (shared)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function LegalityBanner({ legality }) {
+  if (legality.errors.length === 0 && legality.warnings.length === 0) return null;
+  const hasErrors = legality.errors.length > 0;
+  return (
+    <div
+      className="my-3 border px-4 py-3"
+      style={{
+        borderColor: hasErrors ? ACCENT : CREAM_FAINT,
+        background: hasErrors ? 'rgba(196,74,63,0.06)' : 'rgba(243,231,201,0.025)',
+      }}
+    >
+      <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-2" style={{ color: hasErrors ? ACCENT : CREAM_DIM }}>
+        Legality · {hasErrors ? 'issues' : 'notes'}
+      </div>
+      <ul className="space-y-1 font-mono text-[11px]" style={{ color: CREAM }}>
+        {legality.errors.map((e, i) => (
+          <li key={`e${i}`} style={{ color: ACCENT }}>· {e}</li>
+        ))}
+        {legality.warnings.map((w, i) => (
+          <li key={`w${i}`} style={{ color: CREAM_DIM }}>· {w}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CARDS TAB
@@ -25,6 +56,8 @@ export function CardsTab({ deck, onUpdate }) {
   const changeCount = (entry, count) => onUpdate(setCardCount(deck, entry, count));
   const removeCard = (entry) => onUpdate(removeCardFromDeck(deck, entry.name));
   const saveTagsForCard = (entry, tags) => onUpdate(setCardTags(deck, entry, tags));
+
+  const legality = useMemo(() => checkDeckLegality(deck), [deck.cards, deck.commander]);
 
   const filtered = useMemo(() => {
     let cards = deck.cards.filter((c) => c.scryfall);
@@ -80,6 +113,9 @@ export function CardsTab({ deck, onUpdate }) {
         <span className="flex-1 border-t" style={{ borderColor: CREAM_FAINT }}></span>
         <span>{filtered.length === total ? `${filtered.length} visible` : `${filtered.length} / ${total} visible`}</span>
       </div>
+
+      <LegalityBanner legality={legality} />
+
 
       <div className="grid grid-cols-3 gap-3 my-3">
         <input
@@ -501,9 +537,11 @@ export function CurveTab({ deck }) {
 
 export function BracketTab({ deck }) {
   const assessment = useMemo(() => assessBracket(deck), [deck]);
+  const legality = useMemo(() => checkDeckLegality(deck), [deck.cards, deck.commander]);
 
   return (
     <div className="space-y-6">
+      <LegalityBanner legality={legality} />
       <div className="border" style={{ borderColor: CREAM_FAINT }}>
         <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
           <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>

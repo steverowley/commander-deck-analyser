@@ -1,18 +1,35 @@
 // MTG static data — curated lists used by the bracket assessor and tag engine.
+//
+// Game Changers list is sourced from WotC's official Commander bracket
+// definitions (commander.wizards.com). The list updates roughly twice a year;
+// keep this file in sync. Last refreshed against the late-2024 bracket update.
 
 export const GAME_CHANGERS = new Set([
-  "drannith magistrate", "winota, joiner of forces", "yuriko, the tiger's shadow",
-  "kinnan, bonder prodigy", "thassa's oracle", "tergrid, god of fright",
+  // Tutors
   "vampiric tutor", "demonic tutor", "imperial seal", "mystical tutor",
-  "enlightened tutor", "grim tutor", "cyclonic rift", "rhystic study",
-  "mystic remora", "smothering tithe", "the one ring", "jeweled lotus",
-  "mana crypt", "mana vault", "chrome mox", "mox diamond", "ancient tomb",
-  "gaea's cradle", "serra's sanctum", "bolas's citadel", "underworld breach",
-  "aetherflux reservoir", "coalition victory", "notion thief", "opposition agent",
-  "hullbreacher", "trouble in pairs", "glacial chasm", "mana drain",
-  "force of will", "fierce guardianship", "deflecting swat", "consecrated sphinx",
-  "ad nauseam", "necropotence", "trinisphere", "humility", "winter orb",
-  "stasis", "blood moon", "back to basics", "armageddon", "expropriate"
+  "enlightened tutor", "grim tutor", "intuition", "survival of the fittest",
+  "tainted pact",
+  // Fast mana / mana rocks pushed to GC tier
+  "mana vault", "chrome mox", "mox diamond", "grim monolith",
+  "lion's eye diamond", "jeweled lotus",
+  // Lands
+  "ancient tomb", "gaea's cradle", "serra's sanctum", "glacial chasm",
+  "the tabernacle at pendrell vale", "mishra's workshop",
+  // Hate / lock pieces
+  "drannith magistrate", "notion thief", "opposition agent", "hullbreacher",
+  "trouble in pairs", "orcish bowmasters", "trinisphere", "winter orb",
+  "stasis", "blood moon", "back to basics", "humility",
+  // Strong commanders / payoffs
+  "winota, joiner of forces", "yuriko, the tiger's shadow",
+  "kinnan, bonder prodigy", "tergrid, god of fright", "thassa's oracle",
+  "jin-gitaxias, core augur", "urza, lord high artificer",
+  // Strong staples
+  "cyclonic rift", "rhystic study", "mystic remora", "smothering tithe",
+  "the one ring", "seedborn muse", "consecrated sphinx",
+  "bolas's citadel", "underworld breach", "aetherflux reservoir",
+  "coalition victory", "ad nauseam", "necropotence",
+  "mana drain", "force of will", "fierce guardianship",
+  "armageddon", "expropriate",
 ]);
 
 export const MLD_CARDS = new Set([
@@ -33,18 +50,43 @@ export const FAST_MANA = new Set([
 ]);
 
 // Known two-card infinite combos. Used by the bracket assessor and combo-piece tagger.
+// Format: [card_a, card_b, description]. Both names lowercased.
 export const KNOWN_COMBOS = [
-  ["thassa's oracle", "demonic consultation", "Wins on cast"],
-  ["thassa's oracle", "tainted pact", "Wins on cast"],
+  // Win-on-cast
+  ["thassa's oracle", "demonic consultation", "Win on cast"],
+  ["thassa's oracle", "tainted pact", "Win on cast"],
+  ["laboratory maniac", "demonic consultation", "Win on cast"],
+  ["jace, wielder of mysteries", "demonic consultation", "Win on cast"],
+  // Infinite mana
   ["dockside extortionist", "temur sabertooth", "Infinite mana"],
+  ["dockside extortionist", "cloudstone curio", "Infinite mana"],
+  ["isochron scepter", "dramatic reversal", "Infinite mana with rocks"],
+  ["devoted druid", "vizier of remedies", "Infinite green mana"],
+  ["pestermite", "kiki-jiki, mirror breaker", "Infinite hasty creatures"],
+  ["deceiver exarch", "kiki-jiki, mirror breaker", "Infinite hasty creatures"],
+  ["birthing pod", "lotus cobra", "Infinite mana with fetches"],
+  // Reanimator infinite loops
   ["worldgorger dragon", "animate dead", "Infinite mana + ETB/LTB"],
+  ["worldgorger dragon", "necromancy", "Infinite mana + ETB/LTB"],
+  ["worldgorger dragon", "dance of the dead", "Infinite mana + ETB/LTB"],
+  ["leonin relic-warder", "animate dead", "Infinite ETB/LTB"],
+  // Lifegain/drain loops
+  ["sanguine bond", "exquisite blood", "Infinite lifegain/drain"],
+  ["vito, thorn of the dusk rose", "exquisite blood", "Infinite lifegain/drain"],
   ["heliod, sun-crowned", "walking ballista", "Infinite damage"],
+  // Token / damage
   ["kiki-jiki, mirror breaker", "zealous conscripts", "Infinite hasty tokens"],
   ["kiki-jiki, mirror breaker", "felidar guardian", "Infinite hasty tokens"],
-  ["devoted druid", "vizier of remedies", "Infinite green mana"],
-  ["sanguine bond", "exquisite blood", "Infinite lifegain/drain"],
   ["mikaeus, the unhallowed", "triskelion", "Infinite damage"],
-  ["isochron scepter", "dramatic reversal", "Infinite mana with rocks"],
+  ["mikaeus, the unhallowed", "walking ballista", "Infinite damage"],
+  ["earthcraft", "squirrel nest", "Infinite squirrels"],
+  // Storm/etc
+  ["underworld breach", "lion's eye diamond", "Storm engine"],
+  ["aetherflux reservoir", "bolas's citadel", "50-life burst"],
+  ["food chain", "eternal scourge", "Infinite mana + creature"],
+  ["food chain", "misthollow griffin", "Infinite mana + creature"],
+  // Tribal / niche
+  ["edgar markov", "phyrexian altar", "Mana from vampire tokens"],
 ];
 
 // Regex patterns matched against oracle text to assign tags.
