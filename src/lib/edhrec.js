@@ -204,6 +204,9 @@ const ARCHETYPE_THEME_KEYWORDS = {
   'group-hug': ['group hug', 'politic'],
   theft: ['theft', 'steal', 'threaten'],
   'self-mill': ['mill', 'graveyard'],
+  counters: ['counter', '\\+1/\\+1', 'proliferate'],
+  blink: ['blink', 'flicker', 'etb'],
+  wheels: ['wheel', 'discard'],
 };
 
 /**
