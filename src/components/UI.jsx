@@ -1,9 +1,51 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Loader2, Tag, Trash2, X, FileX, Bookmark } from 'lucide-react';
+import { Search, Loader2, Tag, Trash2, X, FileX, Bookmark, HelpCircle } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad } from '../lib/utils.js';
 import { cardImageUrl, searchCardAutocomplete, fetchCardByExactName } from '../lib/scryfall.js';
 import { ManaCost, ManaSymbol } from './ManaCost.jsx';
+
+// ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Question-mark help icon with a hover-revealed tooltip. Renders as a
+ * small dim icon next to a label; on hover/focus shows a panel with
+ * the body text. Click-to-toggle for touch.
+ */
+export function HelpTip({ children, side = 'right' }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="relative inline-flex items-baseline" onMouseLeave={() => setOpen(false)}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        onMouseEnter={() => setOpen(true)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        className="opacity-60 hover:opacity-100 transition"
+        style={{ color: CREAM_DIM }}
+        aria-label="Help"
+      >
+        <HelpCircle className="w-3 h-3" />
+      </button>
+      {open && (
+        <span
+          className="absolute z-30 w-64 p-3 border font-serif text-xs italic leading-snug normal-case tracking-normal"
+          style={{
+            background: BG,
+            borderColor: CREAM_FAINT,
+            color: CREAM_DIM,
+            top: '100%',
+            marginTop: '6px',
+            [side]: 0,
+          }}
+        >
+          {children}
+        </span>
+      )}
+    </span>
+  );
+}
 
 // ───────────────────────────────────────────────────────────────────────────────
 

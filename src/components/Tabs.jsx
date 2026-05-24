@@ -12,7 +12,7 @@ import { analyzeLandBase } from '../lib/landbase.js';
 import { fetchRecommendations, topRecommendations, recommendationsByTheme, themesForArchetype, suggestCuts } from '../lib/edhrec.js';
 import { fetchCardByExactName } from '../lib/scryfall.js';
 import { checkDeckLegality } from '../lib/legality.js';
-import { CardSearchBar, CardRow, TagPill, CardThumb, StatBox, FlagBox, ProbCard, EmptyState } from './UI.jsx';
+import { CardSearchBar, CardRow, TagPill, CardThumb, StatBox, FlagBox, ProbCard, EmptyState, HelpTip } from './UI.jsx';
 import { ManaSymbol } from './ManaCost.jsx';
 import { BulkAddModal, TagEditModal } from './Modals.jsx';
 
@@ -126,8 +126,11 @@ function HealthPanel({ health }) {
   return (
     <div className="border" style={{ borderColor: CREAM_FAINT }}>
       <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
-        <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
+        <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold flex items-center gap-2" style={{ color: CREAM }}>
           Deck Health
+          <HelpTip>
+            0-100 composite of legality + lands (36-38 ideal) + ramp (8-12) + draw (10+) + removal (10+) + curve (2.5-3.5 avg CMC). Each fundamental scores 15-25 points. 100 = textbook deck on paper; doesn't mean the strategy is good.
+          </HelpTip>
         </div>
         <div className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>
           fundamentals · 0-100
@@ -385,8 +388,11 @@ export function PackagesTab({ deck }) {
       {/* Synergy hubs */}
       <div>
         <div className="flex items-baseline gap-4 mb-3">
-          <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
+          <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold flex items-center gap-2" style={{ color: CREAM }}>
             Synergy Hubs
+            <HelpTip>
+              Cards that appear in 3+ strategic packages — the load-bearing pieces. Cutting one of these costs you ramp AND draw AND removal in one go. Aim to protect them.
+            </HelpTip>
           </div>
           <div className="flex-1 border-t" style={{ borderColor: CREAM_FAINT }}></div>
           <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
@@ -848,8 +854,11 @@ export function BracketTab({ deck }) {
       {!health.empty && <HealthPanel health={health} />}
       <div className="border" style={{ borderColor: CREAM_FAINT }}>
         <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
-          <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
+          <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold flex items-center gap-2" style={{ color: CREAM }}>
             Power Assessment
+            <HelpTip>
+              WotC's bracket ladder (1 Exhibition → 5 cEDH). The scorer flags Game Changers, MLD, fast mana, infinite combos, and tutor density. Bracket 1-2 = casual; 3 = focused builds with 1-3 Game Changers; 4 = optimised; 5 = tournament-grade.
+            </HelpTip>
           </div>
           <div className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>
             auto · live
@@ -1074,8 +1083,11 @@ function GoldfishSection({ deck }) {
   return (
     <div className="space-y-4">
       <div className="flex items-baseline gap-4">
-        <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
+        <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold flex items-center gap-2" style={{ color: CREAM }}>
           Goldfish
+          <HelpTip>
+            Solo simulation — shuffle the deck 1,000 times and see what your openers look like. "Keepable" = 2-5 lands AND (3+ lands OR ramp/draw in hand). Sample Playout drops a land + casts the biggest affordable spell each turn for 6 turns. No opponent, no blocking.
+          </HelpTip>
         </div>
         <div className="flex-1 border-t" style={{ borderColor: CREAM_FAINT }}></div>
         <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
