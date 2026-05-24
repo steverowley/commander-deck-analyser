@@ -27,7 +27,11 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
       if (q) {
         const nameHit = d.name.toLowerCase().includes(q);
         const cmdrHit = d.commander?.name?.toLowerCase().includes(q);
-        if (!nameHit && !cmdrHit) return false;
+        // Card-content match: q of 3+ chars also matches card names within
+        // the deck. Short queries (<3 chars) skip this to keep results
+        // sane on common substrings like "or", "an", etc.
+        const cardHit = q.length >= 3 && d.cards.some((c) => c.name?.toLowerCase().includes(q));
+        if (!nameHit && !cmdrHit && !cardHit) return false;
       }
       if (bracketFilter && d.cards.length > 0) {
         if (assessBracket(d).bracket !== bracketFilter) return false;
@@ -210,7 +214,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="search deck or commander..."
+                placeholder="search deck, commander, or card..."
                 className="w-full bg-transparent border px-3 py-2 focus:outline-none font-mono text-xs"
                 style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(243,231,201,0.02)' }}
               />
@@ -381,7 +385,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
                   <div className="font-serif text-sm mt-2 italic" style={{ color: CREAM_DIM }}>
                     {d.commander?.name || 'No commander set'}
                   </div>
-                  <DeckCardMeta deck={d} />
+                  <DeckCardMeta deck={d} searchMatch={cardMatchFor(d, search)} />
                   {d.commander?.color_identity?.length > 0 && (
                     <div className="mt-2 flex items-center gap-1" style={{ fontSize: '0.9rem' }}>
                       {d.commander.color_identity.map((c) => (
@@ -547,7 +551,20 @@ function DashStat({ label, value, sub }) {
   );
 }
 
-function DeckCardMeta({ deck }) {
+/**
+ * Find the first card in the deck whose name matches the search query.
+ * Returns null when no search is active, the search is too short, or the
+ * match is on the deck name / commander (no card-content hit to surface).
+ */
+function cardMatchFor(deck, search) {
+  const q = (search || '').trim().toLowerCase();
+  if (q.length < 3) return null;
+  if (deck.name?.toLowerCase().includes(q)) return null;
+  if (deck.commander?.name?.toLowerCase().includes(q)) return null;
+  return deck.cards.find((c) => c.name?.toLowerCase().includes(q))?.name || null;
+}
+
+function DeckCardMeta({ deck, searchMatch }) {
   const total = deck.cards.reduce((s, c) => s + c.count, 0);
   const tagCount = Object.keys(
     deck.cards.reduce((m, c) => {
@@ -590,6 +607,14 @@ function DeckCardMeta({ deck }) {
           </>
         );
       })()}
+      {searchMatch && (
+        <>
+          <span>·</span>
+          <span style={{ color: CREAM }} title={`Match from search: ${searchMatch}`}>
+            ⇢ {searchMatch}
+          </span>
+        </>
+      )}
     </div>
   );
 }
