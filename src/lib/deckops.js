@@ -53,6 +53,14 @@ export function setDeckNotes(deck, notes) {
   return { ...deck, notes: (notes || '').slice(0, 2000) };
 }
 
+/**
+ * Toggle a deck's public flag. Only meaningful when the cloud backend
+ * is active; on local storage the field is just along for the ride.
+ */
+export function setDeckPublic(deck, isPublic) {
+  return { ...deck, is_public: !!isPublic };
+}
+
 // ───────────────────────────────────────────────────────────────────────────────
 // Wishlist — cards held aside while you decide whether to slot them in.
 // Doesn't count toward legality, stats, or the 100-card cap.

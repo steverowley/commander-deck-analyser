@@ -9,8 +9,9 @@ import { deckTotalPrice, formatPrice } from '../lib/pricing.js';
 import { aggregateStats } from '../lib/stats.js';
 import { ManaSymbol } from './ManaCost.jsx';
 import { ImportDeckModal } from './Modals.jsx';
+import { GalleryView } from './GalleryView.jsx';
 
-export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup, onSettings }) {
+export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup, onSettings, user, cloudEnabled, onSignIn, onSignOut, onImportFromGallery }) {
   const [name, setName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showImport, setShowImport] = useState(false);
@@ -97,13 +98,32 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
           className="hidden md:flex items-center px-5 border-r text-[11px] tracking-[0.3em] uppercase font-serif"
           style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
         >
-          Bracket · Auto
+          {user ? (
+            <span className="truncate">
+              Cloud · <span style={{ color: CREAM }} title={user.email}>{user.email?.split('@')[0]}</span>
+            </span>
+          ) : cloudEnabled ? (
+            <button
+              onClick={onSignIn}
+              className="hover:opacity-100"
+              style={{ color: CREAM_DIM }}
+            >
+              Sign in →
+            </button>
+          ) : (
+            <span>Local</span>
+          )}
         </div>
         <div
-          className="hidden md:flex items-center justify-end px-5 text-[11px] tracking-[0.3em] uppercase font-serif"
+          className="hidden md:flex items-center justify-end px-5 text-[11px] tracking-[0.3em] uppercase font-serif gap-3"
           style={{ color: CREAM_DIM }}
         >
-          v{__APP_VERSION__}
+          {user && (
+            <button onClick={onSignOut} className="hover:opacity-100" style={{ color: CREAM_DIM }}>
+              Sign out
+            </button>
+          )}
+          <span>v{__APP_VERSION__}</span>
         </div>
       </nav>
 
@@ -414,6 +434,8 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
           </div>
         )}
       </div>
+
+      {cloudEnabled && <GalleryView onImportFromGallery={onImportFromGallery} />}
 
       <div
         className="border-t mt-20 py-6 flex items-center justify-center gap-4 font-serif text-[10px] tracking-[0.4em] uppercase"
