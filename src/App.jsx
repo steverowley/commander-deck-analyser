@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { CREAM, CREAM_DIM, BG } from './theme.js';
-import { loadDecks, saveDeck, deleteDeck } from './lib/storage.js';
+import { loadDecks, saveDeck, deleteDeck, readLocalDecks, clearLocalDecks } from './lib/storage.js';
+import { uploadLocalDecks } from './lib/storage-supabase.js';
+import { useAuthState, isCloudEnabled, signOut } from './lib/supabase.js';
 import { loadCardCache, fetchCardsByName } from './lib/scryfall.js';
 import { duplicateDeck, addCardsToDeck } from './lib/deckops.js';
 import { decodeDeckUrl } from './lib/share.js';
@@ -10,40 +12,84 @@ import { DeckListView } from './components/DeckList.jsx';
 import { DeckEditor } from './components/DeckEditor.jsx';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import { OfflineIndicator } from './components/OfflineIndicator.jsx';
+import { AuthModal } from './components/AuthModal.jsx';
 import { BackupModal, SettingsModal } from './components/Modals.jsx';
 
 export default function App() {
   const [decks, setDecks] = useState([]);
   const [activeId, setActiveId] = useState(null);
-  // Optional tab to open the editor on (e.g. 'probs' when the user clicks
-  // a "Test hand" shortcut from the archive). Reset on back-to-list.
   const [initialTab, setInitialTab] = useState(null);
-  const selectDeck = (id, tab) => {
-    setActiveId(id);
-    setInitialTab(tab || null);
-  };
   const [loading, setLoading] = useState(true);
-  const [pendingShare, setPendingShare] = useState(null); // decoded deck from URL hash
+  const [pendingShare, setPendingShare] = useState(null);
   const [importingShare, setImportingShare] = useState(false);
   const [importProgress, setImportProgress] = useState('');
   const [showBackup, setShowBackup] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
+  // Migration state — when a user signs in for the first time with local
+  // decks present, we kick off an auto-upload.
+  const [migrating, setMigrating] = useState(false);
+  const [migrationMessage, setMigrationMessage] = useState(null);
 
+  const auth = useAuthState();
+
+  const selectDeck = (id, tab) => {
+    setActiveId(id);
+    setInitialTab(tab || null);
+  };
+
+  // Reload decks whenever auth changes (sign-in routes us to cloud,
+  // sign-out routes us back to local).
   useEffect(() => {
+    if (auth.loading) return;
+    setLoading(true);
     loadDecks().then((d) => {
       setDecks(d);
       setLoading(false);
     });
-    loadCardCache();
+  }, [auth.user?.id, auth.loading]);
 
-    // Check URL hash for a shared deck payload.
+  useEffect(() => {
+    loadCardCache();
     if (typeof window !== 'undefined' && window.location.hash) {
       const decoded = decodeDeckUrl(window.location.hash);
-      if (decoded && decoded.cards.length > 0) {
-        setPendingShare(decoded);
-      }
+      if (decoded && decoded.cards.length > 0) setPendingShare(decoded);
     }
   }, []);
+
+  // First-sign-in migration: if we have local decks AND the user just
+  // signed in AND we haven't migrated this account before, push them.
+  useEffect(() => {
+    if (!auth.user || auth.loading || migrating) return;
+    const migratedKey = `vault:migrated:${auth.user.id}`;
+    if (localStorage.getItem(migratedKey)) return;
+
+    const local = readLocalDecks();
+    if (local.length === 0) {
+      localStorage.setItem(migratedKey, '1');
+      return;
+    }
+
+    (async () => {
+      setMigrating(true);
+      setMigrationMessage(`Uploading ${local.length} local deck${local.length === 1 ? '' : 's'}...`);
+      try {
+        const uploaded = await uploadLocalDecks(local);
+        clearLocalDecks();
+        localStorage.setItem(migratedKey, '1');
+        setMigrationMessage(`✓ Migrated ${uploaded} deck${uploaded === 1 ? '' : 's'} to your account.`);
+        // Reload to show the freshly-uploaded cloud copies.
+        const reloaded = await loadDecks();
+        setDecks(reloaded);
+        setTimeout(() => setMigrationMessage(null), 5000);
+      } catch (e) {
+        setMigrationMessage(`Migration failed: ${e.message}. Your local decks are still safe.`);
+        setTimeout(() => setMigrationMessage(null), 8000);
+      } finally {
+        setMigrating(false);
+      }
+    })();
+  }, [auth.user?.id, auth.loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeDeck = decks.find((d) => d.id === activeId);
 
@@ -90,14 +136,12 @@ export default function App() {
       created: Date.now(),
       updated: Date.now(),
     };
-    // Run cards through addCardsToDeck so tags get assigned consistently.
     const populated = addCardsToDeck(base, cards);
     await saveDeck(populated);
     setDecks([populated, ...decks]);
     setActiveId(populated.id);
   };
 
-  // Resolve a shared deck payload against Scryfall and import as a new deck.
   const acceptShare = async () => {
     if (!pendingShare) return;
     setImportingShare(true);
@@ -118,7 +162,6 @@ export default function App() {
         })
         .filter(Boolean);
       await handleImport({ name: pendingShare.name, commander, cards });
-      // Clear URL hash so subsequent reloads don't re-prompt.
       if (typeof window !== 'undefined') {
         window.history.replaceState(null, '', window.location.pathname);
       }
@@ -132,11 +175,9 @@ export default function App() {
   const handleRestore = async (importedDecks, mode) => {
     let next;
     if (mode === 'replace') {
-      // Wipe existing, save each imported deck.
       for (const d of decks) await deleteDeck(d.id);
       next = importedDecks;
     } else {
-      // Merge — keep existing, add imports that don't share an id.
       const existingIds = new Set(decks.map((d) => d.id));
       const additions = importedDecks.filter((d) => !existingIds.has(d.id));
       next = [...additions, ...decks];
@@ -151,6 +192,11 @@ export default function App() {
     if (typeof window !== 'undefined') {
       window.history.replaceState(null, '', window.location.pathname);
     }
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    // Auth state listener triggers a reload of decks (back to local).
   };
 
   if (loading) {
@@ -177,6 +223,9 @@ export default function App() {
           progress={importProgress}
         />
       )}
+      {migrationMessage && (
+        <MigrationBanner message={migrationMessage} busy={migrating} />
+      )}
       <ErrorBoundary label="Vault hit an unexpected error">
         {activeDeck ? (
           <DeckEditor
@@ -197,6 +246,19 @@ export default function App() {
             onImport={handleImport}
             onBackup={() => setShowBackup(true)}
             onSettings={() => setShowSettings(true)}
+            user={auth.user}
+            cloudEnabled={isCloudEnabled()}
+            onSignIn={() => setShowAuth(true)}
+            onSignOut={handleSignOut}
+            onImportFromGallery={async (deck) => {
+              // Copy a public gallery deck into the user's archive.
+              const copy = duplicateDeck(deck);
+              copy.is_public = false;
+              copy.name = `${deck.name} (copy)`;
+              await saveDeck(copy);
+              const reloaded = await loadDecks();
+              setDecks(reloaded);
+            }}
           />
         )}
       </ErrorBoundary>
@@ -208,6 +270,7 @@ export default function App() {
         />
       )}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       <OfflineIndicator />
     </div>
   );
@@ -252,6 +315,20 @@ function SharePrompt({ share, onAccept, onDismiss, loading, progress }) {
             {loading ? 'Importing...' : 'Import →'}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function MigrationBanner({ message, busy }) {
+  return (
+    <div
+      className="fixed inset-x-0 top-0 z-40 border-b"
+      style={{ borderColor: 'rgba(243,231,201,0.15)', background: 'rgba(13,22,20,0.95)', backdropFilter: 'blur(6px)' }}
+    >
+      <div className="max-w-6xl mx-auto px-4 md:px-8 py-3 flex items-center gap-3">
+        {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: CREAM_DIM }} />}
+        <div className="font-mono text-xs" style={{ color: CREAM }}>{message}</div>
       </div>
     </div>
   );

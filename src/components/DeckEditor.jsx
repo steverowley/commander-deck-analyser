@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, BookOpen, Loader2, Crown, Sparkles, Tag, BarChart3, Target, Clock, Calculator, Lightbulb, Pencil, Copy, Download, Link as LinkIcon, GitCompare, FileText } from 'lucide-react';
+import { ChevronLeft, BookOpen, Loader2, Crown, Sparkles, Tag, BarChart3, Target, Clock, Calculator, Lightbulb, Pencil, Copy, Download, Link as LinkIcon, GitCompare, FileText, Globe } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { lc, pad } from '../lib/utils.js';
 import { searchCardAutocomplete, fetchCardByExactName, cardImageUrl } from '../lib/scryfall.js';
-import { renameDeck, setDeckNotes } from '../lib/deckops.js';
+import { renameDeck, setDeckNotes, setDeckPublic } from '../lib/deckops.js';
 import { CardsTab, PackagesTab, CurveTab, BracketTab, StagesTab, ProbabilitiesTab, RecommendationsTab } from './Tabs.jsx';
 import { RulesModal, ExportModal, ShareModal, CompareModal, NotesModal } from './Modals.jsx';
 import { ManaCost } from './ManaCost.jsx';
@@ -309,6 +309,17 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, otherDecks = [
             title="Share via link"
           >
             <LinkIcon className="w-3 h-3 mr-1.5" /> Share
+          </button>
+          {/* Public toggle — only meaningful when signed in (cloud backend
+              owns the is_public column). Toggle is visible regardless so
+              local-only users can see the option exists. */}
+          <button
+            onClick={() => onUpdate(setDeckPublic(deck, !deck.is_public))}
+            className="flex items-center hover:opacity-100"
+            title={deck.is_public ? 'This deck is in the public gallery. Click to unlist.' : 'Click to add this deck to the public gallery.'}
+            style={{ color: deck.is_public ? '#a3c98a' : CREAM_DIM }}
+          >
+            <Globe className="w-3 h-3 mr-1.5" /> {deck.is_public ? 'Public' : 'Private'}
           </button>
           {(otherDecks.length > 0 || deck.commander) && (
             <button
