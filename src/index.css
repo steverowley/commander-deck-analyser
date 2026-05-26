@@ -22,6 +22,11 @@ body {
 
 .fade-up { animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
 
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; transform: scale(0.9); }
+  50%      { opacity: 1;   transform: scale(1.15); }
+}
+
 input::placeholder, textarea::placeholder { color: rgba(243, 231, 201, 0.3); }
 
 ::selection { background: rgba(243, 231, 201, 0.2); color: #f3e7c9; }

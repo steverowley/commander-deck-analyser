@@ -61,6 +61,11 @@ export function CardScanner({ onClose, onAdded }) {
   const [candidate, setCandidate] = useState(null); // resolved Scryfall card
   const [suggestions, setSuggestions] = useState([]); // alt names
   const [recentlyAdded, setRecentlyAdded] = useState([]);
+  const [autoScan, setAutoScan] = useState(true);
+  // Track in-flight scans + the last text we OCR'd so the auto loop
+  // doesn't fire on top of itself or thrash the same frame.
+  const scanningRef = useRef(false);
+  const lastOcrRef = useRef('');
 
   useEffect(() => {
     let alive = true;
@@ -92,14 +97,18 @@ export function CardScanner({ onClose, onAdded }) {
     };
   }, []);
 
-  const capture = async () => {
+  const capture = async ({ silent = false } = {}) => {
     if (!videoRef.current || !canvasRef.current) return;
-    setStatus('working');
-    setProgress('');
-    setError(null);
-    setRawOcr('');
-    setCandidate(null);
-    setSuggestions([]);
+    if (scanningRef.current) return;
+    scanningRef.current = true;
+    if (!silent) {
+      setStatus('working');
+      setProgress('');
+      setError(null);
+      setRawOcr('');
+      setCandidate(null);
+      setSuggestions([]);
+    }
     try {
       // Draw current video frame into the offscreen canvas, then crop
       // to the top 12% (card name strip).
@@ -108,8 +117,10 @@ export function CardScanner({ onClose, onAdded }) {
       const w = video.videoWidth;
       const h = video.videoHeight;
       if (!w || !h) {
-        setError('Camera not ready yet. Try again in a second.');
-        setStatus('ready');
+        if (!silent) {
+          setError('Camera not ready yet. Try again in a second.');
+          setStatus('ready');
+        }
         return;
       }
       // Heuristic crop — assume the card fills most of the frame's
@@ -131,21 +142,31 @@ export function CardScanner({ onClose, onAdded }) {
       }
       ctx.putImageData(img, 0, 0);
 
-      const worker = await getWorker(setProgress);
-      setProgress('Reading text...');
+      const worker = await getWorker((m) => !silent && setProgress(m));
+      if (!silent) setProgress('Reading text...');
       const { data: { text } } = await worker.recognize(canvas);
       const cleaned = cleanOcr(text);
-      setRawOcr(cleaned);
-      if (!cleaned) {
-        setError("Couldn't read the title. Move the card closer or improve lighting.");
-        setStatus('ready');
+      // Skip duplicate OCRs from the auto loop — we're seeing the
+      // same card frame over and over while the user hasn't moved.
+      if (silent && cleaned && cleaned === lastOcrRef.current) {
         return;
       }
-      setProgress('Matching against Scryfall...');
+      lastOcrRef.current = cleaned;
+      setRawOcr(cleaned);
+      if (!cleaned || cleaned.length < 3) {
+        if (!silent) {
+          setError("Couldn't read the title. Move the card closer or improve lighting.");
+          setStatus('ready');
+        }
+        return;
+      }
+      if (!silent) setProgress('Matching against Scryfall...');
       const names = await searchCardAutocomplete(cleaned);
       if (!names || names.length === 0) {
-        setError(`No matches for "${cleaned}". Try again or edit the name manually.`);
-        setStatus('ready');
+        if (!silent) {
+          setError(`No matches for "${cleaned}". Try again or edit the name manually.`);
+          setStatus('ready');
+        }
         return;
       }
       // Take the top candidate; keep the rest as alternatives.
@@ -154,10 +175,13 @@ export function CardScanner({ onClose, onAdded }) {
       setSuggestions(names.slice(1, 5));
       setStatus('matched');
     } catch (e) {
-      setError(e.message || 'Scan failed.');
-      setStatus('ready');
+      if (!silent) {
+        setError(e.message || 'Scan failed.');
+        setStatus('ready');
+      }
     } finally {
       setProgress('');
+      scanningRef.current = false;
     }
   };
 
@@ -173,6 +197,9 @@ export function CardScanner({ onClose, onAdded }) {
     setRawOcr('');
     setProgress('');
     setStatus('ready');
+    // Force the auto loop to treat the next read as fresh — otherwise
+    // the same name is still in lastOcrRef and gets suppressed.
+    lastOcrRef.current = '';
   };
 
   const pickAlternative = async (name) => {
@@ -188,7 +215,22 @@ export function CardScanner({ onClose, onAdded }) {
     setRawOcr('');
     setError(null);
     setStatus('ready');
+    lastOcrRef.current = '';
   };
+
+  // Auto-scan loop — fires a silent capture every ~1.5s while the
+  // camera is open, no match is being reviewed, and the user hasn't
+  // turned auto-scan off. Stops the moment a candidate appears or
+  // the modal is doing something else, so the OCR worker isn't
+  // pummelled while the user reads the result.
+  useEffect(() => {
+    if (!autoScan) return;
+    if (status !== 'ready') return;
+    const id = setInterval(() => {
+      capture({ silent: true });
+    }, 1500);
+    return () => clearInterval(id);
+  }, [autoScan, status]);
 
   return (
     <div
@@ -254,8 +296,26 @@ export function CardScanner({ onClose, onAdded }) {
             <canvas ref={canvasRef} className="hidden" />
           </div>
 
-          <div className="font-serif text-xs italic" style={{ color: CREAM_DIM }}>
-            Hold the card flat under good lighting, name strip filling the dashed box. Tap <span style={{ color: CREAM }}>Scan</span> to capture.
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="font-serif text-xs italic flex-1 min-w-[180px]" style={{ color: CREAM_DIM }}>
+              {autoScan
+                ? 'Hold a card in the dashed box — scanning automatically.'
+                : 'Hold a card in the dashed box, then tap Scan.'}
+              {status === 'ready' && autoScan && (
+                <span className="ml-1.5 inline-flex items-center gap-1" style={{ color: CREAM }}>
+                  <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: '#a3c98a', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                  scanning
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => setAutoScan((v) => !v)}
+              className="font-serif text-[10px] tracking-[0.3em] uppercase border px-2 py-1 hover:opacity-100 flex items-center gap-1.5 shrink-0"
+              style={{ borderColor: CREAM_FAINT, color: autoScan ? CREAM : CREAM_DIM }}
+              aria-pressed={autoScan}
+            >
+              Auto-scan {autoScan ? 'on' : 'off'}
+            </button>
           </div>
 
           {status === 'working' && (
@@ -363,12 +423,13 @@ export function CardScanner({ onClose, onAdded }) {
             Done
           </button>
           <button
-            onClick={capture}
+            onClick={() => capture()}
             disabled={status !== 'ready'}
             className="font-serif text-[10px] tracking-[0.3em] uppercase border px-5 py-2 disabled:opacity-30 flex items-center gap-1.5"
             style={{ borderColor: CREAM, color: CREAM, background: 'rgba(243,231,201,0.06)' }}
+            title={autoScan ? 'Force an immediate scan — auto-scan also fires every 1.5s' : 'Capture the current frame'}
           >
-            <Camera className="w-3 h-3" /> Scan
+            <Camera className="w-3 h-3" /> Scan now
           </button>
         </div>
       </div>
