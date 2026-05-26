@@ -150,6 +150,32 @@ describe('buildSeededDeck', () => {
     expect(cards.some((c) => c.name === 'Mana Crypt')).toBe(false);
   });
 
+  it('enforces total budget — built deck total stays at or near the cap', async () => {
+    // Every non-basic in the pool sits comfortably under the per-card
+    // cap, so the pre-filter passes them. Without the post-build
+    // swap loop, 99 of them at $4 each would push the total to ~$400.
+    // The swap-with-basics step should bring it down to the cap.
+    const expensive = (i) => ({
+      name: `Card ${i}`,
+      type_line: 'Creature — Goblin',
+      cmc: 3,
+      oracle_text: 'Vanilla beater.',
+      prices: { usd: '4.00' },
+    });
+    const pool = Array.from({ length: 200 }, (_, i) => expensive(i));
+    fetchRecommendations.mockResolvedValue(pool.map((c) => ({ name: c.name })));
+    fetchCardsByName.mockResolvedValue({ results: buildResults(pool), notFound: [], errors: [] });
+
+    const commander = { name: 'Budget Cmdr', color_identity: ['R'] };
+    const { cards } = await buildSeededDeck(commander, { budget: 50, currency: 'usd' });
+    expect(totalCount(cards)).toBe(99);
+    const total = cards.reduce((s, c) => {
+      const p = parseFloat(c.scryfall?.prices?.usd) || 0;
+      return s + p * c.count;
+    }, 0);
+    expect(total).toBeLessThanOrEqual(50 * 1.1);
+  });
+
   it('budget cap drops cards priced above the per-card threshold', async () => {
     const pricey = { name: 'Pricey Card', type_line: 'Creature', cmc: 4, oracle_text: 'Flying.', prices: { usd: '120.00' } };
     const cheap = (i) => ({ ...makeCreature(i), prices: { usd: '0.50' } });
