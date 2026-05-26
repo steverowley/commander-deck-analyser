@@ -1640,7 +1640,15 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
         `bracket ${bracket}`,
         budget != null ? `${isConverted(currency) ? '~' : ''}${formatPrice(budget, currency)} budget` : null,
         archetype.id !== 'any' ? `${archetype.label.toLowerCase()} archetype` : null,
+        ownedOnly ? `Vault-only (${collectionSize} cards)` : null,
       ].filter(Boolean).join(', ');
+      // Visible warning when the Vault filter chewed the pool down to
+      // nothing — otherwise the user gets a deck of basics and wonders
+      // why nothing happened.
+      if (ownedOnly && summary?.ownedPool != null && summary.ownedPool < 10) {
+        setError(`Vault filter matched only ${summary.ownedPool} of EDHREC's top cards for ${commander.name}. Deck is mostly basics — try widening your Vault or turning the filter off.`);
+        setTimeout(() => setError(null), 10000);
+      }
       const willShare = canShare && shareRoll;
       const seedMeta = {
         bracket,

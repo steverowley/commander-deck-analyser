@@ -158,11 +158,16 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
   // Collection-aware build — when ownedOnly is true, drop every
   // non-basic card the user doesn't have in their collection. Basics
   // pass through unconditionally since we may pad them in below.
-  if (ownedOnly && collection) {
+  if (ownedOnly) {
+    if (!collection || Object.keys(collection).length === 0) {
+      console.warn('[autoseed] ownedOnly requested but collection is empty/missing — the deck will be all basics.');
+    }
+    const before = pool.length;
     pool = pool.filter((c) => {
       if (/^Basic Land/i.test(c.type_line || '')) return true;
-      return !!collection[lc(c.name)];
+      return !!(collection && collection[lc(c.name)]);
     });
+    console.log(`[autoseed] ownedOnly filter: ${before} → ${pool.length} cards (${Object.keys(collection || {}).length} in Vault).`);
   }
 
   // Archetype boost — partition matching cards to the front of the
@@ -200,7 +205,13 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
   // `draw`, `removal`, `other`) so `summary[key]` works inside the
   // priority-fill loop. `basics` is separate because basics are
   // distributed below; the modal sums lands + basics for the display.
-  const summary = { land: 0, ramp: 0, draw: 0, removal: 0, other: 0, basics: 0 };
+  // ownedPool surfaces how many cards survived the ownedOnly filter
+  // so the UI can warn when the Vault overlap is too thin.
+  const summary = {
+    land: 0, ramp: 0, draw: 0, removal: 0, other: 0, basics: 0,
+    ownedPool: ownedOnly ? pool.length : null,
+    vaultSize: collection ? Object.keys(collection).length : 0,
+  };
 
   // Fill priority buckets in order. Each `add` consumes a slot from
   // the 99-card budget, so check the budget before grabbing.

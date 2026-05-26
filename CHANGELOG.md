@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.9.3 — Vault-only roller: visibility + diagnostics
+
+- **Visible warning** in the Roll modal when the Vault filter cut the EDHREC pool down to under 10 cards. Without this you got a deck of mostly basics with no explanation. Now the modal says "Vault filter matched only N of EDHREC's top cards for ... try widening your Vault or turning the filter off."
+- **Always-on filter** — when ownedOnly was checked but `collection` happened to be null (race on modal open), the filter was silently skipped and you got an EDHREC deck. Now the filter always runs; null collection = empty Vault = filter rejects everything, with a console warn.
+- **Auto-seed attribution** now mentions Vault-only mode and the Vault size, so the deck Notes record which configuration produced the deck.
+- New summary fields `ownedPool` and `vaultSize` from `buildSeededDeck` so the UI can surface diagnostics.
+- `[autoseed]` console logs report `before → after` counts so failures can be diagnosed from the browser console.
+
 ## v0.9.2 — Drag a CSV onto the page + better import errors
 
 - **Drop a Moxfield .csv file straight onto the page.** The existing global drop overlay now accepts file drops too. Any `.csv` file (matched by extension or `text/csv` MIME) is read with `File.text()`, detected as a Moxfield export, parsed, and bulk-upserted into your Vault. Drop it on either zone — both route to the CSV import path. Success toast on completion.
