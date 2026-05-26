@@ -13,11 +13,17 @@ import { DeckEditor } from './components/DeckEditor.jsx';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import { OfflineIndicator } from './components/OfflineIndicator.jsx';
 import { AuthModal } from './components/AuthModal.jsx';
+import { ProfileModal } from './components/ProfileModal.jsx';
 import { BackupModal, SettingsModal } from './components/Modals.jsx';
+import { loadProfile } from './lib/profile.js';
 
 export default function App() {
   const [decks, setDecks] = useState([]);
   const [activeId, setActiveId] = useState(null);
+  // Transient gallery-view deck. Kept separate from `decks` so it
+  // never shows up in the archive list — only when it's the active
+  // deck (via id match). Cleared when the user navigates back.
+  const [viewingDeck, setViewingDeck] = useState(null);
   const [initialTab, setInitialTab] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pendingShare, setPendingShare] = useState(null);
@@ -49,6 +55,23 @@ export default function App() {
       setLoading(false);
     });
   }, [auth.user?.id, auth.loading]);
+
+  // First-sign-in onboarding: if the signed-in user has no username
+  // row yet, open the Profile modal in onboarding mode so they can
+  // pick one before doing anything else.
+  const [profileMode, setProfileMode] = useState(null); // null | 'onboarding' | 'edit'
+  useEffect(() => {
+    if (!auth.user?.id) {
+      setProfileMode(null);
+      return;
+    }
+    let alive = true;
+    loadProfile(auth.user.id).then((p) => {
+      if (!alive) return;
+      if (!p?.username) setProfileMode('onboarding');
+    });
+    return () => { alive = false; };
+  }, [auth.user?.id]);
 
   useEffect(() => {
     loadCardCache();
@@ -107,7 +130,8 @@ export default function App() {
     })();
   }, [auth.user?.id, auth.loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const activeDeck = decks.find((d) => d.id === activeId);
+  const activeDeck = decks.find((d) => d.id === activeId)
+    || (viewingDeck && viewingDeck.id === activeId ? viewingDeck : null);
 
   const handleCreate = async (name) => {
     const settings = loadSettings();
@@ -126,12 +150,13 @@ export default function App() {
   };
 
   const handleUpdate = async (updated) => {
-    // Gallery view-mode decks live in state only — don't try to persist
-    // them to either backend (the `view:` id isn't a valid Supabase uuid
-    // and we don't want them to creep into the local archive either).
-    if (!updated.__readonly && !String(updated.id).startsWith('view:')) {
-      await saveDeck(updated);
+    // Gallery view-mode decks live in a separate transient slot — they
+    // never go into the archive `decks` array and never get persisted.
+    if (updated.__readonly || String(updated.id).startsWith('view:')) {
+      setViewingDeck(updated);
+      return;
     }
+    await saveDeck(updated);
     setDecks(decks.map((d) => (d.id === updated.id ? updated : d)));
   };
 
@@ -256,7 +281,7 @@ export default function App() {
           <DeckEditor
             deck={activeDeck}
             onUpdate={handleUpdate}
-            onBack={() => { setActiveId(null); setInitialTab(null); }}
+            onBack={() => { setActiveId(null); setInitialTab(null); setViewingDeck(null); }}
             onDuplicate={() => handleDuplicate(activeDeck)}
             otherDecks={decks.filter((d) => d.id !== activeDeck.id)}
             initialTab={initialTab}
@@ -271,6 +296,7 @@ export default function App() {
             onImport={handleImport}
             onBackup={() => setShowBackup(true)}
             onSettings={() => setShowSettings(true)}
+            onProfile={() => setProfileMode('edit')}
             user={auth.user}
             cloudEnabled={isCloudEnabled()}
             onSignIn={() => setShowAuth(true)}
@@ -285,20 +311,15 @@ export default function App() {
               setDecks(reloaded);
             }}
             onViewGalleryDeck={(deck) => {
-              // Open a gallery deck in a transient session — temporarily
-              // slot it into local state with a synthetic id and open it.
-              // It isn't persisted to either backend; the user has to hit
-              // "Copy → mine" if they want to keep it.
+              // Open a gallery deck in a transient session — slot it into
+              // `viewingDeck`, NOT into `decks`. The archive list never
+              // shows it; navigating back clears it.
               const viewerDeck = {
                 ...deck,
                 id: `view:${deck.id}`,
                 __readonly: true,
               };
-              setDecks((current) =>
-                current.some((d) => d.id === viewerDeck.id)
-                  ? current
-                  : [viewerDeck, ...current]
-              );
+              setViewingDeck(viewerDeck);
               selectDeck(viewerDeck.id);
             }}
             onRandomBuild={handleImport}
@@ -314,6 +335,13 @@ export default function App() {
       )}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+      {profileMode && auth.user && (
+        <ProfileModal
+          user={auth.user}
+          onClose={() => setProfileMode(null)}
+          onboarding={profileMode === 'onboarding'}
+        />
+      )}
       <OfflineIndicator />
     </div>
   );

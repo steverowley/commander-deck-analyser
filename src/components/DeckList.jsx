@@ -13,7 +13,7 @@ import { VersionChip } from './UI.jsx';
 import { ImportDeckModal, RandomDeckModal } from './Modals.jsx';
 import { GalleryView } from './GalleryView.jsx';
 
-export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup, onSettings, user, cloudEnabled, onSignIn, onSignOut, onImportFromGallery, onViewGalleryDeck, onRandomBuild }) {
+export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup, onSettings, onProfile, user, cloudEnabled, onSignIn, onSignOut, onImportFromGallery, onViewGalleryDeck, onRandomBuild }) {
   const [name, setName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showImport, setShowImport] = useState(false);
@@ -106,9 +106,14 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
           >
             {user ? (
               <>
-                <span className="truncate min-w-0">
-                  Cloud · <span style={{ color: CREAM }} title={user.email}>{user.email?.split('@')[0]}</span>
-                </span>
+                <button
+                  onClick={onProfile}
+                  className="truncate min-w-0 hover:opacity-100 text-left"
+                  style={{ color: CREAM_DIM }}
+                  title="View profile"
+                >
+                  Cloud · <span style={{ color: CREAM }}>{user.email?.split('@')[0]}</span>
+                </button>
                 <button onClick={onSignOut} className="hover:opacity-100 shrink-0 ml-3" style={{ color: CREAM_DIM }}>
                   Sign out
                 </button>
@@ -150,9 +155,14 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
             style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
           >
             {user ? (
-              <span className="truncate">
-                Cloud · <span style={{ color: CREAM }} title={user.email}>{user.email?.split('@')[0]}</span>
-              </span>
+              <button
+                onClick={onProfile}
+                className="truncate hover:opacity-100 text-left"
+                style={{ color: CREAM_DIM }}
+                title="View profile"
+              >
+                Cloud · <span style={{ color: CREAM }}>{user.email?.split('@')[0]}</span>
+              </button>
             ) : cloudEnabled ? (
               <button onClick={onSignIn} className="hover:opacity-100" style={{ color: CREAM_DIM }}>
                 Sign in →
@@ -558,6 +568,14 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
             <button onClick={onSettings} className="hover:opacity-100 transition" style={{ color: CREAM_DIM }}>
               Settings
             </button>
+          )}
+          {user && onProfile && (
+            <>
+              <span style={{ opacity: 0.4 }}>·</span>
+              <button onClick={onProfile} className="hover:opacity-100 transition" style={{ color: CREAM_DIM }}>
+                Profile
+              </button>
+            </>
           )}
         </div>
       </div>
