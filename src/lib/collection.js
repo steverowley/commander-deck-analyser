@@ -35,7 +35,7 @@ export async function loadCollection() {
     const userId = await currentUserId();
     const { data, error } = await supabase
       .from('collection')
-      .select('card_name, quantity, added_at')
+      .select('card_name, quantity, added_at, meta')
       .eq('user_id', userId)
       .order('added_at', { ascending: false });
     if (error) {
@@ -48,6 +48,7 @@ export async function loadCollection() {
         name: row.card_name,
         quantity: row.quantity,
         added_at: new Date(row.added_at).getTime(),
+        meta: row.meta || {},
       };
     }
     return out;
@@ -193,4 +194,30 @@ export function totalCount(collection) {
 export function ownedCount(collection, cardName) {
   if (!cardName) return 0;
   return collection?.[lc(cardName)]?.quantity || 0;
+}
+
+/**
+ * Replace the meta jsonb on a card entry (printing_id, foil style etc.).
+ * Pass null to clear. Returns the new meta object.
+ */
+export async function setCardMeta(cardName, meta) {
+  if (!cardName) return null;
+  const next = meta || null;
+  if (await isSignedIn()) {
+    const userId = await currentUserId();
+    const { error } = await supabase
+      .from('collection')
+      .update({ meta: next })
+      .eq('user_id', userId)
+      .eq('card_name', cardName);
+    if (error) console.warn('Supabase setCardMeta failed', error);
+    return next;
+  }
+  const cur = await loadCollection();
+  const key = lc(cardName);
+  if (cur[key]) {
+    cur[key] = { ...cur[key], meta: next || {} };
+    saveLocal(cur);
+  }
+  return next;
 }

@@ -2,7 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Trash2, Crown, Copy, Upload, Calculator, Dices, Search } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad } from '../lib/utils.js';
-import { cardImageUrl, resolveScryfallUrl, extractDroppedScryfallUrl, fetchCardsByName } from '../lib/scryfall.js';
+import { cardImageUrl, resolveScryfallUrl, extractDroppedScryfallUrl, fetchCardsByName, fetchCardById } from '../lib/scryfall.js';
+import { VaultCard } from './VaultCard.jsx';
 import { assessBracket } from '../lib/analyzers.js';
 import { computeHealth } from '../lib/health.js';
 import { deckTotalPrice, formatPrice, isConverted } from '../lib/pricing.js';
@@ -596,6 +597,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
           await addToCollection(card.name, 1);
           loadCollection().then(setCollection);
         }}
+        onChanged={() => loadCollection().then(setCollection)}
       />
 
       {showScryfall && (
@@ -965,7 +967,7 @@ function EmptyArchive({ onCreate, onImport }) {
  * for the Scryfall drag-and-drop flow. Full management still lives
  * in the CollectionModal opened via 'Manage Vault →'.
  */
-function VaultSection({ collection, onOpen, onSearch, onAddCard }) {
+function VaultSection({ collection, onOpen, onSearch, onAddCard, onChanged }) {
   const [dragOver, setDragOver] = useState(false);
   const [cardData, setCardData] = useState({});
   const entries = Object.values(collection || {});
@@ -1060,34 +1062,12 @@ function VaultSection({ collection, onOpen, onSearch, onAddCard }) {
                 {recent.map((e) => {
                   const card = cardData[e.name.toLowerCase()];
                   return (
-                    <div
+                    <VaultCard
                       key={e.name}
-                      className="border relative"
-                      style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}
-                      title={`${e.name} ×${e.quantity}`}
-                    >
-                      {card ? (
-                        <img
-                          src={cardImageUrl(card, 'small')}
-                          alt={e.name}
-                          className="w-full aspect-[5/7] object-cover"
-                          loading="lazy"
-                          onError={(ev) => (ev.currentTarget.style.display = 'none')}
-                        />
-                      ) : (
-                        <div className="w-full aspect-[5/7] flex items-center justify-center font-mono text-[8px] px-1 text-center" style={{ color: CREAM_DIM }}>
-                          {e.name.slice(0, 10)}
-                        </div>
-                      )}
-                      {e.quantity > 1 && (
-                        <span
-                          className="absolute top-1 right-1 font-mono text-[9px] tracking-wider px-1.5 py-0.5 border"
-                          style={{ background: BG, borderColor: CREAM_FAINT, color: CREAM }}
-                        >
-                          ×{e.quantity}
-                        </span>
-                      )}
-                    </div>
+                      entry={e}
+                      card={card}
+                      onChanged={onChanged}
+                    />
                   );
                 })}
               </div>
