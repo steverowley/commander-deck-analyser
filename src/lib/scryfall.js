@@ -48,13 +48,26 @@ function normalize(card) {
     // to stay light. Scryfall returns these as string-encoded decimals.
     prices: card.prices ? { usd: card.prices.usd, eur: card.prices.eur } : undefined,
     image_uris: card.image_uris
-      ? { small: card.image_uris.small, normal: card.image_uris.normal }
+      ? {
+          small: card.image_uris.small,
+          normal: card.image_uris.normal,
+          // png has transparent rounded corners — perfect for the
+          // commander panel and lets us drop the ugly white border
+          // baked into older printings.
+          png: card.image_uris.png,
+          border_crop: card.image_uris.border_crop,
+        }
       : undefined,
     card_faces: card.card_faces
       ? card.card_faces.map((f) => ({
           oracle_text: f.oracle_text,
           image_uris: f.image_uris
-            ? { small: f.image_uris.small, normal: f.image_uris.normal }
+            ? {
+                small: f.image_uris.small,
+                normal: f.image_uris.normal,
+                png: f.image_uris.png,
+                border_crop: f.image_uris.border_crop,
+              }
             : undefined,
         }))
       : undefined,
@@ -384,7 +397,11 @@ export function cardImageUrl(card, version = 'small') {
     `${SCRYFALL}/cards/named?exact=${encodeURIComponent(
       card.name
     )}&format=image&version=${version}`;
-  return `https://images.weserv.nl/?url=${encodeURIComponent(direct)}`;
+  // For the PNG variant we need to keep alpha (rounded transparent
+  // corners). Weserv defaults to JPEG output which strips it, so opt
+  // into PNG output for that case. Other variants stay JPEG for size.
+  const params = `url=${encodeURIComponent(direct)}${version === 'png' ? '&output=png' : ''}`;
+  return `https://images.weserv.nl/?${params}`;
 }
 
 /**
