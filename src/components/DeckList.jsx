@@ -12,7 +12,7 @@ import { ManaSymbol } from './ManaCost.jsx';
 import { ImportDeckModal } from './Modals.jsx';
 import { GalleryView } from './GalleryView.jsx';
 
-export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup, onSettings, user, cloudEnabled, onSignIn, onSignOut, onImportFromGallery }) {
+export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup, onSettings, user, cloudEnabled, onSignIn, onSignOut, onImportFromGallery, onViewGalleryDeck }) {
   const [name, setName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showImport, setShowImport] = useState(false);
@@ -436,7 +436,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
         )}
       </div>
 
-      {cloudEnabled && <GalleryView onImportFromGallery={onImportFromGallery} />}
+      {cloudEnabled && <GalleryView onImportFromGallery={onImportFromGallery} onViewDeck={onViewGalleryDeck} />}
 
       <div
         className="border-t mt-20 py-6 flex items-center justify-center gap-4 font-serif text-[10px] tracking-[0.4em] uppercase"
