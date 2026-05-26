@@ -6,7 +6,7 @@ import { assessBracket } from '../lib/analyzers.js';
 import { computeHealth } from '../lib/health.js';
 import { buildStagePlans, synergyHubs, packageWeight, classifyArchetype } from '../lib/strategy.js';
 import { BRACKETS } from '../lib/constants.js';
-import { addCardsToDeck, safeAddCards, setCardCount, removeCardFromDeck, setCardTags, setCardNote, setStrictIdentity, promoteFromWishlist, demoteToWishlist, removeFromWishlist, addToWishlist } from '../lib/deckops.js';
+import { addCardsToDeck, safeAddCards, setCardCount, removeCardFromDeck, setCardTags, setCardNote, setStrictIdentity, promoteFromWishlist, demoteToWishlist, removeFromWishlist, addToWishlist, retag } from '../lib/deckops.js';
 import { simulateOpeners, simulatePlayout, simulateMulliganTree } from '../lib/goldfish.js';
 import { analyzeLandBase } from '../lib/landbase.js';
 import { fetchRecommendations, topRecommendations, recommendationsByTheme, themesForArchetype, suggestCuts } from '../lib/edhrec.js';
@@ -496,9 +496,16 @@ export function CardsTab({ deck, onUpdate }) {
 export function PackagesTab({ deck }) {
   const [focusTag, setFocusTag] = useState(null);
 
+  // Defensive: re-tag the deck's cards on the fly. The normal flow
+  // already keeps tags in sync via addCardsToDeck/retag, but rolled
+  // (transient) decks sometimes land here without populated tags —
+  // re-running detection is cheap and guarantees Packages always
+  // reflects the current pool.
+  const taggedCards = useMemo(() => retag(deck.cards), [deck.cards]);
+
   const packages = useMemo(() => {
     const map = {};
-    for (const c of deck.cards) {
+    for (const c of taggedCards) {
       if (!c.scryfall) continue;
       for (const t of c.tags || []) {
         if (!map[t]) map[t] = [];
@@ -511,9 +518,9 @@ export function PackagesTab({ deck }) {
       if (wDiff !== 0) return wDiff;
       return b[1].length - a[1].length;
     });
-  }, [deck.cards]);
+  }, [taggedCards]);
 
-  const hubs = useMemo(() => synergyHubs(deck, 3), [deck.cards]);
+  const hubs = useMemo(() => synergyHubs({ ...deck, cards: taggedCards }, 3), [taggedCards, deck]);
 
   if (deck.cards.length === 0) {
     return (
@@ -607,19 +614,25 @@ export function PackagesTab({ deck }) {
             sorted by strategic weight
           </div>
         </div>
-        <div className="space-y-2">
-          {packages
-            .filter(([tag]) => !focusTag || tag === focusTag)
-            .map(([tag, cards]) => (
-              <PackageBlock
-                key={tag}
-                tag={tag}
-                cards={cards}
-                focused={focusTag === tag}
-                onFocus={() => setFocusTag(tag === focusTag ? null : tag)}
-              />
-            ))}
-        </div>
+        {packages.length === 0 ? (
+          <div className="border border-dashed p-6 font-serif text-sm italic" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
+            No auto-tags detected on this deck's cards — the strategy engine matches oracle-text patterns (Ramp, Card draw, Token producer, etc.) and type lines. If you're seeing this on a rolled or imported deck, the Scryfall metadata may be missing oracle_text; try re-rolling or running Settings → Refresh card prices + text.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {packages
+              .filter(([tag]) => !focusTag || tag === focusTag)
+              .map(([tag, cards]) => (
+                <PackageBlock
+                  key={tag}
+                  tag={tag}
+                  cards={cards}
+                  focused={focusTag === tag}
+                  onFocus={() => setFocusTag(tag === focusTag ? null : tag)}
+                />
+              ))}
+          </div>
+        )}
       </div>
     </div>
   );
