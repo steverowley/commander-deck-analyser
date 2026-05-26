@@ -42,7 +42,7 @@ function targetLandsFor(deck) {
   return recommendByCurve(avgCmc).land.ideal[1];
 }
 
-function utilityReserve(colorCount) {
+export function utilityReserve(colorCount) {
   if (colorCount <= 1) return 2;
   if (colorCount === 2) return 6;
   if (colorCount === 3) return 10;
