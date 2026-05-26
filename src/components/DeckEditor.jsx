@@ -5,6 +5,8 @@ import { lc, pad } from '../lib/utils.js';
 import { searchCardAutocomplete, fetchCardByExactName, cardImageUrl } from '../lib/scryfall.js';
 import { renameDeck, setDeckNotes, setDeckPublic } from '../lib/deckops.js';
 import { CardsTab, PackagesTab, CurveTab, BracketTab, StagesTab, ProbabilitiesTab, RecommendationsTab } from './Tabs.jsx';
+import { deckTotalPrice, formatPrice, isConverted } from '../lib/pricing.js';
+import { loadSettings } from '../lib/settings.js';
 import { RulesModal, ExportModal, ShareModal, CompareModal, NotesModal, PrintingPickerModal } from './Modals.jsx';
 import { ManaCost } from './ManaCost.jsx';
 import { InlineOracle } from './UI.jsx';
@@ -160,7 +162,6 @@ function CommanderPicker({ deck, onSet, onCycleFoil }) {
                 background: BG,
                 borderColor: foil ? CREAM : CREAM_FAINT,
                 color: foil ? CREAM : CREAM_DIM,
-                opacity: foil ? 1 : undefined,
               }}
               title={foil
                 ? `Foil: ${foilLabel} — click to cycle. After Oil slick, click cycles back to off.`
@@ -360,6 +361,12 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, onSaveTransien
   ];
 
   const totalCards = deck.cards.reduce((s, c) => s + c.count, 0);
+  const currency = loadSettings().currency || 'usd';
+  const priceInfo = deckTotalPrice(deck, currency);
+  const priceApprox = priceInfo.unpriced > 0 || isConverted(currency) ? '~' : '';
+  const priceLabel = priceInfo.priced > 0
+    ? `${priceApprox}${formatPrice(priceInfo.total, currency)}`
+    : '—';
 
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-8">
@@ -367,7 +374,7 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, onSaveTransien
           status cells render as a 2-col strip below the title so all
           three pieces of info stay visible. */}
       <nav className="border-b mt-6" style={{ borderColor: CREAM_FAINT }}>
-        <div className="grid grid-cols-1 md:grid-cols-3">
+        <div className="grid grid-cols-1 md:grid-cols-4">
           <div className="p-5 md:border-r flex items-center gap-3 min-w-0" style={{ borderColor: CREAM_FAINT }}>
             <button onClick={onBack} className="hover:opacity-100 transition shrink-0" style={{ color: CREAM_DIM }}>
               <ChevronLeft className="w-4 h-4" />
@@ -418,12 +425,22 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, onSaveTransien
             </span>
           </div>
           <div
-            className="flex items-center px-4 md:px-5 py-3 md:py-0 border-t md:border-t-0 font-serif text-[11px] tracking-[0.3em] uppercase"
+            className="flex items-center px-4 md:px-5 py-3 md:py-0 border-t md:border-t-0 md:border-r font-serif text-[11px] tracking-[0.3em] uppercase"
             style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
           >
             Commander ·{' '}
             <span className="ml-1" style={{ color: deck.commander ? CREAM : ACCENT }}>
               {deck.commander ? 'set' : 'null'}
+            </span>
+          </div>
+          <div
+            className="flex items-center px-4 md:px-5 py-3 md:py-0 border-t md:border-t-0 font-serif text-[11px] tracking-[0.3em] uppercase"
+            style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
+            title={priceInfo.unpriced > 0 ? `${priceInfo.unpriced} card(s) without a listed price — total is approximate.` : 'Total deck cost at current Scryfall prices.'}
+          >
+            Cost ·{' '}
+            <span className="ml-1" style={{ color: CREAM }}>
+              {priceLabel}
             </span>
           </div>
         </div>
