@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.8.1 — Scryfall cross-tab drag actually works
+
+After research: Moxfield doesn't natively support cross-tab drag from scryfall.com (the [Moxfall](https://github.com/jemmec/moxfall) browser extension was built specifically to fix that). Native cross-tab drag has to be implemented by the destination site — which is what this release does properly.
+
+### Global drop overlay
+- New `GlobalDropOverlay` mounted at the app root. Listens at document level for `dragenter` / `dragover` / `drop` from any scryfall.com or scryfall.io URL.
+- Pops up a full-window overlay with two big drop zones — **Add to Vault** and **Add to active deck** — so you can't miss the target. Mirrors how design tools like Figma handle cross-tab image drops.
+- PreventDefault at the document level means the browser no longer navigates to the image URL when you drop outside the box. The drag is captured globally.
+- Spinner + error toast surface the resolution step so you know if the URL didn't match a card.
+
+### Editor search panel
+- The Scryfall search panel is now reachable from inside the deck editor (new **Search** action in the action strip), with `onAdd` wired straight into the open deck instead of the Vault.
+
+### Internals
+- Shared `extractDroppedScryfallUrl(dt)` helper tries every dataTransfer slot the browser might use (uri-list / plain / html → src=/href=).
+- `resolveScryfallUrl(url)` cached so re-drops are instant.
+
 ## v0.8.0 — Vault rebrand, Scryfall drag, polish round
 
 ### Vault (formerly Collection)

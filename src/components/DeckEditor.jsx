@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, BookOpen, Loader2, Crown, Sparkles, Tag, BarChart3, Target, Clock, Calculator, Lightbulb, Pencil, Copy, Download, Link as LinkIcon, GitCompare, FileText, Globe, Images, Sparkle, Save } from 'lucide-react';
+import { ChevronLeft, BookOpen, Loader2, Crown, Sparkles, Tag, BarChart3, Target, Clock, Calculator, Lightbulb, Pencil, Copy, Download, Link as LinkIcon, GitCompare, FileText, Globe, Images, Sparkle, Save, Search } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { lc, pad } from '../lib/utils.js';
 import { searchCardAutocomplete, fetchCardByExactName, cardImageUrl } from '../lib/scryfall.js';
@@ -8,6 +8,8 @@ import { CardsTab, PackagesTab, CurveTab, BracketTab, StagesTab, ProbabilitiesTa
 import { deckTotalPrice, formatPrice, isConverted } from '../lib/pricing.js';
 import { loadSettings } from '../lib/settings.js';
 import { RulesModal, ExportModal, ShareModal, CompareModal, NotesModal, PrintingPickerModal } from './Modals.jsx';
+import { ScryfallSearchPanel } from './ScryfallSearchPanel.jsx';
+import { addCardsToDeck } from '../lib/deckops.js';
 import { ManaCost } from './ManaCost.jsx';
 import { InlineOracle } from './UI.jsx';
 import { ErrorBoundary } from './ErrorBoundary.jsx';
@@ -329,6 +331,7 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, onSaveTransien
   const [showShare, setShowShare] = useState(false);
   const [showCompare, setShowCompare] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  const [showScryfall, setShowScryfall] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(deck.name);
 
@@ -519,6 +522,12 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, onSaveTransien
             title="Duplicate deck"
           />
         )}
+        <ActionButton
+          onClick={() => setShowScryfall(true)}
+          icon={Search}
+          label="Search"
+          title="Search Scryfall — drag results into the card list"
+        />
         {/* Spacer pushes Rules to the right edge on desktop */}
         <span className="hidden md:block flex-1" />
         <ActionButton
@@ -593,6 +602,16 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, onSaveTransien
           deck={deck}
           onSave={(notes) => onUpdate(setDeckNotes(deck, notes))}
           onClose={() => setShowNotes(false)}
+        />
+      )}
+      {showScryfall && (
+        <ScryfallSearchPanel
+          open={showScryfall}
+          onClose={() => setShowScryfall(false)}
+          addLabel="Add to deck"
+          onAdd={(card) => {
+            onUpdate(addCardsToDeck(deck, [{ name: card.name, count: 1, scryfall: card }]));
+          }}
         />
       )}
     </div>
