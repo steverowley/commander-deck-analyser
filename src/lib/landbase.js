@@ -102,9 +102,15 @@ export function analyzeLandBase(deck) {
   // Curve-aware land target — higher CMC decks need more lands.
   const target = targetLandsFor(deck);
 
-  // Recommended basic counts proportional to colored pips.
+  // Recommended basic counts proportional to colored pips. The number
+  // of basic slots is the land target minus whatever nonbasics the
+  // user already runs (their existing duals, fetches, fixers eat into
+  // the "non-basic" portion of the manabase). If they have fewer
+  // nonbasics than the utility reserve, fall back to the reserve so
+  // we still leave room for fixing.
   const utility = utilityReserve(colorCount);
-  const basicSlots = Math.max(0, target - utility);
+  const nonbasicAllowance = Math.max(currentNonbasicLands, utility);
+  const basicSlots = Math.max(0, target - nonbasicAllowance);
   const recBasics = {};
   if (pips.total === 0 && colorCount > 0) {
     // No pips computed yet but we know the identity — even split.

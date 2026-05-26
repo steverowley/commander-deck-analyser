@@ -94,4 +94,38 @@ describe('analyzeLandBase', () => {
     const names = a.utilityLands.map((u) => u.name);
     expect(names).toContain('Savai Triome');
   });
+
+  it('reduces recommended basics by the nonbasic count the user already runs', () => {
+    // Mono-red deck, 37-land target, 20 nonbasic lands, 17 Mountains.
+    // The recommendation should be ~17 Mountains, NOT 35 (it was 35
+    // previously because the advisor ignored existing nonbasics).
+    const cmdrMonoR = { color_identity: ['R'], name: 'Krenko' };
+    const land = (name) => ({
+      count: 1,
+      name,
+      tags: [],
+      scryfall: { name, type_line: 'Land', mana_cost: '', cmc: 0 },
+    });
+    const mountain = () => ({
+      count: 1,
+      name: 'Mountain',
+      tags: [],
+      scryfall: { name: 'Mountain', type_line: 'Basic Land — Mountain', mana_cost: '', cmc: 0 },
+    });
+    const cards = [];
+    for (let i = 0; i < 20; i++) cards.push(land(`Utility Land ${i}`));
+    for (let i = 0; i < 17; i++) cards.push(mountain());
+    // Add a few non-land spells so the curve has data
+    for (let i = 0; i < 30; i++) cards.push(card(`Spell ${i}`, '{1}{R}'));
+    cards[cards.length - 1].scryfall.cmc = 2;
+
+    const a = analyzeLandBase({ cards, commander: cmdrMonoR });
+    expect(a.currentNonbasicLands).toBe(20);
+    expect(a.currentBasics).toBe(17);
+    // basicSlots = target - max(currentNonbasic, utilityReserve)
+    // For mono-R target is ~33, currentNonbasic 20, utility 2 → basicSlots ≈ 13
+    expect(a.recommendedBasics.Mountain).toBeLessThanOrEqual(20);
+    // And nowhere near the old broken 35
+    expect(a.recommendedBasics.Mountain).toBeLessThan(35);
+  });
 });

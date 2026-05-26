@@ -48,6 +48,17 @@ export function detectTags(card, deckCardNames = new Set()) {
       break;
     }
   }
+
+  // Lands tapping for mana isn't "ramp" in the EDH-deckbuilding sense
+  // — that role belongs to spells/permanents that put you ahead on
+  // mana relative to your land count. Without this filter every basic
+  // and most utility lands also pick up the Ramp / Mana rock tags
+  // (they all match `{T}: Add {X}` in TAG_PATTERNS), and the health
+  // panel reports a deck with 36 lands as having 36+ ramp pieces.
+  if (typeLine.includes('Land')) {
+    tags.delete('Ramp');
+    tags.delete('Mana rock');
+  }
   return Array.from(tags);
 }
 

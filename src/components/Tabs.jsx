@@ -959,7 +959,7 @@ function LandBaseSection({ deck }) {
       {analysis.utilityLands.length > 0 && (
         <div className="border-t p-5" style={{ borderColor: CREAM_FAINT }}>
           <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-3" style={{ color: CREAM_DIM }}>
-            Suggested utility / fixing lands ({analysis.utilityReserved} slots)
+            Suggested utility / fixing lands · aim for ~{analysis.utilityReserved}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-y-1.5 gap-x-4">
             {analysis.utilityLands.slice(0, analysis.utilityReserved + 4).map((u) => (

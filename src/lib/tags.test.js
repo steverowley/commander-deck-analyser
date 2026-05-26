@@ -70,4 +70,33 @@ describe('detectTags', () => {
     expect(detectTags(c({ oracle_text: 'Lifelink' }))).toContain('Lifegain');
     expect(detectTags(c({ oracle_text: 'You gain 3 life.' }))).toContain('Lifegain');
   });
+
+  it('does NOT tag basic lands as Ramp / Mana rock', () => {
+    const tags = detectTags(c({
+      name: 'Mountain',
+      type_line: 'Basic Land — Mountain',
+      oracle_text: '({T}: Add {R}.)',
+    }));
+    expect(tags).not.toContain('Ramp');
+    expect(tags).not.toContain('Mana rock');
+  });
+
+  it('still tags spells that fetch basic lands as Ramp', () => {
+    const tags = detectTags(c({
+      name: 'Cultivate',
+      type_line: 'Sorcery',
+      oracle_text: 'Search your library for up to two basic land cards, reveal them...',
+    }));
+    expect(tags).toContain('Ramp');
+  });
+
+  it('still tags mana rocks (artifacts) as Ramp / Mana rock', () => {
+    const tags = detectTags(c({
+      name: 'Sol Ring',
+      type_line: 'Artifact',
+      oracle_text: '{T}: Add {C}{C}.',
+    }));
+    expect(tags).toContain('Ramp');
+    expect(tags).toContain('Mana rock');
+  });
 });
