@@ -125,6 +125,12 @@ export async function loadPublicDecks(limit = 24) {
     .from('decks')
     .select('id, name, commander_name, is_public, data, updated_at, owner_id')
     .eq('is_public', true)
+    // New rolls live in random_rolls, but legacy rolled decks from
+    // earlier flows still sit in `decks` with is_public=true and
+    // data->seedMeta set. Keep the curated Public Gallery separate
+    // by excluding those — they're already surfaced in Latest random
+    // rolls if anyone wants them.
+    .is('data->seedMeta', null)
     .order('updated_at', { ascending: false })
     .limit(limit);
   if (error) {
