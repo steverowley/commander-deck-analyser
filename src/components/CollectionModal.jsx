@@ -16,10 +16,12 @@ import {
   addToCollection,
   setCardQuantity,
   bulkAddToCollection,
+  bulkImportVault,
   clearCollection,
   uniqueCount,
   totalCount,
 } from '../lib/collection.js';
+import { detectMoxfieldCsv, parseMoxfieldCsv } from '../lib/csvImport.js';
 import { CardScanner } from './CardScanner.jsx';
 
 export function CollectionModal({ onClose, signedIn }) {
@@ -78,9 +80,29 @@ export function CollectionModal({ onClose, signedIn }) {
     setBusy(true);
     setError(null);
     try {
+      // Moxfield collection CSV export — detected by the signature
+      // header row. Replaces quantities (snapshot semantics) and
+      // captures the foil flag.
+      if (detectMoxfieldCsv(bulkText)) {
+        const rows = parseMoxfieldCsv(bulkText);
+        if (!rows.length) {
+          setError('Looks like a Moxfield CSV but I couldn\'t parse any rows.');
+          return;
+        }
+        const { added, failed } = await bulkImportVault(rows);
+        await refresh();
+        setBulkText('');
+        setShowBulk(false);
+        if (failed > 0) {
+          setError(`Imported ${added} of ${rows.length} cards; ${failed} failed.`);
+          setTimeout(() => setError(null), 6000);
+        }
+        return;
+      }
+      // Otherwise treat as a Moxfield-style decklist.
       const lines = parseDecklist(bulkText);
       if (!lines.length) {
-        setError('No card lines found. Paste a Moxfield-style list (one card per line, optional "Nx" prefix).');
+        setError('No card lines found. Paste a Moxfield CSV export, or a Moxfield-style list (one card per line, optional "Nx" prefix).');
         return;
       }
       await bulkAddToCollection(lines);
@@ -301,7 +323,7 @@ export function CollectionModal({ onClose, signedIn }) {
               </div>
               <div className="p-5 space-y-3">
                 <p className="font-serif text-xs italic" style={{ color: CREAM_DIM }}>
-                  One card per line. Optional "Nx" or "N " prefix for quantity. Example: <code style={{ color: CREAM }}>4x Lightning Bolt</code>
+                  Two formats accepted: <span style={{ color: CREAM }}>Moxfield collection CSV export</span> (auto-detected — replaces quantities, captures foil flags), or a decklist with one card per line + optional <code style={{ color: CREAM }}>Nx</code> prefix (e.g. <code style={{ color: CREAM }}>4x Lightning Bolt</code>).
                 </p>
                 <textarea
                   value={bulkText}

@@ -157,6 +157,57 @@ export async function bulkAddToCollection(entries) {
 }
 
 /**
+ * Bulk-import a parsed Moxfield CSV (or any [{name, count, foil}] array).
+ * Replaces quantities (doesn't accumulate) because CSV imports represent
+ * the user's CURRENT inventory snapshot, not an addition.
+ *
+ * Batched in chunks of 100 to avoid 1k+ row payload limits. Reports
+ * progress via the callback (done, total). Returns counts.
+ */
+export async function bulkImportVault(rows, onProgress) {
+  if (!rows?.length) return { added: 0, failed: 0 };
+  if (await isSignedIn()) {
+    const userId = await currentUserId();
+    let added = 0;
+    let failed = 0;
+    const CHUNK = 100;
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const slice = rows.slice(i, i + CHUNK);
+      const payload = slice.map((r) => ({
+        user_id: userId,
+        card_name: r.name,
+        quantity: r.count,
+        meta: r.foil ? { foil: r.foil } : null,
+      }));
+      const { error } = await supabase
+        .from('collection')
+        .upsert(payload, { onConflict: 'user_id,card_name' });
+      if (error) {
+        console.warn('Supabase bulkImportVault chunk failed', error);
+        failed += slice.length;
+      } else {
+        added += slice.length;
+      }
+      onProgress?.({ done: Math.min(i + CHUNK, rows.length), total: rows.length });
+    }
+    return { added, failed };
+  }
+  // Local fallback.
+  const cur = await loadCollection();
+  for (const r of rows) {
+    cur[lc(r.name)] = {
+      name: r.name,
+      quantity: r.count,
+      added_at: Date.now(),
+      meta: r.foil ? { foil: r.foil } : {},
+    };
+  }
+  saveLocal(cur);
+  onProgress?.({ done: rows.length, total: rows.length });
+  return { added: rows.length, failed: 0 };
+}
+
+/**
  * Wipe the collection.
  */
 export async function clearCollection() {
