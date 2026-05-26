@@ -165,32 +165,43 @@ export async function bulkAddToCollection(entries) {
  * progress via the callback (done, total). Returns counts.
  */
 export async function bulkImportVault(rows, onProgress) {
-  if (!rows?.length) return { added: 0, failed: 0 };
+  if (!rows?.length) return { added: 0, failed: 0, error: null };
   if (await isSignedIn()) {
     const userId = await currentUserId();
     let added = 0;
     let failed = 0;
+    let firstError = null;
+    // Dedupe rows by card_name — if the CSV has the same card twice
+    // (rare but legal in Moxfield exports), the upsert payload would
+    // contain duplicate primary keys and the whole chunk gets
+    // rejected. Last-write-wins per name within a single import.
+    const dedup = new Map();
+    for (const r of rows) {
+      if (r?.name) dedup.set(lc(r.name), r);
+    }
+    const clean = Array.from(dedup.values());
     const CHUNK = 100;
-    for (let i = 0; i < rows.length; i += CHUNK) {
-      const slice = rows.slice(i, i + CHUNK);
+    for (let i = 0; i < clean.length; i += CHUNK) {
+      const slice = clean.slice(i, i + CHUNK);
       const payload = slice.map((r) => ({
         user_id: userId,
         card_name: r.name,
-        quantity: r.count,
+        quantity: Math.max(1, r.count | 0),
         meta: r.foil ? { foil: r.foil } : null,
       }));
       const { error } = await supabase
         .from('collection')
         .upsert(payload, { onConflict: 'user_id,card_name' });
       if (error) {
-        console.warn('Supabase bulkImportVault chunk failed', error);
+        console.warn('Supabase bulkImportVault chunk failed', error, 'sample row:', payload[0]);
+        if (!firstError) firstError = error.message || String(error);
         failed += slice.length;
       } else {
         added += slice.length;
       }
-      onProgress?.({ done: Math.min(i + CHUNK, rows.length), total: rows.length });
+      onProgress?.({ done: Math.min(i + CHUNK, clean.length), total: clean.length });
     }
-    return { added, failed };
+    return { added, failed, error: firstError };
   }
   // Local fallback.
   const cur = await loadCollection();
@@ -204,7 +215,7 @@ export async function bulkImportVault(rows, onProgress) {
   }
   saveLocal(cur);
   onProgress?.({ done: rows.length, total: rows.length });
-  return { added: rows.length, failed: 0 };
+  return { added: rows.length, failed: 0, error: null };
 }
 
 /**

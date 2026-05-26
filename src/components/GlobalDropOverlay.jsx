@@ -17,16 +17,54 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Library, Layers, Loader2 } from 'lucide-react';
+import { Library, Layers, Loader2, FileSpreadsheet } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT } from '../theme.js';
 import { resolveScryfallUrl, extractDroppedScryfallUrl } from '../lib/scryfall.js';
+import { detectMoxfieldCsv, parseMoxfieldCsv } from '../lib/csvImport.js';
+import { bulkImportVault } from '../lib/collection.js';
 import { SCRYFALL_DRAG_MIME } from './ScryfallSearchPanel.jsx';
 
-export function GlobalDropOverlay({ onAddToVault, onAddToDeck, activeDeckName }) {
+export function GlobalDropOverlay({ onAddToVault, onAddToDeck, activeDeckName, onVaultChanged }) {
   const [active, setActive] = useState(false);
   const [resolving, setResolving] = useState(false);
   const [error, setError] = useState(null);
+  const [notice, setNotice] = useState(null); // success toast
   const depthRef = useRef(0);
+
+  const handleCsvFile = async (file) => {
+    setResolving(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const text = await file.text();
+      if (!detectMoxfieldCsv(text)) {
+        setError(`"${file.name}" doesn't look like a Moxfield collection CSV (expected a Count, Tradelist Count, Name, ... header).`);
+        setTimeout(() => setError(null), 8000);
+        return;
+      }
+      const rows = parseMoxfieldCsv(text);
+      if (!rows.length) {
+        setError(`Parsed 0 rows from "${file.name}".`);
+        setTimeout(() => setError(null), 6000);
+        return;
+      }
+      const { added, failed, error: importError } = await bulkImportVault(rows);
+      onVaultChanged?.();
+      if (failed > 0) {
+        setError(`Imported ${added} of ${rows.length}; ${failed} failed${importError ? `: ${importError}` : ''}. (Check the browser console.)`);
+        setTimeout(() => setError(null), 10000);
+      } else {
+        setNotice(`Imported ${added} cards from ${file.name} into your Vault.`);
+        setTimeout(() => setNotice(null), 5000);
+      }
+    } catch (err) {
+      console.error('[Vault] CSV file import failed', err);
+      setError(err.message || String(err));
+      setTimeout(() => setError(null), 8000);
+    } finally {
+      setResolving(false);
+    }
+  };
 
   useEffect(() => {
     // Cross-origin drag security: browsers hide most of the
@@ -124,39 +162,70 @@ export function GlobalDropOverlay({ onAddToVault, onAddToDeck, activeDeckName })
     }
   };
 
-  if (!active && !resolving && !error) return null;
+  if (!active && !resolving && !error && !notice) return null;
+
+  // Wrap the Scryfall-card drop with a file-drop fallback so users
+  // can drop a Moxfield CSV onto either zone (we'll detect the file
+  // and route to handleCsvFile instead of trying to parse it as a
+  // card URL).
+  const dropOrCsv = (cardHandler) => async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    depthRef.current = 0;
+    setActive(false);
+    const files = Array.from(e.dataTransfer?.files || []);
+    const csv = files.find((f) => /\.csv$/i.test(f.name) || f.type === 'text/csv');
+    if (csv) {
+      await handleCsvFile(csv);
+      return;
+    }
+    return cardHandler(e);
+  };
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-stretch pointer-events-none"
+      className="fixed inset-0 z-[60] flex flex-col items-stretch pointer-events-none"
       style={{ background: 'rgba(13,22,20,0.55)', backdropFilter: 'blur(4px)' }}
     >
-      <Zone
-        title="Add to Vault"
-        sub="Drop here to add the card to your owned collection."
-        icon={Library}
-        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
-        onDrop={handleZoneDrop((c) => onAddToVault?.(c))}
-      />
-      {onAddToDeck && (
+      <div className="flex-1 flex items-stretch">
         <Zone
-          title={activeDeckName ? `Add to ${activeDeckName}` : 'Add to active deck'}
-          sub="Drop here to add the card to the deck you have open."
-          icon={Layers}
+          title="Add to Vault"
+          sub="Drop a Scryfall card or a Moxfield CSV file."
+          icon={Library}
           onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
-          onDrop={handleZoneDrop((c) => onAddToDeck?.(c))}
+          onDrop={dropOrCsv(handleZoneDrop((c) => onAddToVault?.(c)))}
         />
-      )}
+        {onAddToDeck && (
+          <Zone
+            title={activeDeckName ? `Add to ${activeDeckName}` : 'Add to active deck'}
+            sub="Drop a Scryfall card to add it to the deck you have open."
+            icon={Layers}
+            onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
+            onDrop={dropOrCsv(handleZoneDrop((c) => onAddToDeck?.(c)))}
+          />
+        )}
+      </div>
+      <div className="px-6 pb-3 pointer-events-none">
+        <div className="font-serif text-xs italic text-center" style={{ color: CREAM_DIM }}>
+          <FileSpreadsheet className="w-3.5 h-3.5 inline mr-1.5" style={{ verticalAlign: '-2px' }} />
+          Dropping a <span style={{ color: CREAM }}>.csv</span> file (Moxfield export) imports the whole inventory into your Vault.
+        </div>
+      </div>
       {resolving && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="px-4 py-3 border font-mono text-xs flex items-center gap-2" style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(13,22,20,0.92)' }}>
-            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Resolving card...
+            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Working...
           </div>
         </div>
       )}
       {error && (
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 px-4 py-3 border font-mono text-xs pointer-events-none" style={{ borderColor: 'rgb(196,74,63)', color: CREAM, background: 'rgba(13,22,20,0.92)' }}>
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 px-4 py-3 border font-mono text-xs max-w-lg text-center pointer-events-none" style={{ borderColor: 'rgb(196,74,63)', color: CREAM, background: 'rgba(13,22,20,0.94)' }}>
           {error}
+        </div>
+      )}
+      {notice && (
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 px-4 py-3 border font-mono text-xs pointer-events-none" style={{ borderColor: '#a3c98a', color: CREAM, background: 'rgba(13,22,20,0.94)' }}>
+          {notice}
         </div>
       )}
     </div>

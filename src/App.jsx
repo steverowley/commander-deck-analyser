@@ -424,6 +424,7 @@ export default function App() {
           const next = addCardsToDeck(activeDeck, [{ name: card.name, count: 1, scryfall: card }]);
           handleUpdate(next);
         } : null}
+        onVaultChanged={() => setCollectionRev((r) => r + 1)}
       />
     </div>
   );
