@@ -152,14 +152,40 @@ export default function App() {
   };
 
   const handleUpdate = async (updated) => {
-    // Gallery view-mode decks live in a separate transient slot — they
-    // never go into the archive `decks` array and never get persisted.
-    if (updated.__readonly || String(updated.id).startsWith('view:')) {
+    // Gallery view-mode + freshly-rolled decks live in a transient
+    // slot. They never join the archive `decks` array and never get
+    // persisted unless the user explicitly hits 'Save to my archive'
+    // in the editor (which routes through handleSaveTransient below).
+    if (updated.__readonly || updated.__transient ||
+        String(updated.id).startsWith('view:') ||
+        String(updated.id).startsWith('roll:')) {
       setViewingDeck(updated);
       return;
     }
     await saveDeck(updated);
     setDecks(decks.map((d) => (d.id === updated.id ? updated : d)));
+  };
+
+  // Promote a transient (rolled / viewed) deck into the real archive.
+  // Mints a new local id, strips the transient flags, persists, and
+  // routes the editor to the new permanent deck.
+  const handleSaveTransient = async (transientDeck) => {
+    const fresh = {
+      ...transientDeck,
+      id: 'deck_' + Date.now(),
+      __readonly: undefined,
+      __transient: undefined,
+      created: Date.now(),
+      updated: Date.now(),
+      is_public: false,
+    };
+    delete fresh.__readonly;
+    delete fresh.__transient;
+    await saveDeck(fresh);
+    setDecks((current) => [fresh, ...current]);
+    setViewingDeck(null);
+    setActiveId(fresh.id);
+    return fresh;
   };
 
   const handleDelete = async (id) => {
@@ -290,6 +316,7 @@ export default function App() {
             onUpdate={handleUpdate}
             onBack={() => { setActiveId(null); setInitialTab(null); setViewingDeck(null); }}
             onDuplicate={() => handleDuplicate(activeDeck)}
+            onSaveTransient={handleSaveTransient}
             otherDecks={decks.filter((d) => d.id !== activeDeck.id)}
             initialTab={initialTab}
           />
@@ -330,7 +357,28 @@ export default function App() {
               setViewingDeck(viewerDeck);
               selectDeck(viewerDeck.id);
             }}
-            onRandomBuild={handleImport}
+            onRandomBuild={(payload) => {
+              // Rolled decks open in a transient session — they
+              // don't clutter the archive unless the user explicitly
+              // hits 'Save to my archive' in the editor. Mirrors
+              // the gallery-view-deck flow.
+              const transientDeck = {
+                id: `roll:${Date.now()}`,
+                name: payload.name,
+                commander: payload.commander || null,
+                cards: [],
+                notes: payload.notes || undefined,
+                seedMeta: payload.seedMeta,
+                strictIdentity: false,
+                created: Date.now(),
+                updated: Date.now(),
+                __readonly: false, // editable but transient
+                __transient: true,
+              };
+              const populated = addCardsToDeck(transientDeck, payload.cards || []);
+              setViewingDeck(populated);
+              selectDeck(populated.id);
+            }}
           />
         )}
       </ErrorBoundary>

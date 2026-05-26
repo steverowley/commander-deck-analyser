@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, BookOpen, Loader2, Crown, Sparkles, Tag, BarChart3, Target, Clock, Calculator, Lightbulb, Pencil, Copy, Download, Link as LinkIcon, GitCompare, FileText, Globe, Images, Sparkle } from 'lucide-react';
+import { ChevronLeft, BookOpen, Loader2, Crown, Sparkles, Tag, BarChart3, Target, Clock, Calculator, Lightbulb, Pencil, Copy, Download, Link as LinkIcon, GitCompare, FileText, Globe, Images, Sparkle, Save } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { lc, pad } from '../lib/utils.js';
 import { searchCardAutocomplete, fetchCardByExactName, cardImageUrl } from '../lib/scryfall.js';
@@ -255,7 +255,7 @@ function CommanderPicker({ deck, onSet, onToggleFoil }) {
 
 // ───────────────────────────────────────────────────────────────────────────────
 
-export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, otherDecks = [], initialTab }) {
+export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, onSaveTransient, otherDecks = [], initialTab }) {
   const [tab, setTab] = useState(initialTab || 'cards');
   const [showRules, setShowRules] = useState(false);
   const [showExport, setShowExport] = useState(false);
@@ -366,6 +366,24 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, otherDecks = [
       {/* Action row — icon-only on mobile (wraps, no horizontal scroll),
           icon+label on desktop. Removing overflow-x-auto means every
           button stays reachable on narrow screens without swipe-scroll. */}
+      {(deck.__transient || String(deck.id).startsWith('roll:') || String(deck.id).startsWith('view:')) && onSaveTransient && (
+        <div
+          className="px-4 md:px-5 py-2.5 border-b flex items-center justify-between gap-3 flex-wrap"
+          style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.04)' }}
+        >
+          <div className="font-serif text-xs italic" style={{ color: CREAM_DIM }}>
+            This is a transient session — edits don't persist until you save it to your archive.
+          </div>
+          <button
+            onClick={() => onSaveTransient(deck)}
+            className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-1.5 hover:opacity-100 flex items-center gap-1.5 shrink-0"
+            style={{ borderColor: CREAM, color: CREAM, background: 'rgba(243,231,201,0.08)' }}
+          >
+            <Save className="w-3 h-3" /> Save to my archive →
+          </button>
+        </div>
+      )}
+
       <div
         className="flex items-center flex-wrap gap-x-5 md:gap-x-5 gap-y-3 md:gap-y-2 border-b px-4 md:px-5 py-3 md:py-2.5 font-serif text-[11px] tracking-[0.3em] uppercase"
         style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}

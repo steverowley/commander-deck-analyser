@@ -194,8 +194,21 @@ export function CardScanner({ onClose, onAdded }) {
         }
         return;
       }
-      // Take the top candidate; keep the rest as alternatives.
+      // Confidence gate — only lock in a match if the OCR text is
+      // plausibly close to the candidate name. Auto-scan keeps going
+      // on low-confidence reads (just because Scryfall could fuzzy-
+      // match doesn't mean the user is holding that card). Manual
+      // 'Scan now' always commits to the best guess so the user can
+      // pick an alternative if needed.
       const best = await fetchCardByExactName(names[0]);
+      const score = similarity(cleaned, best?.name);
+      const minScore = silent ? 0.62 : 0;
+      if (score < minScore) {
+        // Don't surface anything — keep the auto loop alive on the
+        // next tick so the user gets another shot without an error
+        // toast or a stale candidate.
+        return;
+      }
       setCandidate(best);
       setSuggestions(names.slice(1, 5));
       setStatus('matched');
@@ -474,4 +487,45 @@ function cleanOcr(text) {
   if (lines.length === 0) return '';
   lines.sort((a, b) => b.length - a.length);
   return lines[0];
+}
+
+/**
+ * Rough text-similarity score between OCR output and a candidate card
+ * name. Levenshtein distance normalised against the longer string,
+ * inverted so higher = closer. Used by the auto-scan loop to keep
+ * scanning when a 'best match' is obviously wrong (e.g. the OCR read
+ * 'Lightnin' and Scryfall returned 'Lightning Bolt' — close but the
+ * user probably held up a Mountain).
+ */
+function similarity(a, b) {
+  const A = (a || '').toLowerCase().trim();
+  const B = (b || '').toLowerCase().trim();
+  if (!A || !B) return 0;
+  if (A === B) return 1;
+  // Length-aware: shorter input vs longer match drops the score.
+  const maxLen = Math.max(A.length, B.length);
+  const dist = levenshtein(A, B);
+  return 1 - dist / maxLen;
+}
+
+function levenshtein(a, b) {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const prev = new Array(b.length + 1);
+  const cur = new Array(b.length + 1);
+  for (let j = 0; j <= b.length; j++) prev[j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    cur[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      cur[j] = Math.min(
+        cur[j - 1] + 1,
+        prev[j] + 1,
+        prev[j - 1] + cost,
+      );
+    }
+    for (let j = 0; j <= b.length; j++) prev[j] = cur[j];
+  }
+  return prev[b.length];
 }

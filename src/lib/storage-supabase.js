@@ -66,9 +66,17 @@ async function currentUserId() {
 
 export async function loadDecks() {
   if (!supabase) return [];
+  // The 'Anyone can read public decks' RLS policy means a bare SELECT
+  // returns *every* public deck across all users. Explicitly filter
+  // to the current owner so the archive shows only what's mine — the
+  // public gallery has its own dedicated loader for the read-public
+  // case.
+  const userId = await currentUserId().catch(() => null);
+  if (!userId) return [];
   const { data, error } = await supabase
     .from('decks')
     .select('id, name, commander_name, is_public, data, created_at, updated_at')
+    .eq('owner_id', userId)
     .order('updated_at', { ascending: false });
   if (error) {
     console.warn('Supabase loadDecks failed', error);
