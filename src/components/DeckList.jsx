@@ -9,6 +9,7 @@ import { deckTotalPrice, formatPrice, isConverted } from '../lib/pricing.js';
 import { loadSettings } from '../lib/settings.js';
 import { aggregateStats } from '../lib/stats.js';
 import { ManaSymbol } from './ManaCost.jsx';
+import { VersionChip } from './UI.jsx';
 import { ImportDeckModal } from './Modals.jsx';
 import { GalleryView } from './GalleryView.jsx';
 
@@ -73,58 +74,84 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
 
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-8">
-      {/* Top nav grid */}
-      <nav className="grid grid-cols-2 md:grid-cols-5 border-b mt-6" style={{ borderColor: CREAM_FAINT }}>
-        <div className="p-5 md:border-r" style={{ borderColor: CREAM_FAINT }}>
-          <div className="font-serif text-3xl font-black leading-[0.9] tracking-wider" style={{ color: CREAM }}>
-            VAULT
+      {/* Top nav — two-tier on mobile so every cell stays visible:
+          row 1 is logo + version chip, row 2 wraps the stats/auth cells. */}
+      <nav className="border-b mt-6" style={{ borderColor: CREAM_FAINT }}>
+        <div className="grid grid-cols-[1fr_auto] md:grid-cols-5">
+          <div
+            className="p-5 md:border-r col-span-1 md:col-span-1"
+            style={{ borderColor: CREAM_FAINT }}
+          >
+            <div className="font-serif text-3xl font-black leading-[0.9] tracking-wider" style={{ color: CREAM }}>
+              VAULT
+            </div>
+            <div className="font-serif text-[10px] tracking-[0.35em] uppercase mt-1.5" style={{ color: CREAM_DIM }}>
+              Deck · Builder
+            </div>
           </div>
-          <div className="font-serif text-[10px] tracking-[0.35em] uppercase mt-1.5" style={{ color: CREAM_DIM }}>
-            Deck · Builder
+
+          {/* Mobile-only version chip — sits inline with the logo so the
+              changelog hover is reachable on small screens. */}
+          <div className="flex md:hidden items-start justify-end px-4 pt-5">
+            <VersionChip version={__APP_VERSION__} align="right" />
           </div>
-        </div>
-        <div
-          className="hidden md:flex items-center px-5 border-r text-[11px] tracking-[0.3em] uppercase font-serif"
-          style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
-        >
-          Decks · {pad(decks.length)}
-        </div>
-        <div
-          className="hidden md:flex items-center px-5 border-r text-[11px] tracking-[0.3em] uppercase font-serif"
-          style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
-        >
-          Cards · {pad(totalCards, 4)}
-        </div>
-        <div
-          className="hidden md:flex items-center px-5 border-r text-[11px] tracking-[0.3em] uppercase font-serif"
-          style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
-        >
-          {user ? (
-            <span className="truncate">
-              Cloud · <span style={{ color: CREAM }} title={user.email}>{user.email?.split('@')[0]}</span>
-            </span>
-          ) : cloudEnabled ? (
-            <button
-              onClick={onSignIn}
-              className="hover:opacity-100"
-              style={{ color: CREAM_DIM }}
-            >
-              Sign in →
-            </button>
-          ) : (
-            <span>Local</span>
-          )}
-        </div>
-        <div
-          className="hidden md:flex items-center justify-end px-5 text-[11px] tracking-[0.3em] uppercase font-serif gap-3"
-          style={{ color: CREAM_DIM }}
-        >
+
+          <div
+            className="flex items-center px-4 md:px-5 py-3 md:py-0 border-t md:border-t-0 md:border-r text-[11px] tracking-[0.3em] uppercase font-serif col-span-1"
+            style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
+          >
+            Decks · {pad(decks.length)}
+          </div>
+          <div
+            className="flex items-center px-4 md:px-5 py-3 md:py-0 border-t md:border-t-0 md:border-r text-[11px] tracking-[0.3em] uppercase font-serif col-span-1"
+            style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
+          >
+            Cards · {pad(totalCards, 4)}
+          </div>
+          <div
+            className="flex items-center px-4 md:px-5 py-3 md:py-0 border-t md:border-t-0 md:border-r text-[11px] tracking-[0.3em] uppercase font-serif col-span-2 md:col-span-1 min-w-0"
+            style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
+          >
+            {user ? (
+              <span className="truncate">
+                Cloud · <span style={{ color: CREAM }} title={user.email}>{user.email?.split('@')[0]}</span>
+              </span>
+            ) : cloudEnabled ? (
+              <button
+                onClick={onSignIn}
+                className="hover:opacity-100"
+                style={{ color: CREAM_DIM }}
+              >
+                Sign in →
+              </button>
+            ) : (
+              <span>Local</span>
+            )}
+          </div>
+
+          {/* Right-edge cell — hidden on mobile (its content lives in the
+              header row above) so we don't double up the version chip. */}
+          <div
+            className="hidden md:flex items-center justify-end px-5 text-[11px] tracking-[0.3em] uppercase font-serif gap-3"
+            style={{ color: CREAM_DIM }}
+          >
+            {user && (
+              <button onClick={onSignOut} className="hover:opacity-100" style={{ color: CREAM_DIM }}>
+                Sign out
+              </button>
+            )}
+            <VersionChip version={__APP_VERSION__} align="right" />
+          </div>
+
+          {/* Mobile-only sign-out row — keeps the action reachable when
+              the cell above only has room for the email. */}
           {user && (
-            <button onClick={onSignOut} className="hover:opacity-100" style={{ color: CREAM_DIM }}>
-              Sign out
-            </button>
+            <div className="flex md:hidden items-center justify-end px-4 py-3 border-t text-[11px] tracking-[0.3em] uppercase font-serif col-span-2" style={{ borderColor: CREAM_FAINT }}>
+              <button onClick={onSignOut} className="hover:opacity-100" style={{ color: CREAM_DIM }}>
+                Sign out
+              </button>
+            </div>
           )}
-          <span>v{__APP_VERSION__}</span>
         </div>
       </nav>
 
@@ -215,9 +242,34 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
         </div>
       </div>
 
-      {decks.length >= 2 && <ArchiveDashboard decks={decks} />}
+      {/* Archive — sign-in gated. When signed out, show a CTA strip
+          instead of the dashboard + deck grid so the landing reads as
+          marketing until the user has an account. */}
+      {!user && cloudEnabled && (
+        <div
+          className="mt-12 border p-8 md:p-10 text-center fade-up"
+          style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)', animationDelay: '180ms' }}
+        >
+          <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold mb-2" style={{ color: CREAM }}>
+            Sign in to keep your archive
+          </div>
+          <p className="font-serif text-sm italic max-w-md mx-auto mb-5" style={{ color: CREAM_DIM }}>
+            Your decks, stats, and history sync to your account and follow you across devices. Google sign-in or magic link — no password.
+          </p>
+          <button
+            onClick={onSignIn}
+            className="font-serif text-[11px] tracking-[0.3em] uppercase border px-5 py-2 hover:opacity-100"
+            style={{ borderColor: CREAM_FAINT, color: CREAM }}
+          >
+            Sign in →
+          </button>
+        </div>
+      )}
 
-      {/* Stored decks */}
+      {user && decks.length >= 2 && <ArchiveDashboard decks={decks} />}
+
+      {/* Stored decks — only shown when signed in. */}
+      {user && (
       <div className="mt-12 fade-up" style={{ animationDelay: '240ms' }}>
         <div className="flex items-baseline gap-4 mb-3">
           <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
@@ -435,30 +487,34 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
           </div>
         )}
       </div>
+      )}
 
       {cloudEnabled && <GalleryView onImportFromGallery={onImportFromGallery} onViewDeck={onViewGalleryDeck} />}
 
+      {/* Footer — stacks on mobile so the version chip + Backup + Settings
+          don't overflow into a single squashed row. */}
       <div
-        className="border-t mt-20 py-6 flex items-center justify-center gap-4 font-serif text-[10px] tracking-[0.4em] uppercase"
+        className="border-t mt-20 py-6 flex flex-col md:flex-row items-center justify-center gap-2 md:gap-4 font-serif text-[10px] tracking-[0.4em] uppercase"
         style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
       >
-        <span>Vault · v{__APP_VERSION__} · MIT</span>
-        {onBackup && (
-          <>
-            <span style={{ opacity: 0.4 }}>·</span>
+        <span className="flex items-center gap-2">
+          <span>Vault ·</span>
+          <VersionChip version={__APP_VERSION__} align="left" />
+          <span>· MIT</span>
+        </span>
+        <div className="flex items-center gap-3">
+          {onBackup && (
             <button onClick={onBackup} className="hover:opacity-100 transition" style={{ color: CREAM_DIM }}>
               Backup ↓
             </button>
-          </>
-        )}
-        {onSettings && (
-          <>
-            <span style={{ opacity: 0.4 }}>·</span>
+          )}
+          {onBackup && onSettings && <span style={{ opacity: 0.4 }}>·</span>}
+          {onSettings && (
             <button onClick={onSettings} className="hover:opacity-100 transition" style={{ color: CREAM_DIM }}>
               Settings
             </button>
-          </>
-        )}
+          )}
+        </div>
       </div>
 
       {showImport && (

@@ -1,5 +1,43 @@
 # Changelog
 
+## v0.6.0 — Cloud-first, mobile-friendly, smarter health
+
+### Cloud sync, accounts, gallery
+- **Supabase backend** — sign in with Google or magic link. Decks sync across devices, every save is durable, and there's a one-time auto-migration of local decks into your account on first sign-in.
+- **Public gallery** — flip a deck to public from the editor's action strip. Anyone (signed in or not) can browse the gallery on the landing page, **View** a deck read-only, or **Copy** it into their own archive.
+- **Archive is now sign-in only** — the landing page hides the archive list + dashboard when you're signed out, so the page reads as marketing until you log in.
+
+### Mobile + nav
+- **Mobile nav** on the landing page and deck editor — the previous `md:flex` cells have been replaced with a compact mobile layout that shows deck/card counts, account status, and the version chip on every screen size.
+- **Mobile action strip** in the editor — Notes / Share / Public / Compare / Export / Dupe / Rules now appear as an icon row on small screens instead of being hidden.
+- **Footer reflows** on mobile — version chip, Backup, Settings stack vertically when the row would overflow.
+- **Version chip with changelog hover** — hovering the `v0.6.0` chip in the nav opens a panel showing the latest release notes inline.
+
+### Smarter analysis
+- **Curve-aware health score** — land + ramp targets now derive from the deck's average CMC, so an aggro curve doesn't get dinged for running 32 lands and a top-heavy ramp deck doesn't get a free pass on 5.
+- **Deck-size component** — health now also penalises oversized decks (101+ counting the commander) instead of silently passing.
+- **Identity histogram** on the archive dashboard — replaces the per-colour bar list with proper combo names (Mardu, Esper, Bant, Mono-White, etc.) so the chart actually distinguishes a Mardu deck from an Esper one.
+- **Landbase advisor** uses the same curve-aware target — the recommended count moves with your curve instead of being a fixed 36/37.
+
+### Currency + pricing
+- **GBP currency** (USD / EUR / GBP) in Settings. GBP is FX-converted from USD and prefixed with `~`. The archive-dashboard total value now respects the active currency.
+
+### Auth + gallery fixes
+- OAuth `?code=` params are stripped from the URL after Supabase parses them, fixing a `flow_state_already_used` loop on re-mount.
+- Public gallery list now works end-to-end (split into two queries — decks then profiles by owner_id — because PostgREST can't auto-join `decks → auth.users → profiles`).
+
+### UI polish
+- Commander panel now renders mana symbols in oracle text as proper icons instead of literal `{R}` text.
+- Empty Lands / Ramp bars no longer look filled — the tinted track + transparent fill clarifies 0%.
+- Recs view-switcher (Top Synergy / By Theme / Cuts) is on its own row with `whitespace-nowrap` so it stays a single clean strip at every width.
+- Hero rewrite — "Build sharper Commander decks. Win more pods." with a concrete sub-headline naming the actual features.
+
+### Internals
+- New helper: `parseLatestChangelog()` (powers the hover panel from `CHANGELOG.md?raw`).
+- `aggregateStats(decks, currency)` now currency-aware.
+- `recommendByCurve(avgCmc)` exported from `health.js`; reused by landbase.
+- Build still passes 160 Vitest tests.
+
 ## v0.5.0 — Settings, offline, comparison depth
 
 ### Preferences & control
