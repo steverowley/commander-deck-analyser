@@ -471,6 +471,24 @@ export async function resolveScryfallUrl(url) {
   }
 }
 
+/**
+ * Fetch + normalise a single Scryfall card by its uuid. Caches the
+ * result. Used by the Vault to render a specific printing chosen
+ * via the printing picker (stored as meta.printing_id on each
+ * collection entry).
+ */
+export async function fetchCardById(id) {
+  if (!id) return null;
+  try {
+    const res = await fetch(`${SCRYFALL}/cards/${id}`);
+    if (!res.ok) return null;
+    const card = await res.json();
+    return cacheCard(card);
+  } catch {
+    return null;
+  }
+}
+
 export function cardImageUrl(card, version = 'small') {
   if (!card?.name) return null;
   const direct =

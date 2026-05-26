@@ -1910,25 +1910,30 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
             </div>
           )}
 
-          {collectionSize > 0 && (
-            <div className="flex items-center gap-3 border-t pt-4" style={{ borderColor: CREAM_FAINT }}>
-              <button
-                onClick={() => setOwnedOnly((v) => !v)}
-                className="w-9 h-5 border flex items-center transition"
-                style={{
-                  borderColor: CREAM_FAINT,
-                  background: ownedOnly ? 'rgba(243,231,201,0.15)' : 'transparent',
-                  justifyContent: ownedOnly ? 'flex-end' : 'flex-start',
-                }}
-                aria-pressed={ownedOnly}
-              >
-                <span className="block w-3 h-3 mx-0.5" style={{ background: ownedOnly ? CREAM : CREAM_DIM }} />
-              </button>
-              <span className="font-serif text-xs" style={{ color: CREAM_DIM }}>
-                Only use cards I own <span style={{ color: CREAM_DIM, opacity: 0.7 }}>({collectionSize} in collection — basics still padded as needed)</span>
+          <div className="flex items-center gap-3 border-t pt-4" style={{ borderColor: CREAM_FAINT }}>
+            <button
+              onClick={() => setOwnedOnly((v) => !v)}
+              disabled={collectionSize === 0}
+              className="w-9 h-5 border flex items-center transition disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{
+                borderColor: CREAM_FAINT,
+                background: ownedOnly ? 'rgba(243,231,201,0.15)' : 'transparent',
+                justifyContent: ownedOnly ? 'flex-end' : 'flex-start',
+              }}
+              aria-pressed={ownedOnly}
+              title={collectionSize === 0 ? 'Add cards to your Vault first to enable this filter.' : ''}
+            >
+              <span className="block w-3 h-3 mx-0.5" style={{ background: ownedOnly ? CREAM : CREAM_DIM }} />
+            </button>
+            <span className="font-serif text-xs" style={{ color: CREAM_DIM }}>
+              Only use cards from my Vault{' '}
+              <span style={{ color: CREAM_DIM, opacity: 0.7 }}>
+                {collectionSize === 0
+                  ? '(empty — add cards to your Vault to unlock)'
+                  : `(${collectionSize} in Vault — basics still padded as needed)`}
               </span>
-            </div>
-          )}
+            </span>
+          </div>
 
           {canShare && (
             <div className="flex items-center gap-3 border-t pt-4" style={{ borderColor: CREAM_FAINT }}>

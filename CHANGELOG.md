@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.9.0 — Vault card affordances (corner radius, foil, art picker, "Vault-only" toggle)
+
+### Vault thumbnails
+- New shared **VaultCard** component used in both the homepage Vault strip and the Manage Vault grid. PNG variant gives proper transparent rounded corners. Hover surfaces three chips:
+  - **Art** — opens the existing PrintingPickerModal scoped to that card. Choice persists per-Vault-entry via `meta.printing_id`.
+  - **Foil** — cycles through the same five styles the commander chip uses (Rainbow / Galaxy / Surge / Etched / Oil slick). Persists via `meta.foil`.
+  - **Remove** — confirms then drops the card from the Vault.
+- `×N` quantity badge stays pinned top-right.
+
+### Random roller — "Only use cards from my Vault"
+- The toggle is now **always visible** in the Roll-a-deck modal (was hidden when Vault was empty). Disabled with hint text "(empty — add cards to your Vault to unlock)" when there's nothing in the Vault, so the feature is discoverable.
+- Label changed from "Only use cards I own" to **"Only use cards from my Vault"** for terminology consistency.
+
+### Data
+- New `meta jsonb` column on `public.collection`. Per-card overrides: `{ printing_id, foil }`. Existing rows stay nullable so no backfill needed.
+- New helper `setCardMeta(name, meta)` in `lib/collection.js` + a `fetchCardById(id)` helper in `lib/scryfall.js`.
+
 ## v0.8.4 — Actually fix the Scryfall drop handler
 
 The previous "fix the drag" PRs touched the drop zone wiring and the activation logic, but the drop handler itself was still silently broken: `handleZoneDrop` was declared `async (target) => async (e) => {...}`. The outer `async` meant the factory returned a **Promise** instead of a **function**, so React's `onDrop` never got a real handler and the drop was a no-op.

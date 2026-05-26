@@ -10,6 +10,7 @@ import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, parseDecklist, lc } from '../lib/utils.js';
 import { fetchCardsByName, cardImageUrl } from '../lib/scryfall.js';
 import { CardSearchBar } from './UI.jsx';
+import { VaultCard } from './VaultCard.jsx';
 import {
   loadCollection,
   addToCollection,
@@ -224,35 +225,17 @@ export function CollectionModal({ onClose, signedIn }) {
               {filter ? 'No cards match that filter.' : 'No cards yet. Scan with the camera, paste a list, or search to add one.'}
             </div>
           ) : view === 'grid' ? (
-            <div className="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            <div className="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {entries.map((entry) => {
                 const card = cardData[entry.name.toLowerCase()];
                 return (
-                  <div
-                    key={entry.name}
-                    className="border flex flex-col"
-                    style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}
-                  >
-                    {card ? (
-                      <img
-                        src={cardImageUrl(card, 'small')}
-                        alt={entry.name}
-                        className="w-full aspect-[5/7] object-cover"
-                        loading="lazy"
-                        onError={(e) => (e.currentTarget.style.display = 'none')}
-                      />
-                    ) : (
-                      <div className="w-full aspect-[5/7] flex items-center justify-center" style={{ color: CREAM_DIM }}>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      </div>
-                    )}
-                    <div className="px-2 py-1.5 border-t flex items-center justify-between gap-1.5" style={{ borderColor: CREAM_FAINT }}>
+                  <div key={entry.name} className="flex flex-col gap-2">
+                    <VaultCard entry={entry} card={card} onChanged={refresh} />
+                    <div className="flex items-center justify-between gap-1.5">
                       <span className="font-serif text-[10px] uppercase font-bold truncate flex-1" style={{ color: CREAM }} title={entry.name}>
                         {entry.name}
                       </span>
-                    </div>
-                    <div className="px-2 pb-2 flex items-center justify-between gap-1.5">
-                      <div className="flex items-center gap-px border" style={{ borderColor: CREAM_FAINT }}>
+                      <div className="flex items-center gap-px border shrink-0" style={{ borderColor: CREAM_FAINT }}>
                         <button onClick={() => adjust(entry, -1)} className="w-6 h-6 font-mono" style={{ color: CREAM_DIM }} aria-label="Decrease">
                           <Minus className="w-2.5 h-2.5 mx-auto" />
                         </button>
@@ -261,9 +244,6 @@ export function CollectionModal({ onClose, signedIn }) {
                           <Plus className="w-2.5 h-2.5 mx-auto" />
                         </button>
                       </div>
-                      <button onClick={() => remove(entry)} className="hover:text-red-400 shrink-0" style={{ color: CREAM_DIM }} title="Remove from Vault">
-                        <Trash2 className="w-3 h-3" />
-                      </button>
                     </div>
                   </div>
                 );
