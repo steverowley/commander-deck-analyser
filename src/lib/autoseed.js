@@ -16,11 +16,32 @@ import { fetchRecommendations, topRecommendations } from './edhrec.js';
 import { fetchCardsByName } from './scryfall.js';
 import { detectTags } from './tags.js';
 import { recommendByCurve } from './health.js';
+import { cardPrice } from './pricing.js';
+import { archetypeById, tagsMatchArchetype } from './archetypes.js';
+import { BANNED_CARDS } from './constants.js';
+import { lc } from './utils.js';
 
+// Larger pool when filters are in play so we still hit 99 after
+// pruning expensive cards / off-bracket cards.
 const POOL_SIZE = 180;
+const POOL_SIZE_FILTERED = 260;
 const DRAW_TARGET = 9;
 const REMOVAL_TARGET = 9;
 const DECK_TOTAL = 99;
+
+// Tags that signal a card is too high-power for casual / precon
+// brackets. Filtering these out of the pool when targeting low
+// brackets keeps the auto-seed appropriate for the requested table.
+const HIGH_POWER_TAGS = new Set([
+  'Game Changer',
+  'Combo piece',
+  'Mass Land Destruction',
+  'Extra Turn',
+  'Stax piece',
+]);
+// Mass Land Destruction is socially toxic at all but the top bracket,
+// so it stays excluded one bracket higher than the rest.
+const BRACKET3_BAN = new Set(['Mass Land Destruction']);
 
 const BASIC_BY_COLOR = {
   W: 'Plains',
@@ -62,17 +83,31 @@ function totalSlots(entries) {
   return entries.reduce((s, e) => s + e.count, 0);
 }
 
-export async function buildSeededDeck(commander, onProgress) {
+export async function buildSeededDeck(commander, opts = {}, onProgress) {
   if (!commander?.name) {
     return { commander: null, cards: [], missing: ['no commander'], summary: null };
   }
+  // opts: { bracket?: 1..5, budget?: number, currency?: 'usd'|'eur'|'gbp', archetype?: id }
+  const bracket = opts.bracket ?? 3;
+  const archetype = archetypeById(opts.archetype);
+  const filterActive = bracket <= 3 || opts.budget != null || (archetype && archetype.id !== 'any');
+  const poolSize = filterActive ? POOL_SIZE_FILTERED : POOL_SIZE;
+  // Per-card price cap derived from total budget. Rough heuristic:
+  // ~12% of budget for the single most expensive card lets a few
+  // chase pieces (signets, dual lands) slip in without one card
+  // eating the whole budget.
+  const currency = opts.currency || 'usd';
+  const maxPerCard = opts.budget != null
+    ? Math.max(1, opts.budget * 0.12)
+    : Infinity;
+
   onProgress?.(`Fetching EDHREC recs for ${commander.name}...`);
   const recs = await fetchRecommendations(commander.name);
   if (!recs) {
     return { commander, cards: [], missing: ['EDHREC has no page for this commander'], summary: null };
   }
   // Pull a bigger pool than 99 so we have spares to fill each category.
-  const top = topRecommendations(recs, new Set([commander.name.toLowerCase()]), POOL_SIZE);
+  const top = topRecommendations(recs, new Set([commander.name.toLowerCase()]), poolSize);
   const names = top.map((r) => r.name);
   if (names.length === 0) {
     return { commander, cards: [], missing: ['no recommendations'], summary: null };
@@ -80,12 +115,52 @@ export async function buildSeededDeck(commander, onProgress) {
   onProgress?.(`Fetching ${names.length} cards from Scryfall...`);
   const { results, notFound } = await fetchCardsByName(names, onProgress);
   // Preserve EDHREC's synergy ordering — `names` is already sorted.
-  const pool = names
+  let pool = names
     .map((n) => results[n.toLowerCase()])
     .filter(Boolean);
 
-  // Bucket by role. Each bucket stays in EDHREC's synergy order so
-  // `.shift()` picks the most-synergistic candidate first.
+  // Always drop format-banned cards. Even at bracket 5 we don't want
+  // the auto-seed offering up a card you literally can't play. The
+  // EDHREC cache sometimes still returns recently-banned staples.
+  pool = pool.filter((c) => !BANNED_CARDS.has(lc(c.name)));
+
+  // Apply bracket-based exclusions.
+  if (bracket <= 2) {
+    pool = pool.filter((c) => {
+      const tags = detectTags(c);
+      return !tags.some((t) => HIGH_POWER_TAGS.has(t));
+    });
+  } else if (bracket === 3) {
+    pool = pool.filter((c) => {
+      const tags = detectTags(c);
+      return !tags.some((t) => BRACKET3_BAN.has(t));
+    });
+  }
+
+  // Apply per-card budget cap. Cards with no listed price pass
+  // through — better to include them than to skip silently, and the
+  // total-price tile will flag them as 'unpriced' for the user.
+  if (Number.isFinite(maxPerCard)) {
+    pool = pool.filter((c) => {
+      const p = cardPrice(c, currency);
+      return p == null || p <= maxPerCard;
+    });
+  }
+
+  // Archetype boost — partition matching cards to the front of the
+  // pool. Preserves relative synergy order inside each partition.
+  if (archetype.id !== 'any') {
+    const matches = [];
+    const rest = [];
+    for (const c of pool) {
+      if (tagsMatchArchetype(detectTags(c), archetype)) matches.push(c);
+      else rest.push(c);
+    }
+    pool = [...matches, ...rest];
+  }
+
+  // Bucket by role. Each bucket stays in (possibly archetype-promoted)
+  // synergy order so `.shift()` picks the most relevant candidate first.
   const buckets = { land: [], ramp: [], draw: [], removal: [], other: [] };
   for (const card of pool) buckets[categorize(card)].push(card);
 

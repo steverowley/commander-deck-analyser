@@ -109,6 +109,99 @@ describe('buildSeededDeck', () => {
     expect(summary.removal).toBeGreaterThanOrEqual(7);
   });
 
+  it('low-bracket targets drop Game Changer / Combo piece cards from the pool', async () => {
+    // Cyclonic Rift is in GAME_CHANGERS but not BANNED_CARDS — a clean
+    // test that bracket ≤ 2 filtering excludes the GC list specifically.
+    const gameChanger = { name: 'Cyclonic Rift', type_line: 'Instant', cmc: 2, oracle_text: 'Return all nonland permanents your opponents control to their owners\' hands.' };
+    const pool = [
+      gameChanger,
+      ...Array.from({ length: 40 }, (_, i) => makeLand(i)),
+      ...Array.from({ length: 20 }, (_, i) => makeRamp(i)),
+      ...Array.from({ length: 20 }, (_, i) => makeDraw(i)),
+      ...Array.from({ length: 20 }, (_, i) => makeRemoval(i)),
+      ...Array.from({ length: 60 }, (_, i) => makeCreature(i)),
+    ];
+    fetchRecommendations.mockResolvedValue(pool.map((c) => ({ name: c.name })));
+    fetchCardsByName.mockResolvedValue({ results: buildResults(pool), notFound: [], errors: [] });
+
+    const commander = { name: 'Test Cmdr', color_identity: ['U'] };
+    const { cards } = await buildSeededDeck(commander, { bracket: 2 });
+    expect(totalCount(cards)).toBe(99);
+    expect(cards.some((c) => c.name === 'Cyclonic Rift')).toBe(false);
+  });
+
+  it('always drops banned cards regardless of bracket', async () => {
+    // Mana Crypt is on the current Commander banlist — even at bracket
+    // 5 (cEDH) the auto-seed shouldn't include a card you can't play.
+    const banned = { name: 'Mana Crypt', type_line: 'Artifact', cmc: 0, oracle_text: '{T}: Add {C}{C}.' };
+    const pool = [
+      banned,
+      ...Array.from({ length: 40 }, (_, i) => makeLand(i)),
+      ...Array.from({ length: 20 }, (_, i) => makeRamp(i)),
+      ...Array.from({ length: 20 }, (_, i) => makeDraw(i)),
+      ...Array.from({ length: 20 }, (_, i) => makeRemoval(i)),
+      ...Array.from({ length: 60 }, (_, i) => makeCreature(i)),
+    ];
+    fetchRecommendations.mockResolvedValue(pool.map((c) => ({ name: c.name })));
+    fetchCardsByName.mockResolvedValue({ results: buildResults(pool), notFound: [], errors: [] });
+
+    const commander = { name: 'cEDH Cmdr', color_identity: ['B'] };
+    const { cards } = await buildSeededDeck(commander, { bracket: 5 });
+    expect(cards.some((c) => c.name === 'Mana Crypt')).toBe(false);
+  });
+
+  it('budget cap drops cards priced above the per-card threshold', async () => {
+    const pricey = { name: 'Pricey Card', type_line: 'Creature', cmc: 4, oracle_text: 'Flying.', prices: { usd: '120.00' } };
+    const cheap = (i) => ({ ...makeCreature(i), prices: { usd: '0.50' } });
+    const pool = [
+      pricey,
+      ...Array.from({ length: 40 }, (_, i) => makeLand(i)),
+      ...Array.from({ length: 20 }, (_, i) => makeRamp(i)),
+      ...Array.from({ length: 20 }, (_, i) => makeDraw(i)),
+      ...Array.from({ length: 20 }, (_, i) => makeRemoval(i)),
+      ...Array.from({ length: 60 }, (_, i) => cheap(i)),
+    ];
+    fetchRecommendations.mockResolvedValue(pool.map((c) => ({ name: c.name })));
+    fetchCardsByName.mockResolvedValue({ results: buildResults(pool), notFound: [], errors: [] });
+
+    const commander = { name: 'Test Cmdr', color_identity: ['G'] };
+    // $50 budget → per-card cap ≈ $6. The $120 pricey card must NOT make it in.
+    const { cards } = await buildSeededDeck(commander, { bracket: 3, budget: 50, currency: 'usd' });
+    expect(totalCount(cards)).toBe(99);
+    expect(cards.some((c) => c.name === 'Pricey Card')).toBe(false);
+  });
+
+  it('archetype preference promotes matching cards into the pool front', async () => {
+    // Two creatures: one tagged Token producer (matches Tokens archetype),
+    // one vanilla. With archetype=tokens the token producer should land
+    // in the deck even when synergy order would have put it last.
+    const tokenProducer = { name: 'Token Maker', type_line: 'Creature — Soldier', cmc: 4, oracle_text: 'When this enters, create three 1/1 Soldier tokens.' };
+    const vanilla = { name: 'Vanilla Bear', type_line: 'Creature — Bear', cmc: 2, oracle_text: '' };
+    // Pool order: token producer LAST so synergy alone would deprioritize it.
+    const pool = [
+      ...Array.from({ length: 40 }, (_, i) => makeLand(i)),
+      ...Array.from({ length: 20 }, (_, i) => makeRamp(i)),
+      ...Array.from({ length: 20 }, (_, i) => makeDraw(i)),
+      ...Array.from({ length: 20 }, (_, i) => makeRemoval(i)),
+      ...Array.from({ length: 200 }, () => vanilla), // floods overflow
+      tokenProducer,
+    ];
+    // dedupe names since vanilla appears 200 times
+    const dedupedPool = [];
+    const seen = new Set();
+    for (const c of pool) {
+      if (seen.has(c.name)) continue;
+      seen.add(c.name);
+      dedupedPool.push(c);
+    }
+    fetchRecommendations.mockResolvedValue(dedupedPool.map((c) => ({ name: c.name })));
+    fetchCardsByName.mockResolvedValue({ results: buildResults(dedupedPool), notFound: [], errors: [] });
+
+    const commander = { name: 'Token Cmdr', color_identity: ['W'] };
+    const { cards } = await buildSeededDeck(commander, { archetype: 'tokens' });
+    expect(cards.some((c) => c.name === 'Token Maker')).toBe(true);
+  });
+
   it('uses Wastes for a colorless commander when padding basics', async () => {
     const pool = [
       ...Array.from({ length: 3 }, (_, i) => makeLand(i)),

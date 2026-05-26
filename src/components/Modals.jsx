@@ -4,6 +4,7 @@ import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, parseDecklist, lc } from '../lib/utils.js';
 import { fetchCardsByName, fetchCardByExactName, refreshCachedCards, fetchPrintings, fetchRandomCommander, cardImageUrl } from '../lib/scryfall.js';
 import { buildSeededDeck } from '../lib/autoseed.js';
+import { ARCHETYPES } from '../lib/archetypes.js';
 import { exportDecklist } from '../lib/deckops.js';
 import { buildShareUrl } from '../lib/share.js';
 import { deckTotalPrice, formatPrice, isConverted } from '../lib/pricing.js';
@@ -1551,14 +1552,35 @@ export function PrintingPickerModal({ card, onClose, onPick }) {
  */
 const WUBRG_COLORS = ['W', 'U', 'B', 'R', 'G'];
 
+// Total-deck budget presets. `null` = no cap. The number is the
+// max total deck price in the user's currency; per-card cap is
+// derived inside buildSeededDeck as ~12% of this.
+const BUDGET_PRESETS = [
+  { id: 'any',     label: 'Any',          value: null },
+  { id: 'budget',  label: 'Budget',       value: 50 },
+  { id: 'casual',  label: 'Casual',       value: 150 },
+  { id: 'tuned',   label: 'Tuned',        value: 400 },
+  { id: 'premium', label: 'Premium',      value: 1000 },
+];
+
+// Bracket targets — 1 (precon) through 5 (cEDH). Matches the
+// existing Bracket tab numbering used elsewhere in the app.
+const BRACKET_OPTIONS = [1, 2, 3, 4, 5];
+
 export function RandomDeckModal({ onClose, onBuild }) {
   const [colors, setColors] = useState([]);
   const [partner, setPartner] = useState(false);
+  const [bracket, setBracket] = useState(3);
+  const [budgetId, setBudgetId] = useState('any');
+  const [archetypeId, setArchetypeId] = useState('any');
   const [commander, setCommander] = useState(null);
   const [rolling, setRolling] = useState(false);
   const [building, setBuilding] = useState(false);
   const [progress, setProgress] = useState('');
   const [error, setError] = useState(null);
+
+  const budget = BUDGET_PRESETS.find((b) => b.id === budgetId)?.value ?? null;
+  const archetype = ARCHETYPES.find((a) => a.id === archetypeId) || ARCHETYPES[0];
 
   const toggleColor = (c) => {
     setColors((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
@@ -1587,15 +1609,28 @@ export function RandomDeckModal({ onClose, onBuild }) {
     setBuilding(true);
     setProgress('');
     try {
-      const { cards, missing, summary } = await buildSeededDeck(commander, setProgress);
+      const settings = loadSettings();
+      const currency = settings.currency || 'usd';
+      const opts = {
+        bracket,
+        budget,
+        currency,
+        archetype: archetypeId,
+      };
+      const { cards, missing, summary } = await buildSeededDeck(commander, opts, setProgress);
       const breakdown = summary
         ? ` Lands ${summary.land + summary.basics}${summary.basics ? ` (${summary.basics} basics)` : ''}, ramp ${summary.ramp}, draw ${summary.draw}, removal ${summary.removal}, strategy ${summary.other}.`
         : '';
+      const optsNote = [
+        `bracket ${bracket}`,
+        budget != null ? `${isConverted(currency) ? '~' : ''}${formatPrice(budget, currency)} budget` : null,
+        archetype.id !== 'any' ? `${archetype.label.toLowerCase()} archetype` : null,
+      ].filter(Boolean).join(', ');
       onBuild({
         name: commander.name,
         commander,
         cards,
-        notes: `Auto-seeded from EDHREC averages for ${commander.name}.${breakdown}${missing?.length ? ` ${missing.length} card(s) unresolved.` : ''}`,
+        notes: `Auto-seeded from EDHREC averages for ${commander.name} (${optsNote}).${breakdown}${missing?.length ? ` ${missing.length} card(s) unresolved.` : ''}`,
       });
     } catch (e) {
       setError(e.message || 'Build failed.');
@@ -1686,6 +1721,121 @@ export function RandomDeckModal({ onClose, onBuild }) {
             <span className="font-serif text-xs" style={{ color: CREAM_DIM }}>
               Include partner / background commanders
             </span>
+          </div>
+
+          {/* Bracket target */}
+          <div>
+            <div className="font-serif text-[10px] tracking-[0.3em] uppercase font-bold mb-2" style={{ color: CREAM_DIM }}>
+              Bracket · <span style={{ color: CREAM }}>{bracket}</span>
+              <span className="ml-2 italic normal-case tracking-normal" style={{ color: CREAM_DIM, opacity: 0.7 }}>
+                {bracket === 1 && '— precon-level'}
+                {bracket === 2 && '— casual'}
+                {bracket === 3 && '— upgraded'}
+                {bracket === 4 && '— optimized'}
+                {bracket === 5 && '— cEDH'}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              {BRACKET_OPTIONS.map((b) => {
+                const active = bracket === b;
+                return (
+                  <button
+                    key={b}
+                    onClick={() => setBracket(b)}
+                    className="w-9 h-9 border font-mono text-sm transition"
+                    style={{
+                      borderColor: active ? CREAM : CREAM_FAINT,
+                      color: active ? CREAM : CREAM_DIM,
+                      background: active ? 'rgba(243,231,201,0.08)' : 'transparent',
+                    }}
+                  >
+                    {b}
+                  </button>
+                );
+              })}
+            </div>
+            {bracket <= 2 && (
+              <div className="font-serif text-xs italic mt-2" style={{ color: CREAM_DIM }}>
+                Drops Game Changers, combos, MLD, stax, extra turns from the pool.
+              </div>
+            )}
+            {bracket === 3 && (
+              <div className="font-serif text-xs italic mt-2" style={{ color: CREAM_DIM }}>
+                Mass land destruction excluded; combos and Game Changers allowed.
+              </div>
+            )}
+            {bracket >= 4 && (
+              <div className="font-serif text-xs italic mt-2" style={{ color: CREAM_DIM }}>
+                Anything goes — fast mana, tutors, combos all eligible.
+              </div>
+            )}
+          </div>
+
+          {/* Budget */}
+          <div>
+            <div className="font-serif text-[10px] tracking-[0.3em] uppercase font-bold mb-2" style={{ color: CREAM_DIM }}>
+              Budget
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {BUDGET_PRESETS.map((b) => {
+                const active = budgetId === b.id;
+                return (
+                  <button
+                    key={b.id}
+                    onClick={() => setBudgetId(b.id)}
+                    className="px-3 h-9 border font-serif text-[11px] tracking-[0.2em] uppercase transition"
+                    style={{
+                      borderColor: active ? CREAM : CREAM_FAINT,
+                      color: active ? CREAM : CREAM_DIM,
+                      background: active ? 'rgba(243,231,201,0.08)' : 'transparent',
+                    }}
+                  >
+                    {b.label}
+                    {b.value != null && (
+                      <span className="ml-1.5 font-mono text-[10px]" style={{ opacity: 0.7 }}>
+                        ≤{formatPrice(b.value, loadSettings().currency || 'usd')}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            {budget != null && (
+              <div className="font-serif text-xs italic mt-2" style={{ color: CREAM_DIM }}>
+                Skips any single card priced above ~{formatPrice(budget * 0.12, loadSettings().currency || 'usd')}, so the total stays close to {formatPrice(budget, loadSettings().currency || 'usd')}.
+              </div>
+            )}
+          </div>
+
+          {/* Archetype */}
+          <div>
+            <div className="font-serif text-[10px] tracking-[0.3em] uppercase font-bold mb-2" style={{ color: CREAM_DIM }}>
+              Archetype · <span style={{ color: CREAM }}>{archetype.label}</span>
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {ARCHETYPES.map((a) => {
+                const active = archetypeId === a.id;
+                return (
+                  <button
+                    key={a.id}
+                    onClick={() => setArchetypeId(a.id)}
+                    className="px-3 h-8 border font-serif text-[11px] tracking-[0.15em] uppercase transition"
+                    style={{
+                      borderColor: active ? CREAM : CREAM_FAINT,
+                      color: active ? CREAM : CREAM_DIM,
+                      background: active ? 'rgba(243,231,201,0.08)' : 'transparent',
+                    }}
+                  >
+                    {a.label}
+                  </button>
+                );
+              })}
+            </div>
+            {archetype.id !== 'any' && (
+              <div className="font-serif text-xs italic mt-2" style={{ color: CREAM_DIM }}>
+                Promotes cards tagged for this archetype before the rest of the synergy pool.
+              </div>
+            )}
           </div>
 
           {commander && (
