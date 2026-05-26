@@ -1587,12 +1587,15 @@ export function RandomDeckModal({ onClose, onBuild }) {
     setBuilding(true);
     setProgress('');
     try {
-      const { cards, missing } = await buildSeededDeck(commander, setProgress);
+      const { cards, missing, summary } = await buildSeededDeck(commander, setProgress);
+      const breakdown = summary
+        ? ` Lands ${summary.lands + summary.basics}${summary.basics ? ` (${summary.basics} basics)` : ''}, ramp ${summary.ramp}, draw ${summary.draw}, removal ${summary.removal}, strategy ${summary.other}.`
+        : '';
       onBuild({
         name: commander.name,
         commander,
         cards,
-        notes: `Auto-seeded from EDHREC averages for ${commander.name}.${missing?.length ? ` ${missing.length} card(s) unresolved.` : ''}`,
+        notes: `Auto-seeded from EDHREC averages for ${commander.name}.${breakdown}${missing?.length ? ` ${missing.length} card(s) unresolved.` : ''}`,
       });
     } catch (e) {
       setError(e.message || 'Build failed.');
