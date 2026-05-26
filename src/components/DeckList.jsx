@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Trash2, Crown, Copy, Upload, Calculator, Dices } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, ACCENT } from '../theme.js';
 import { pad } from '../lib/utils.js';
@@ -13,12 +13,18 @@ import { VersionChip } from './UI.jsx';
 import { ImportDeckModal, RandomDeckModal } from './Modals.jsx';
 import { GalleryView } from './GalleryView.jsx';
 import { RandomRollsView } from './RandomRollsView.jsx';
+import { loadCollection } from '../lib/collection.js';
 
-export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup, onSettings, onProfile, user, cloudEnabled, onSignIn, onSignOut, onImportFromGallery, onViewGalleryDeck, onRandomBuild }) {
+export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup, onSettings, onProfile, onCollection, user, cloudEnabled, onSignIn, onSignOut, onImportFromGallery, onViewGalleryDeck, onRandomBuild }) {
   const [name, setName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showImport, setShowImport] = useState(false);
   const [showRandom, setShowRandom] = useState(false);
+  const [collection, setCollection] = useState(null);
+
+  useEffect(() => {
+    loadCollection().then(setCollection);
+  }, [user?.id]);
   const [search, setSearch] = useState('');
   const [bracketFilter, setBracketFilter] = useState(null); // 1..5
   const [colorFilter, setColorFilter] = useState(null);     // 'W' | 'U' | 'B' | 'R' | 'G' | 'C'
@@ -322,7 +328,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
         </div>
       )}
 
-      {user && decks.length >= 2 && <ArchiveDashboard decks={decks} />}
+      {user && decks.length >= 2 && <ArchiveDashboard decks={decks} collection={collection} />}
 
       {/* Stored decks — only shown when signed in. */}
       {user && (
@@ -526,7 +532,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
                   <div className="font-serif text-sm mt-2 italic" style={{ color: CREAM_DIM }}>
                     {d.commander?.name || 'No commander set'}
                   </div>
-                  <DeckCardMeta deck={d} searchMatch={cardMatchFor(d, search)} />
+                  <DeckCardMeta deck={d} searchMatch={cardMatchFor(d, search)} collection={collection} />
                   {d.commander?.color_identity?.length > 0 && (
                     <div className="mt-2 flex items-center gap-1" style={{ fontSize: '0.9rem' }}>
                       {d.commander.color_identity.map((c) => (
@@ -579,6 +585,14 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
               </button>
             </>
           )}
+          {onCollection && (
+            <>
+              <span style={{ opacity: 0.4 }}>·</span>
+              <button onClick={onCollection} className="hover:opacity-100 transition" style={{ color: CREAM_DIM }}>
+                Collection
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -605,13 +619,17 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
   );
 }
 
-function ArchiveDashboard({ decks }) {
+function ArchiveDashboard({ decks, collection }) {
   const currency = loadSettings().currency || 'usd';
-  const stats = useMemo(() => aggregateStats(decks, currency), [decks, currency]);
+  const stats = useMemo(() => aggregateStats(decks, currency, collection), [decks, currency, collection]);
   const maxBracket = Math.max(...stats.bracketHistogram, 1);
   const maxIdentity = Math.max(...stats.identityHistogram.map((x) => x.count), 1);
   const approx = stats.totalPriceUnpriced > 0 || isConverted(currency) ? '~' : '';
   const priceLabel = `${approx}${formatPrice(stats.totalPrice, currency)}`;
+  const hasOwned = stats.totalOwned > 0;
+  const priceSubParts = [];
+  if (stats.totalPriceUnpriced > 0) priceSubParts.push(`${stats.totalPriceUnpriced} unpriced`);
+  if (hasOwned) priceSubParts.push(`${approx}${formatPrice(stats.totalToBuy, currency)} to buy`);
 
   return (
     <div className="mt-12 fade-up" style={{ animationDelay: '180ms' }}>
@@ -628,7 +646,7 @@ function ArchiveDashboard({ decks }) {
       <div className="grid grid-cols-2 md:grid-cols-4 border-t border-l" style={{ borderColor: CREAM_FAINT }}>
         <DashStat label="Decks" value={stats.deckCount} />
         <DashStat label="Cards" value={stats.cardCount} />
-        <DashStat label="Total value" value={priceLabel} sub={stats.totalPriceUnpriced > 0 ? `${stats.totalPriceUnpriced} unpriced` : null} />
+        <DashStat label="Total value" value={priceLabel} sub={priceSubParts.length > 0 ? priceSubParts.join(' · ') : null} />
         <DashStat label="Avg health" value={stats.avgHealth || '—'} />
       </div>
 
@@ -739,7 +757,7 @@ function cardMatchFor(deck, search) {
   return deck.cards.find((c) => c.name?.toLowerCase().includes(q))?.name || null;
 }
 
-function DeckCardMeta({ deck, searchMatch }) {
+function DeckCardMeta({ deck, searchMatch, collection }) {
   const total = deck.cards.reduce((s, c) => s + c.count, 0);
   const tagCount = Object.keys(
     deck.cards.reduce((m, c) => {
@@ -771,16 +789,22 @@ function DeckCardMeta({ deck, searchMatch }) {
       )}
       {hasCards && (() => {
         const currency = loadSettings().currency || 'usd';
-        const price = deckTotalPrice(deck, currency);
+        const price = deckTotalPrice(deck, currency, collection);
         if (price.priced === 0) return null;
         // ~ means either some cards are unpriced OR the currency is
         // client-side converted (GBP from USD).
         const approx = price.unpriced > 0 || isConverted(currency) ? '~' : '';
+        const showOwnedSplit = price.ownedTotal > 0;
         return (
           <>
             <span>·</span>
             <span title={price.unpriced > 0 ? `${price.unpriced} card(s) unpriced` : 'All cards priced'}>
               {approx}{formatPrice(price.total, currency)}
+              {showOwnedSplit && (
+                <span style={{ color: '#a3c98a' }} title={`${price.ownedCount} card(s) already in your collection`}>
+                  {' '}({formatPrice(price.toBuy, currency)} to buy)
+                </span>
+              )}
             </span>
           </>
         );

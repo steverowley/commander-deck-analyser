@@ -18,12 +18,14 @@ import { computeHealth } from './health.js';
 import { classifyArchetype } from './strategy.js';
 import { deckTotalPrice } from './pricing.js';
 
-export function aggregateStats(decks, currency = 'usd') {
+export function aggregateStats(decks, currency = 'usd', collection = null) {
   const result = {
     deckCount: decks.length,
     cardCount: 0,
     totalPrice: 0,
     totalPriceUnpriced: 0,
+    totalOwned: 0,
+    totalToBuy: 0,
     bracketHistogram: [0, 0, 0, 0, 0],
     colorHistogram: { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 },
     identityHistogram: [], // [{ key: 'WBR', name: 'Mardu', colors: ['W','B','R'], count }]
@@ -44,9 +46,11 @@ export function aggregateStats(decks, currency = 'usd') {
 
     // Price — honour the active currency setting so the dashboard total
     // matches what each archive deck-card shows.
-    const price = deckTotalPrice(d, currency);
+    const price = deckTotalPrice(d, currency, collection);
     result.totalPrice += price.total;
     result.totalPriceUnpriced += price.unpriced;
+    result.totalOwned += price.ownedTotal || 0;
+    result.totalToBuy += price.toBuy || 0;
 
     // Bracket — only meaningful with cards present
     if (d.cards.length > 0) {

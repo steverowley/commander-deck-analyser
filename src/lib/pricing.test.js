@@ -41,6 +41,38 @@ describe('deckTotalPrice', () => {
     };
     expect(deckTotalPrice(deck).total).toBeCloseTo(3.0);
   });
+
+  it('subtracts owned-collection cards from `toBuy`', () => {
+    const deck = {
+      cards: [
+        priced('Sol Ring', '2.00', 1),
+        priced('Cyclonic Rift', '20.00', 1),
+        priced('Mountain', '0.10', 10),
+      ],
+      commander: { name: 'Edgar', prices: { usd: '10.00' } },
+    };
+    const collection = {
+      'sol ring': { name: 'Sol Ring', quantity: 1 },
+      'mountain': { name: 'Mountain', quantity: 100 }, // way more than needed
+      'edgar': { name: 'Edgar', quantity: 1 },
+    };
+    const r = deckTotalPrice(deck, 'usd', collection);
+    // total stays the same — that's what the deck would cost cold.
+    expect(r.total).toBeCloseTo(33.0);
+    // owned: Sol Ring 2.00 + 10 Mountain × 0.10 (capped at deck count) + 10.00 commander = 13.00
+    expect(r.ownedTotal).toBeCloseTo(13.0);
+    // toBuy = Cyclonic Rift only
+    expect(r.toBuy).toBeCloseTo(20.0);
+    expect(r.ownedCount).toBe(12); // 1 + 10 + 1
+  });
+
+  it('caps owned quantity at the deck count (4 in collection, 1 in deck = 1 counted)', () => {
+    const deck = { cards: [priced('Lightning Bolt', '0.50', 1)], commander: null };
+    const r = deckTotalPrice(deck, 'usd', { 'lightning bolt': { quantity: 4 } });
+    expect(r.ownedTotal).toBeCloseTo(0.5);
+    expect(r.toBuy).toBeCloseTo(0);
+    expect(r.ownedCount).toBe(1);
+  });
 });
 
 describe('formatPrice', () => {

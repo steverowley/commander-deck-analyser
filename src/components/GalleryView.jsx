@@ -8,8 +8,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Globe, Loader2 } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT } from '../theme.js';
 import { pad } from '../lib/utils.js';
+import { cardImageUrl } from '../lib/scryfall.js';
 import { loadPublicDecks } from '../lib/storage-supabase.js';
 import { assessBracket } from '../lib/analyzers.js';
+import { computeHealth } from '../lib/health.js';
 import { ManaSymbol } from './ManaCost.jsx';
 
 export function GalleryView({ onImportFromGallery, onViewDeck }) {
@@ -78,60 +80,95 @@ export function GalleryView({ onImportFromGallery, onViewDeck }) {
   );
 }
 
+function relativeTime(ms) {
+  const diff = Date.now() - ms;
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return 'just now';
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `${d}d ago`;
+  return new Date(ms).toLocaleDateString();
+}
+
 function GalleryCard({ deck, onImport, onView }) {
   const bracket = useMemo(() => deck.cards?.length ? assessBracket(deck).bracket : null, [deck]);
+  const health = useMemo(() => deck.cards?.length ? computeHealth(deck) : null, [deck]);
   const total = deck.cards?.reduce((s, c) => s + c.count, 0) || 0;
   const identity = deck.commander?.color_identity || [];
+  const updatedAt = deck.updated || Date.now();
+
   return (
     <div
-      className="border-r border-b p-4 flex flex-col gap-2 transition"
+      className="border-r border-b p-4 flex gap-3 transition"
       style={{ borderColor: CREAM_FAINT }}
       onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.04)')}
       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
     >
-      <div className="flex items-baseline justify-between gap-2">
-        <h3 className="font-serif font-bold uppercase tracking-tight truncate" style={{ color: CREAM, fontSize: '1rem' }}>
+      {deck.commander && (
+        <img
+          src={cardImageUrl(deck.commander, 'small')}
+          alt={deck.commander.name}
+          className="w-14 h-20 object-cover shrink-0"
+          style={{ borderColor: CREAM_FAINT, borderWidth: 1 }}
+          onError={(e) => (e.target.style.display = 'none')}
+        />
+      )}
+      <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+        <h3 className="font-serif font-bold uppercase tracking-tight truncate" style={{ color: CREAM, fontSize: '0.95rem' }}>
           {deck.name}
         </h3>
-        {bracket && (
-          <span className="font-mono text-[10px] shrink-0" style={{ color: CREAM_DIM }}>
-            B{bracket}
-          </span>
-        )}
-      </div>
-      <div className="font-serif text-xs italic truncate" style={{ color: CREAM_DIM }}>
-        {deck.commander?.name || 'No commander'}
-      </div>
-      <div className="flex items-center gap-2 flex-wrap" style={{ fontSize: '0.85rem' }}>
-        {identity.length > 0
-          ? identity.map((c) => <ManaSymbol key={c} sym={c} size="0.9em" />)
-          : <ManaSymbol sym="C" size="0.9em" />}
-      </div>
-      <div className="font-mono text-[10px] tracking-wider mt-auto pt-2" style={{ color: CREAM_DIM }}>
-        {pad(total)} cards · by {deck.ownerUsername}
-      </div>
-      <div className="flex flex-wrap gap-2 self-start">
-        {onView && (
-          <button
-            onClick={() => onView(deck)}
-            className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-1"
-            style={{ borderColor: CREAM_FAINT, color: CREAM }}
-            title="Open this deck in the read-only viewer"
-          >
-            View →
-          </button>
-        )}
-        {onImport && (
-          <button
-            onClick={() => onImport(deck)}
-            className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-1"
-            style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
-            title="Copy a private editable version into your archive"
-          >
-            Copy → mine
-          </button>
-        )}
+        <div className="font-serif text-xs italic truncate" style={{ color: CREAM_DIM }}>
+          {deck.commander?.name || 'No commander'}
+        </div>
+        <div className="flex items-center gap-1.5" style={{ fontSize: '0.8rem' }}>
+          {identity.length > 0
+            ? identity.map((c) => <ManaSymbol key={c} sym={c} size="0.8em" />)
+            : <ManaSymbol sym="C" size="0.8em" />}
+        </div>
+        <div className="flex flex-wrap gap-1 mt-1">
+          {bracket && <Badge>B{bracket}</Badge>}
+          {health && !health.empty && <Badge>Health {health.score}</Badge>}
+        </div>
+        <div className="font-mono text-[10px] tracking-wider mt-auto" style={{ color: CREAM_DIM }}>
+          {pad(total)} cards · @{deck.ownerUsername} · {relativeTime(updatedAt)}
+        </div>
+        <div className="flex flex-wrap gap-2 mt-1">
+          {onView && (
+            <button
+              onClick={() => onView(deck)}
+              className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-1"
+              style={{ borderColor: CREAM_FAINT, color: CREAM }}
+              title="Open this deck in the read-only viewer"
+            >
+              View →
+            </button>
+          )}
+          {onImport && (
+            <button
+              onClick={() => onImport(deck)}
+              className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-1"
+              style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
+              title="Copy a private editable version into your archive"
+            >
+              Copy → mine
+            </button>
+          )}
+        </div>
       </div>
     </div>
+  );
+}
+
+function Badge({ children }) {
+  return (
+    <span
+      className="font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 border"
+      style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
+    >
+      {children}
+    </span>
   );
 }
