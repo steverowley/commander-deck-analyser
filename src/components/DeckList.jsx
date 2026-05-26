@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Trash2, Crown, Copy, Upload, Calculator, Dices, Search } from 'lucide-react';
-import { CREAM, CREAM_DIM, CREAM_FAINT, ACCENT } from '../theme.js';
+import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad } from '../lib/utils.js';
-import { cardImageUrl, resolveScryfallUrl, extractDroppedScryfallUrl } from '../lib/scryfall.js';
+import { cardImageUrl, resolveScryfallUrl, extractDroppedScryfallUrl, fetchCardsByName } from '../lib/scryfall.js';
 import { assessBracket } from '../lib/analyzers.js';
 import { computeHealth } from '../lib/health.js';
 import { deckTotalPrice, formatPrice, isConverted } from '../lib/pricing.js';
@@ -967,13 +967,26 @@ function EmptyArchive({ onCreate, onImport }) {
  */
 function VaultSection({ collection, onOpen, onSearch, onAddCard }) {
   const [dragOver, setDragOver] = useState(false);
+  const [cardData, setCardData] = useState({});
   const entries = Object.values(collection || {});
   const unique = entries.length;
   const total = entries.reduce((s, e) => s + (e.quantity || 0), 0);
   const recent = entries
     .slice()
     .sort((a, b) => (b.added_at || 0) - (a.added_at || 0))
-    .slice(0, 8);
+    .slice(0, 12);
+
+  // Pull Scryfall data for the recent cards we want to thumbnail.
+  // Batched (75 names per request) — small collections are a single
+  // round trip. Results cached in component state by name.
+  useEffect(() => {
+    const names = recent.map((e) => e.name);
+    const missing = names.filter((n) => !cardData[n.toLowerCase()]);
+    if (missing.length === 0) return;
+    fetchCardsByName(missing).then(({ results }) => {
+      setCardData((cur) => ({ ...cur, ...results }));
+    });
+  }, [recent.map((e) => e.name).join(',')]);
 
   // Accept any external drag — we'll figure out at drop time whether
   // we can resolve it to a card. Some browsers (Safari, Firefox in
@@ -1039,8 +1052,45 @@ function VaultSection({ collection, onOpen, onSearch, onAddCard }) {
                   : 'Cards you actually own. Drag in cards from scryfall.com (just drop the image onto this box) or open Manage Vault to scan / paste / edit.')}
           </p>
           {recent.length > 0 && (
-            <div className="font-mono text-[10px] mt-3 truncate" style={{ color: CREAM_DIM }}>
-              Recently added: <span style={{ color: CREAM }}>{recent.map((e) => e.name).join(', ')}</span>
+            <div className="mt-4">
+              <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-2" style={{ color: CREAM_DIM }}>
+                Recently added
+              </div>
+              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+                {recent.map((e) => {
+                  const card = cardData[e.name.toLowerCase()];
+                  return (
+                    <div
+                      key={e.name}
+                      className="border relative"
+                      style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}
+                      title={`${e.name} ×${e.quantity}`}
+                    >
+                      {card ? (
+                        <img
+                          src={cardImageUrl(card, 'small')}
+                          alt={e.name}
+                          className="w-full aspect-[5/7] object-cover"
+                          loading="lazy"
+                          onError={(ev) => (ev.currentTarget.style.display = 'none')}
+                        />
+                      ) : (
+                        <div className="w-full aspect-[5/7] flex items-center justify-center font-mono text-[8px] px-1 text-center" style={{ color: CREAM_DIM }}>
+                          {e.name.slice(0, 10)}
+                        </div>
+                      )}
+                      {e.quantity > 1 && (
+                        <span
+                          className="absolute top-1 right-1 font-mono text-[9px] tracking-wider px-1.5 py-0.5 border"
+                          style={{ background: BG, borderColor: CREAM_FAINT, color: CREAM }}
+                        >
+                          ×{e.quantity}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>

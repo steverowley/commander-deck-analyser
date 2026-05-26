@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.8.2 — See the cards in your Vault
+
+- **Homepage Vault section** now renders the 12 most recently-added cards as **image thumbnails** instead of a plain comma-separated text list. Multi-quantity entries get a `×N` badge in the corner.
+- **Vault modal** gained a **Grid / List toggle** (defaults to Grid). Grid view shows every owned card as a thumbnail with inline +/- quantity controls and a delete button. List view kept for keyboard / accessibility users who prefer dense rows.
+- Scryfall data for owned cards batch-fetched (75 names / request) and cached in component state so a 200-card Vault loads in one round trip.
+
 ## v0.8.1 — Scryfall cross-tab drag actually works
 
 After research: Moxfield doesn't natively support cross-tab drag from scryfall.com (the [Moxfall](https://github.com/jemmec/moxfall) browser extension was built specifically to fix that). Native cross-tab drag has to be implemented by the destination site — which is what this release does properly.
