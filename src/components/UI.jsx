@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, Loader2, Tag, Trash2, X, FileX, Bookmark, HelpCircle } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad } from '../lib/utils.js';
@@ -51,38 +51,58 @@ export function HelpTip({ children, side = 'right' }) {
 // ───────────────────────────────────────────────────────────────────────────────
 
 /**
- * Version pill with a hover/tap popover that shows the latest CHANGELOG
- * entry inline. `align` controls which edge of the chip the popover
- * anchors to so it doesn't clip off-screen.
+ * Version pill with a click-to-open popover that shows the latest
+ * CHANGELOG entry inline. Click-toggle (not hover) so the panel stays
+ * open long enough to scroll and read; closes on click-outside or Esc.
+ * `align` controls which edge of the chip the popover anchors to so
+ * it doesn't clip off-screen.
  */
 export function VersionChip({ version, align = 'right' }) {
   const [open, setOpen] = useState(false);
+  const wrapperRef = useRef(null);
   const release = getLatestRelease();
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocDown = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDocDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
   return (
-    <span className="relative inline-block" onMouseLeave={() => setOpen(false)}>
+    <span ref={wrapperRef} className="relative inline-block">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        onMouseEnter={() => setOpen(true)}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
-        className="font-serif text-[11px] tracking-[0.3em] uppercase hover:opacity-100 transition cursor-help"
-        style={{ color: CREAM_DIM }}
+        className="font-serif text-[11px] tracking-[0.3em] uppercase hover:opacity-100 transition cursor-pointer"
+        style={{ color: open ? CREAM : CREAM_DIM }}
         aria-label="What's new"
+        aria-expanded={open}
       >
         v{version}
       </button>
       {open && (
         <span
-          className="absolute z-40 w-80 max-h-96 overflow-auto border p-4 normal-case tracking-normal text-left"
+          className="absolute z-40 w-80 max-h-96 overflow-y-auto border p-4 normal-case tracking-normal text-left block"
           style={{
             background: BG,
             borderColor: CREAM_FAINT,
             color: CREAM_DIM,
-            top: '100%',
-            marginTop: '8px',
+            top: 'calc(100% + 8px)',
             [align]: 0,
           }}
+          onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-baseline justify-between mb-2 pb-2 border-b" style={{ borderColor: CREAM_FAINT }}>
             <span className="font-serif text-[10px] tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
@@ -105,7 +125,7 @@ export function VersionChip({ version, align = 'right' }) {
                 </div>
               )}
               <ul className="font-serif text-xs leading-snug space-y-1" style={{ color: CREAM_DIM }}>
-                {s.items.slice(0, 6).map((item, j) => (
+                {s.items.slice(0, 8).map((item, j) => (
                   <li key={j} className="flex gap-1.5">
                     <span style={{ color: CREAM_FAINT }}>·</span>
                     <span>{item}</span>

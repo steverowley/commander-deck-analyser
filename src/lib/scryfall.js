@@ -58,6 +58,14 @@ function normalize(card) {
             : undefined,
         }))
       : undefined,
+    // Printing identity — keeps the chosen art / set / collector number
+    // so the UI can show which printing is in use and the printing
+    // picker can highlight the active selection.
+    id: card.id,
+    oracle_id: card.oracle_id,
+    set: card.set,
+    set_name: card.set_name,
+    collector_number: card.collector_number,
   };
 }
 
@@ -297,6 +305,42 @@ export async function fetchCardByExactName(name) {
     }
   } catch {}
   return null;
+}
+
+/**
+ * Fetch every printing of a card so the UI can let the user pick a
+ * specific art. Walks Scryfall's `/cards/search?unique=prints` results
+ * across pages (Scryfall paginates at 175). Returns an array of
+ * normalized cards — the same shape used everywhere else, so the chosen
+ * printing can drop straight into the deck slot.
+ *
+ * Doesn't write to the long-term cache: printings are per-deck overrides,
+ * not the canonical lookup result for a name.
+ */
+export async function fetchPrintings(card) {
+  if (!card?.name) return [];
+  // Prefer oracle_id when available — it's unambiguous even for cards
+  // that share a name (e.g. tokens vs the real card). Fall back to
+  // exact-name search otherwise.
+  const query = card.oracle_id
+    ? `oracleid:${card.oracle_id}`
+    : `!"${card.name}" include:extras`;
+  const printings = [];
+  let url = `${SCRYFALL}/cards/search?order=released&unique=prints&q=${encodeURIComponent(query)}`;
+  // Safety cap so a 5,000-printing edge case can't run away.
+  for (let page = 0; page < 10 && url; page++) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) break;
+      const data = await res.json();
+      for (const p of data.data || []) printings.push(normalize(p));
+      url = data.has_more ? data.next_page : null;
+      if (url) await sleep(REQUEST_DELAY_MS);
+    } catch {
+      break;
+    }
+  }
+  return printings;
 }
 
 /**

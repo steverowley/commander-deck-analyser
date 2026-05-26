@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, BookOpen, Loader2, Crown, Sparkles, Tag, BarChart3, Target, Clock, Calculator, Lightbulb, Pencil, Copy, Download, Link as LinkIcon, GitCompare, FileText, Globe } from 'lucide-react';
+import { ChevronLeft, BookOpen, Loader2, Crown, Sparkles, Tag, BarChart3, Target, Clock, Calculator, Lightbulb, Pencil, Copy, Download, Link as LinkIcon, GitCompare, FileText, Globe, Images } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { lc, pad } from '../lib/utils.js';
 import { searchCardAutocomplete, fetchCardByExactName, cardImageUrl } from '../lib/scryfall.js';
 import { renameDeck, setDeckNotes, setDeckPublic } from '../lib/deckops.js';
 import { CardsTab, PackagesTab, CurveTab, BracketTab, StagesTab, ProbabilitiesTab, RecommendationsTab } from './Tabs.jsx';
-import { RulesModal, ExportModal, ShareModal, CompareModal, NotesModal } from './Modals.jsx';
+import { RulesModal, ExportModal, ShareModal, CompareModal, NotesModal, PrintingPickerModal } from './Modals.jsx';
 import { ManaCost } from './ManaCost.jsx';
 import { InlineOracle } from './UI.jsx';
 import { ErrorBoundary } from './ErrorBoundary.jsx';
@@ -18,6 +18,7 @@ function CommanderPicker({ deck, onSet }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [highlight, setHighlight] = useState(0);
+  const [showPrintings, setShowPrintings] = useState(false);
 
   useEffect(() => {
     if (!q || q.length < 2) {
@@ -72,32 +73,56 @@ function CommanderPicker({ deck, onSet }) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-5 border" style={{ borderColor: CREAM_FAINT }}>
         <div
-          className="md:col-span-2 p-6 border-r flex items-center justify-center"
+          className="md:col-span-2 p-6 md:border-r border-b md:border-b-0 flex items-center justify-center relative group"
           style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}
         >
-          <img
-            src={cardImageUrl(deck.commander, 'normal')}
-            alt={deck.commander.name}
-            className="w-48 md:w-56"
-            style={{ borderColor: CREAM_FAINT, borderWidth: 1 }}
-            onError={(e) => {
-              e.target.style.display = 'none';
-            }}
-          />
+          <button
+            type="button"
+            onClick={() => setShowPrintings(true)}
+            className="relative block"
+            title="Change art / printing"
+          >
+            <img
+              src={cardImageUrl(deck.commander, 'normal')}
+              alt={deck.commander.name}
+              className="w-56 sm:w-64 md:w-56"
+              style={{ borderColor: CREAM_FAINT, borderWidth: 1 }}
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
+            <span
+              className="absolute bottom-2 right-2 flex items-center gap-1 px-2 py-1 text-[9px] tracking-[0.2em] uppercase font-serif border md:opacity-0 md:group-hover:opacity-100 transition"
+              style={{ background: BG, borderColor: CREAM_FAINT, color: CREAM }}
+            >
+              <Images className="w-3 h-3" /> Art
+            </span>
+          </button>
         </div>
         <div className="md:col-span-3 p-6">
-          <div className="flex items-baseline justify-between mb-4">
+          <div className="flex items-baseline justify-between mb-4 gap-3">
             <div className="font-serif text-[10px] tracking-[0.4em] uppercase font-bold" style={{ color: CREAM_DIM }}>
               <Crown className="w-3 h-3 inline mr-2" style={{ verticalAlign: 'baseline' }} />
               Commander
             </div>
-            <button
-              onClick={() => onSet(null)}
-              className="font-serif text-[10px] tracking-[0.3em] uppercase"
-              style={{ color: CREAM_DIM }}
-            >
-              Change →
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowPrintings(true)}
+                className="font-serif text-[10px] tracking-[0.3em] uppercase hover:opacity-100 flex items-center gap-1.5"
+                style={{ color: CREAM_DIM }}
+                title="Pick a different printing"
+              >
+                <Images className="w-3 h-3" /> Art
+              </button>
+              <span style={{ opacity: 0.4, color: CREAM_DIM }}>·</span>
+              <button
+                onClick={() => onSet(null)}
+                className="font-serif text-[10px] tracking-[0.3em] uppercase hover:opacity-100"
+                style={{ color: CREAM_DIM }}
+              >
+                Change →
+              </button>
+            </div>
           </div>
           <h2
             className="font-serif font-black uppercase leading-[0.95] tracking-tight"
@@ -128,7 +153,22 @@ function CommanderPicker({ deck, onSet }) {
                 : `Loyalty ${deck.commander.loyalty}`}
             </div>
           )}
+          {deck.commander.set_name && (
+            <div className="font-mono text-[10px] mt-3 tracking-wider" style={{ color: CREAM_DIM }}>
+              {deck.commander.set?.toUpperCase()} · {deck.commander.set_name} · #{deck.commander.collector_number}
+            </div>
+          )}
         </div>
+        {showPrintings && (
+          <PrintingPickerModal
+            card={deck.commander}
+            onClose={() => setShowPrintings(false)}
+            onPick={(p) => {
+              onSet(p);
+              setShowPrintings(false);
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -164,7 +204,7 @@ function CommanderPicker({ deck, onSet }) {
         )}
         {suggestions.length > 0 && !loading && (
           <div
-            className="absolute top-full left-6 right-6 border z-20 mt-px"
+            className="absolute top-full left-6 right-6 border z-40 mt-px"
             style={{ background: BG, borderColor: CREAM_FAINT }}
           >
             {suggestions.map((s, i) => (
@@ -299,10 +339,11 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, otherDecks = [
         </div>
       </nav>
 
-      {/* Action row — icon-only on mobile, icon+label on desktop. Wraps
-          to a second line on narrow desktop widths thanks to flex-wrap. */}
+      {/* Action row — icon-only on mobile (wraps, no horizontal scroll),
+          icon+label on desktop. Removing overflow-x-auto means every
+          button stays reachable on narrow screens without swipe-scroll. */}
       <div
-        className="flex items-center flex-wrap gap-x-4 md:gap-x-5 gap-y-2 border-b px-4 md:px-5 py-2.5 font-serif text-[11px] tracking-[0.3em] uppercase overflow-x-auto"
+        className="flex items-center flex-wrap gap-x-5 md:gap-x-5 gap-y-3 md:gap-y-2 border-b px-4 md:px-5 py-3 md:py-2.5 font-serif text-[11px] tracking-[0.3em] uppercase"
         style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
       >
         <ActionButton
@@ -361,29 +402,39 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, otherDecks = [
         <CommanderPicker deck={deck} onSet={setCommander} />
       </div>
 
+      {/* Tab bar — horizontally scrolls on mobile so all 7 tabs are
+          reachable without leaving an empty grid cell or wrapping
+          awkwardly. Desktop keeps the original equal-width 7-col grid.
+          Sticky lives on the outer wrapper so horizontal overflow can
+          scroll while the bar stays pinned vertically. */}
       <div
-        className="grid grid-cols-4 md:grid-cols-7 border-t border-l fade-up sticky top-0 z-30"
-        style={{ borderColor: CREAM_FAINT, animationDelay: '120ms', background: BG }}
+        className="sticky top-0 z-30 fade-up overflow-x-auto md:overflow-visible -mx-4 md:mx-0 px-4 md:px-0"
+        style={{ background: BG, animationDelay: '120ms' }}
       >
-        {tabs.map((t) => {
-          const Icon = t.icon;
-          const active = tab === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className="border-r border-b py-3 px-3 transition flex flex-col items-center gap-1.5"
-              style={{
-                borderColor: CREAM_FAINT,
-                background: active ? 'rgba(243,231,201,0.06)' : 'transparent',
-                color: active ? CREAM : CREAM_DIM,
-              }}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span className="font-serif text-[10px] tracking-[0.25em] uppercase font-bold">{t.label}</span>
-            </button>
-          );
-        })}
+        <div
+          className="flex md:grid md:grid-cols-7 border-t border-l min-w-max md:min-w-0"
+          style={{ borderColor: CREAM_FAINT }}
+        >
+          {tabs.map((t) => {
+            const Icon = t.icon;
+            const active = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className="border-r border-b py-3 px-4 md:px-3 transition flex flex-col items-center gap-1.5 shrink-0 min-w-[72px]"
+                style={{
+                  borderColor: CREAM_FAINT,
+                  background: active ? 'rgba(243,231,201,0.06)' : 'transparent',
+                  color: active ? CREAM : CREAM_DIM,
+                }}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span className="font-serif text-[10px] tracking-[0.25em] uppercase font-bold">{t.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="py-8 fade-up" style={{ animationDelay: '180ms' }}>
