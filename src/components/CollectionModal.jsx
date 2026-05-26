@@ -107,14 +107,14 @@ export function CollectionModal({ onClose, signedIn }) {
         <div className="px-5 py-4 border-b flex items-baseline justify-between" style={{ borderColor: CREAM_FAINT }}>
           <div>
             <div className="font-serif text-[10px] tracking-[0.3em] uppercase font-bold flex items-center gap-2" style={{ color: CREAM_DIM }}>
-              <Library className="w-3 h-3" /> Your collection
+              <Library className="w-3 h-3" /> Your Vault
             </div>
             <div className="font-serif text-lg font-black uppercase mt-1" style={{ color: CREAM }}>
               {collection ? `${uniqueCount(collection)} unique · ${totalCount(collection)} total` : '—'}
             </div>
             {!signedIn && (
               <div className="font-serif text-xs italic mt-1" style={{ color: CREAM_DIM }}>
-                Local-only. Sign in to sync your collection across devices.
+                Local-only. Sign in to sync your Vault across devices.
               </div>
             )}
           </div>

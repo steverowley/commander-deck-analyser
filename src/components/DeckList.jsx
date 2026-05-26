@@ -13,13 +13,15 @@ import { VersionChip } from './UI.jsx';
 import { ImportDeckModal, RandomDeckModal } from './Modals.jsx';
 import { GalleryView } from './GalleryView.jsx';
 import { RandomRollsView } from './RandomRollsView.jsx';
-import { loadCollection } from '../lib/collection.js';
+import { loadCollection, addToCollection } from '../lib/collection.js';
+import { ScryfallSearchPanel, SCRYFALL_DRAG_MIME } from './ScryfallSearchPanel.jsx';
 
 export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup, onSettings, onProfile, onCollection, user, cloudEnabled, onSignIn, onSignOut, onImportFromGallery, onViewGalleryDeck, onRandomBuild }) {
   const [name, setName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showImport, setShowImport] = useState(false);
   const [showRandom, setShowRandom] = useState(false);
+  const [showScryfall, setShowScryfall] = useState(false);
   const [collection, setCollection] = useState(null);
 
   useEffect(() => {
@@ -89,14 +91,19 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
         {/* Mobile */}
         <div className="md:hidden">
           <div className="flex items-start justify-between p-5">
-            <div>
+            <button
+              type="button"
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              className="text-left hover:opacity-80 transition"
+              title="Vault — home"
+            >
               <div className="font-serif text-3xl font-black leading-[0.9] tracking-wider" style={{ color: CREAM }}>
                 VAULT
               </div>
               <div className="font-serif text-[10px] tracking-[0.35em] uppercase mt-1.5" style={{ color: CREAM_DIM }}>
                 Deck · Builder
               </div>
-            </div>
+            </button>
             <VersionChip version={__APP_VERSION__} align="right" />
           </div>
           <div
@@ -137,14 +144,20 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
 
         {/* Desktop */}
         <div className="hidden md:grid md:grid-cols-5">
-          <div className="p-5 border-r" style={{ borderColor: CREAM_FAINT }}>
+          <button
+            type="button"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="p-5 border-r text-left hover:opacity-80 transition"
+            style={{ borderColor: CREAM_FAINT }}
+            title="Vault — home"
+          >
             <div className="font-serif text-3xl font-black leading-[0.9] tracking-wider" style={{ color: CREAM }}>
               VAULT
             </div>
             <div className="font-serif text-[10px] tracking-[0.35em] uppercase mt-1.5" style={{ color: CREAM_DIM }}>
               Deck · Builder
             </div>
-          </div>
+          </button>
           <div
             className="flex items-center px-5 border-r text-[11px] tracking-[0.3em] uppercase font-serif"
             style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
@@ -551,6 +564,28 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
       </div>
       )}
 
+      <VaultSection
+        collection={collection || {}}
+        onOpen={onCollection}
+        onSearch={() => setShowScryfall(true)}
+        onAddCard={async (card) => {
+          await addToCollection(card.name, 1);
+          loadCollection().then(setCollection);
+        }}
+      />
+
+      {showScryfall && (
+        <ScryfallSearchPanel
+          open={showScryfall}
+          onClose={() => setShowScryfall(false)}
+          addLabel="Add to Vault"
+          onAdd={async (card) => {
+            await addToCollection(card.name, 1);
+            loadCollection().then(setCollection);
+          }}
+        />
+      )}
+
       {cloudEnabled && <RandomRollsView onImportFromGallery={onImportFromGallery} onViewDeck={onViewGalleryDeck} />}
       {cloudEnabled && <GalleryView onImportFromGallery={onImportFromGallery} onViewDeck={onViewGalleryDeck} />}
 
@@ -589,7 +624,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
             <>
               <span style={{ opacity: 0.4 }}>·</span>
               <button onClick={onCollection} className="hover:opacity-100 transition" style={{ color: CREAM_DIM }}>
-                Collection
+                Vault
               </button>
             </>
           )}
@@ -895,6 +930,103 @@ function EmptyArchive({ onCreate, onImport }) {
         >
           or import an existing list →
         </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Vault section on the landing page. Summarises the user's owned-
+ * card inventory, opens the search panel, and acts as a drop zone
+ * for the Scryfall drag-and-drop flow. Full management still lives
+ * in the CollectionModal opened via 'Manage Vault →'.
+ */
+function VaultSection({ collection, onOpen, onSearch, onAddCard }) {
+  const [dragOver, setDragOver] = useState(false);
+  const entries = Object.values(collection || {});
+  const unique = entries.length;
+  const total = entries.reduce((s, e) => s + (e.quantity || 0), 0);
+  const recent = entries
+    .slice()
+    .sort((a, b) => (b.added_at || 0) - (a.added_at || 0))
+    .slice(0, 8);
+
+  const handleDragOver = (e) => {
+    if (Array.from(e.dataTransfer.types).includes(SCRYFALL_DRAG_MIME)) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      setDragOver(true);
+    }
+  };
+  const handleDragLeave = () => setDragOver(false);
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    try {
+      const raw = e.dataTransfer.getData(SCRYFALL_DRAG_MIME);
+      if (!raw) return;
+      const payload = JSON.parse(raw);
+      if (payload?.kind === 'vault:card' && payload.card?.scryfall) {
+        onAddCard?.(payload.card.scryfall);
+      }
+    } catch {}
+  };
+
+  return (
+    <div className="mt-12 fade-up" style={{ animationDelay: '260ms' }}>
+      <div className="flex items-baseline gap-4 mb-3">
+        <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
+          Your Vault
+        </div>
+        <div className="flex-1 border-t" style={{ borderColor: CREAM_FAINT }} />
+        <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+          {pad(unique)} unique · {pad(total)} total
+        </div>
+      </div>
+      <div
+        className="border p-5 flex flex-col md:flex-row gap-4 md:items-center transition-all"
+        style={{
+          borderColor: dragOver ? CREAM : CREAM_FAINT,
+          background: dragOver ? 'rgba(243,231,201,0.08)' : 'rgba(243,231,201,0.02)',
+          borderStyle: dragOver ? 'dashed' : 'solid',
+        }}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        <div className="flex-1 min-w-0">
+          <p className="font-serif text-sm italic" style={{ color: CREAM_DIM }}>
+            {dragOver
+              ? 'Drop to add this card to your Vault.'
+              : (unique === 0
+                  ? 'Cards you actually own. Search Scryfall and drag a card here, scan with the webcam, or paste a list. The deck roller can then build only from cards you own.'
+                  : 'Cards you actually own. Drag in more from Scryfall or open Manage Vault to scan / paste / edit.')}
+          </p>
+          {recent.length > 0 && (
+            <div className="font-mono text-[10px] mt-3 truncate" style={{ color: CREAM_DIM }}>
+              Recently added: <span style={{ color: CREAM }}>{recent.map((e) => e.name).join(', ')}</span>
+            </div>
+          )}
+        </div>
+        <div className="flex gap-2 shrink-0 self-start md:self-auto">
+          {onSearch && (
+            <button
+              onClick={onSearch}
+              className="font-serif text-[10px] tracking-[0.3em] uppercase border px-4 py-2"
+              style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
+              title="Search Scryfall — drag results to add"
+            >
+              Search →
+            </button>
+          )}
+          <button
+            onClick={onOpen}
+            className="font-serif text-[10px] tracking-[0.3em] uppercase border px-4 py-2"
+            style={{ borderColor: CREAM, color: CREAM, background: 'rgba(243,231,201,0.06)' }}
+          >
+            Manage Vault →
+          </button>
+        </div>
       </div>
     </div>
   );

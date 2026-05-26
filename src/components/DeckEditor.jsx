@@ -410,9 +410,15 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, onSaveTransien
                   <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 transition shrink-0" style={{ color: CREAM_DIM }} />
                 </button>
               )}
-              <div className="font-serif text-[10px] tracking-[0.3em] uppercase mt-1" style={{ color: CREAM_DIM }}>
+              <button
+                type="button"
+                onClick={onBack}
+                className="font-serif text-[10px] tracking-[0.3em] uppercase mt-1 hover:opacity-100 transition"
+                style={{ color: CREAM_DIM }}
+                title="Back to Vault home"
+              >
                 Vault · Deck
-              </div>
+              </button>
             </div>
           </div>
           <div
