@@ -3,7 +3,7 @@ import { Loader2 } from 'lucide-react';
 import { CREAM, CREAM_DIM, BG } from './theme.js';
 import { loadDecks, saveDeck, deleteDeck, readLocalDecks, clearLocalDecks } from './lib/storage.js';
 import { uploadLocalDecks } from './lib/storage-supabase.js';
-import { useAuthState, isCloudEnabled, signOut } from './lib/supabase.js';
+import { useAuthState, isCloudEnabled, signOut, consumeOAuthParams } from './lib/supabase.js';
 import { loadCardCache, fetchCardsByName } from './lib/scryfall.js';
 import { duplicateDeck, addCardsToDeck } from './lib/deckops.js';
 import { decodeDeckUrl } from './lib/share.js';
@@ -30,6 +30,7 @@ export default function App() {
   // decks present, we kick off an auto-upload.
   const [migrating, setMigrating] = useState(false);
   const [migrationMessage, setMigrationMessage] = useState(null);
+  const [authError, setAuthError] = useState(null);
 
   const auth = useAuthState();
 
@@ -51,9 +52,24 @@ export default function App() {
 
   useEffect(() => {
     loadCardCache();
+
+    // OAuth params: shared-deck URL share uses `#d=...`; Supabase magic-link
+    // / Google OAuth use `?code=...&state=...` or `?error=...`. Check the
+    // deck-share hash FIRST so it isn't swallowed by the cleanup.
     if (typeof window !== 'undefined' && window.location.hash) {
       const decoded = decodeDeckUrl(window.location.hash);
       if (decoded && decoded.cards.length > 0) setPendingShare(decoded);
+    }
+    // Then surface any OAuth error and queue URL cleanup.
+    const err = consumeOAuthParams();
+    if (err) {
+      // Friendlier text — Supabase's raw "flow_state_already_used" doesn't
+      // help non-technical users.
+      const friendly = /flow_state_already_used|state.*already/i.test(err)
+        ? 'Sign-in link was already used. Try again — opening a fresh tab usually fixes it.'
+        : err;
+      setAuthError(friendly);
+      setTimeout(() => setAuthError(null), 10000);
     }
   }, []);
 
@@ -226,6 +242,9 @@ export default function App() {
       {migrationMessage && (
         <MigrationBanner message={migrationMessage} busy={migrating} />
       )}
+      {authError && (
+        <AuthErrorBanner message={authError} onDismiss={() => setAuthError(null)} />
+      )}
       <ErrorBoundary label="Vault hit an unexpected error">
         {activeDeck ? (
           <DeckEditor
@@ -329,6 +348,25 @@ function MigrationBanner({ message, busy }) {
       <div className="max-w-6xl mx-auto px-4 md:px-8 py-3 flex items-center gap-3">
         {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: CREAM_DIM }} />}
         <div className="font-mono text-xs" style={{ color: CREAM }}>{message}</div>
+      </div>
+    </div>
+  );
+}
+
+function AuthErrorBanner({ message, onDismiss }) {
+  return (
+    <div
+      className="fixed inset-x-0 top-0 z-40 border-b"
+      style={{ borderColor: 'rgba(196,74,63,0.6)', background: 'rgba(13,22,20,0.95)', backdropFilter: 'blur(6px)' }}
+    >
+      <div className="max-w-6xl mx-auto px-4 md:px-8 py-3 flex items-center gap-3">
+        <div className="font-serif text-[10px] tracking-[0.3em] uppercase shrink-0" style={{ color: '#c44a3f' }}>
+          Sign-in error
+        </div>
+        <div className="font-mono text-xs flex-1" style={{ color: CREAM }}>{message}</div>
+        <button onClick={onDismiss} className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+          Dismiss
+        </button>
       </div>
     </div>
   );
