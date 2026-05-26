@@ -5,6 +5,7 @@ import { pad, parseDecklist, lc } from '../lib/utils.js';
 import { fetchCardsByName, fetchCardByExactName, refreshCachedCards, fetchPrintings, fetchRandomCommander, cardImageUrl } from '../lib/scryfall.js';
 import { buildSeededDeck } from '../lib/autoseed.js';
 import { ARCHETYPES } from '../lib/archetypes.js';
+import { loadCollection, uniqueCount } from '../lib/collection.js';
 import { exportDecklist } from '../lib/deckops.js';
 import { buildShareUrl } from '../lib/share.js';
 import { deckTotalPrice, formatPrice, isConverted } from '../lib/pricing.js';
@@ -1577,11 +1578,18 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
   // Defaults on when the user is signed in (canShare=true); local-only
   // users can't push to the gallery so the toggle is hidden for them.
   const [shareRoll, setShareRoll] = useState(true);
+  const [ownedOnly, setOwnedOnly] = useState(false);
+  const [collection, setCollection] = useState(null);
   const [commander, setCommander] = useState(null);
   const [rolling, setRolling] = useState(false);
   const [building, setBuilding] = useState(false);
   const [progress, setProgress] = useState('');
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    loadCollection().then(setCollection);
+  }, []);
+  const collectionSize = collection ? uniqueCount(collection) : 0;
 
   const budget = BUDGET_PRESETS.find((b) => b.id === budgetId)?.value ?? null;
   const archetype = ARCHETYPES.find((a) => a.id === archetypeId) || ARCHETYPES[0];
@@ -1620,6 +1628,8 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
         budget,
         currency,
         archetype: archetypeId,
+        ownedOnly,
+        collection,
       };
       const { cards, missing, summary } = await buildSeededDeck(commander, opts, setProgress);
       const breakdown = summary
@@ -1884,6 +1894,26 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {collectionSize > 0 && (
+            <div className="flex items-center gap-3 border-t pt-4" style={{ borderColor: CREAM_FAINT }}>
+              <button
+                onClick={() => setOwnedOnly((v) => !v)}
+                className="w-9 h-5 border flex items-center transition"
+                style={{
+                  borderColor: CREAM_FAINT,
+                  background: ownedOnly ? 'rgba(243,231,201,0.15)' : 'transparent',
+                  justifyContent: ownedOnly ? 'flex-end' : 'flex-start',
+                }}
+                aria-pressed={ownedOnly}
+              >
+                <span className="block w-3 h-3 mx-0.5" style={{ background: ownedOnly ? CREAM : CREAM_DIM }} />
+              </button>
+              <span className="font-serif text-xs" style={{ color: CREAM_DIM }}>
+                Only use cards I own <span style={{ color: CREAM_DIM, opacity: 0.7 }}>({collectionSize} in collection — basics still padded as needed)</span>
+              </span>
             </div>
           )}
 

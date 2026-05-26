@@ -87,10 +87,13 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
   if (!commander?.name) {
     return { commander: null, cards: [], missing: ['no commander'], summary: null };
   }
-  // opts: { bracket?: 1..5, budget?: number, currency?: 'usd'|'eur'|'gbp', archetype?: id }
+  // opts: { bracket?: 1..5, budget?: number, currency?: 'usd'|'eur'|'gbp',
+  //         archetype?: id, ownedOnly?: bool, collection?: { 'name': {...} } }
   const bracket = opts.bracket ?? 3;
   const archetype = archetypeById(opts.archetype);
-  const filterActive = bracket <= 3 || opts.budget != null || (archetype && archetype.id !== 'any');
+  const ownedOnly = !!opts.ownedOnly;
+  const collection = opts.collection || null;
+  const filterActive = bracket <= 3 || opts.budget != null || (archetype && archetype.id !== 'any') || ownedOnly;
   const poolSize = filterActive ? POOL_SIZE_FILTERED : POOL_SIZE;
   // Per-card price cap derived from total budget. Rough heuristic:
   // ~12% of budget for the single most expensive card lets a few
@@ -144,6 +147,16 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
     pool = pool.filter((c) => {
       const p = cardPrice(c, currency);
       return p == null || p <= maxPerCard;
+    });
+  }
+
+  // Collection-aware build — when ownedOnly is true, drop every
+  // non-basic card the user doesn't have in their collection. Basics
+  // pass through unconditionally since we may pad them in below.
+  if (ownedOnly && collection) {
+    pool = pool.filter((c) => {
+      if (/^Basic Land/i.test(c.type_line || '')) return true;
+      return !!collection[lc(c.name)];
     });
   }
 

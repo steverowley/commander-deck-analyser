@@ -15,6 +15,7 @@ import { OfflineIndicator } from './components/OfflineIndicator.jsx';
 import { AuthModal } from './components/AuthModal.jsx';
 import { ProfileModal } from './components/ProfileModal.jsx';
 import { BackupModal, SettingsModal } from './components/Modals.jsx';
+import { CollectionModal } from './components/CollectionModal.jsx';
 import { loadProfile } from './lib/profile.js';
 
 export default function App() {
@@ -32,6 +33,7 @@ export default function App() {
   const [showBackup, setShowBackup] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
+  const [showCollection, setShowCollection] = useState(false);
   // Migration state — when a user signs in for the first time with local
   // decks present, we kick off an auto-upload.
   const [migrating, setMigrating] = useState(false);
@@ -302,6 +304,7 @@ export default function App() {
             onBackup={() => setShowBackup(true)}
             onSettings={() => setShowSettings(true)}
             onProfile={() => setProfileMode('edit')}
+            onCollection={() => setShowCollection(true)}
             user={auth.user}
             cloudEnabled={isCloudEnabled()}
             onSignIn={() => setShowAuth(true)}
@@ -339,6 +342,9 @@ export default function App() {
         />
       )}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      {showCollection && (
+        <CollectionModal onClose={() => setShowCollection(false)} signedIn={!!auth.user} />
+      )}
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       {profileMode && auth.user && (
         <ProfileModal

@@ -202,6 +202,40 @@ describe('buildSeededDeck', () => {
     expect(cards.some((c) => c.name === 'Token Maker')).toBe(true);
   });
 
+  it('ownedOnly restricts the pool to cards present in the collection', async () => {
+    // Build a big EDHREC pool but mark only a subset as owned. Every
+    // non-basic card in the resulting deck must come from the owned
+    // set; missing slots get padded with basics (which the filter
+    // explicitly allows).
+    const pool = [
+      ...Array.from({ length: 60 }, (_, i) => makeRamp(i)),
+      ...Array.from({ length: 60 }, (_, i) => makeDraw(i)),
+      ...Array.from({ length: 60 }, (_, i) => makeRemoval(i)),
+      ...Array.from({ length: 100 }, (_, i) => makeCreature(i)),
+    ];
+    // Own about 80 of the pool — enough to fill the priority buckets
+    // and most of the strategy slots but not the whole deck.
+    const collection = {};
+    const ownedNames = new Set();
+    for (let i = 0; i < 20; i++) { collection[`ramp ${i}`] = { name: `Ramp ${i}`, quantity: 1 }; ownedNames.add(`Ramp ${i}`); }
+    for (let i = 0; i < 20; i++) { collection[`draw ${i}`] = { name: `Draw ${i}`, quantity: 1 }; ownedNames.add(`Draw ${i}`); }
+    for (let i = 0; i < 20; i++) { collection[`removal ${i}`] = { name: `Removal ${i}`, quantity: 1 }; ownedNames.add(`Removal ${i}`); }
+    for (let i = 0; i < 50; i++) { collection[`creature ${i}`] = { name: `Creature ${i}`, quantity: 1 }; ownedNames.add(`Creature ${i}`); }
+    fetchRecommendations.mockResolvedValue(pool.map((c) => ({ name: c.name })));
+    fetchCardsByName.mockResolvedValue({ results: buildResults(pool), notFound: [], errors: [] });
+
+    const commander = { name: 'Owned Cmdr', color_identity: ['R'] };
+    const { cards } = await buildSeededDeck(commander, { ownedOnly: true, collection });
+
+    const basics = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Wastes']);
+    for (const c of cards) {
+      if (basics.has(c.name)) continue;
+      // Non-basic cards must be in the owned set.
+      expect(ownedNames.has(c.name)).toBe(true);
+    }
+    expect(totalCount(cards)).toBe(99);
+  });
+
   it('uses Wastes for a colorless commander when padding basics', async () => {
     const pool = [
       ...Array.from({ length: 3 }, (_, i) => makeLand(i)),

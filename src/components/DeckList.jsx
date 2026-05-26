@@ -14,7 +14,7 @@ import { ImportDeckModal, RandomDeckModal } from './Modals.jsx';
 import { GalleryView } from './GalleryView.jsx';
 import { RandomRollsView } from './RandomRollsView.jsx';
 
-export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup, onSettings, onProfile, user, cloudEnabled, onSignIn, onSignOut, onImportFromGallery, onViewGalleryDeck, onRandomBuild }) {
+export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup, onSettings, onProfile, onCollection, user, cloudEnabled, onSignIn, onSignOut, onImportFromGallery, onViewGalleryDeck, onRandomBuild }) {
   const [name, setName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showImport, setShowImport] = useState(false);
@@ -576,6 +576,14 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
               <span style={{ opacity: 0.4 }}>·</span>
               <button onClick={onProfile} className="hover:opacity-100 transition" style={{ color: CREAM_DIM }}>
                 Profile
+              </button>
+            </>
+          )}
+          {onCollection && (
+            <>
+              <span style={{ opacity: 0.4 }}>·</span>
+              <button onClick={onCollection} className="hover:opacity-100 transition" style={{ color: CREAM_DIM }}>
+                Collection
               </button>
             </>
           )}
