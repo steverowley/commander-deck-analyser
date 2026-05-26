@@ -23,7 +23,24 @@ const COLOR_TO_BASIC = {
   G: 'Forest',
 };
 
-const TARGET_LANDS = 37;
+// Curve-aware land target. Mid-range default (avg CMC 3.0-3.5 needs ~37
+// lands); higher curves get bumped, lower curves trimmed. Source rationale
+// in lib/health.js#recommendByCurve.
+import { recommendByCurve } from './health.js';
+
+function targetLandsFor(deck) {
+  const nonLand = deck.cards
+    .filter((c) => c.scryfall && !c.scryfall.type_line?.includes('Land'))
+    .reduce((s, c) => s + c.count, 0);
+  const totalCmc = deck.cards
+    .filter((c) => c.scryfall && !c.scryfall.type_line?.includes('Land'))
+    .reduce((s, c) => s + (c.scryfall.cmc || 0) * c.count, 0);
+  const avgCmc = nonLand > 0 ? totalCmc / nonLand : 3;
+  // Pick the upper end of the ideal range — overshoot a little to leave
+  // headroom for utility lands that don't always tap for the colour you
+  // need.
+  return recommendByCurve(avgCmc).land.ideal[1];
+}
 
 function utilityReserve(colorCount) {
   if (colorCount <= 1) return 2;
@@ -82,9 +99,12 @@ export function analyzeLandBase(deck) {
 
   const pips = pipDistribution(deck);
 
+  // Curve-aware land target — higher CMC decks need more lands.
+  const target = targetLandsFor(deck);
+
   // Recommended basic counts proportional to colored pips.
   const utility = utilityReserve(colorCount);
-  const basicSlots = Math.max(0, TARGET_LANDS - utility);
+  const basicSlots = Math.max(0, target - utility);
   const recBasics = {};
   if (pips.total === 0 && colorCount > 0) {
     // No pips computed yet but we know the identity — even split.
@@ -136,7 +156,7 @@ export function analyzeLandBase(deck) {
     currentLands,
     currentBasics,
     currentNonbasicLands,
-    targetLands: TARGET_LANDS,
+    targetLands: target,
     utilityReserved: utility,
     pipDistribution: pips,
     recommendedBasics: recBasics,

@@ -232,7 +232,10 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, otherDecks = [
 
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-8">
-      <nav className="grid grid-cols-2 md:grid-cols-5 border-b mt-6" style={{ borderColor: CREAM_FAINT }}>
+      {/* Two-row header: status nav up top, action buttons in a dedicated
+          flex-wrap row underneath so they have full width to breathe and
+          can reflow on narrower screens without overlapping. */}
+      <nav className="grid grid-cols-2 md:grid-cols-3 border-b mt-6" style={{ borderColor: CREAM_FAINT }}>
         <div className="p-5 md:border-r flex items-center gap-3 min-w-0" style={{ borderColor: CREAM_FAINT }}>
           <button onClick={onBack} className="hover:opacity-100 transition shrink-0" style={{ color: CREAM_DIM }}>
             <ChevronLeft className="w-4 h-4" />
@@ -283,78 +286,80 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, otherDecks = [
           </span>
         </div>
         <div
-          className="hidden md:flex items-center px-5 border-r font-serif text-[11px] tracking-[0.3em] uppercase"
-          style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
+          className="hidden md:flex items-center px-5 font-serif text-[11px] tracking-[0.3em] uppercase"
+          style={{ color: CREAM_DIM }}
         >
           Commander ·{' '}
           <span className="ml-1" style={{ color: deck.commander ? CREAM : ACCENT }}>
             {deck.commander ? 'set' : 'null'}
           </span>
         </div>
-        <div
-          className="hidden md:flex items-center px-5 border-r font-serif text-[11px] tracking-[0.3em] uppercase gap-4"
-          style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
+      </nav>
+
+      {/* Action row — dedicated horizontal strip below the nav. flex-wrap
+          handles 5+ buttons reflowing on narrow viewports. */}
+      <div
+        className="hidden md:flex items-center flex-wrap gap-x-5 gap-y-2 border-b px-5 py-2.5 font-serif text-[11px] tracking-[0.3em] uppercase"
+        style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
+      >
+        <button
+          onClick={() => setShowNotes(true)}
+          className="flex items-center hover:opacity-100"
+          title="Deck notes / scratchpad"
+          style={{ color: deck.notes ? CREAM : CREAM_DIM }}
         >
+          <FileText className="w-3 h-3 mr-1.5" /> Notes{deck.notes ? ' ·' : ''}
+        </button>
+        <button
+          onClick={() => setShowShare(true)}
+          className="flex items-center hover:opacity-100"
+          title="Share via link"
+        >
+          <LinkIcon className="w-3 h-3 mr-1.5" /> Share
+        </button>
+        <button
+          onClick={() => onUpdate(setDeckPublic(deck, !deck.is_public))}
+          className="flex items-center hover:opacity-100"
+          title={deck.is_public ? 'This deck is in the public gallery. Click to unlist.' : 'Click to add this deck to the public gallery.'}
+          style={{ color: deck.is_public ? '#a3c98a' : CREAM_DIM }}
+        >
+          <Globe className="w-3 h-3 mr-1.5" /> {deck.is_public ? 'Public' : 'Private'}
+        </button>
+        {(otherDecks.length > 0 || deck.commander) && (
           <button
-            onClick={() => setShowNotes(true)}
+            onClick={() => setShowCompare(true)}
             className="flex items-center hover:opacity-100"
-            title="Deck notes / scratchpad"
-            style={{ color: deck.notes ? CREAM : CREAM_DIM }}
+            title="Compare with another deck or the EDHREC average"
           >
-            <FileText className="w-3 h-3 mr-1.5" /> Notes{deck.notes ? ' ·' : ''}
+            <GitCompare className="w-3 h-3 mr-1.5" /> Compare
           </button>
+        )}
+        <button
+          onClick={() => setShowExport(true)}
+          className="flex items-center hover:opacity-100"
+          title="Export decklist"
+        >
+          <Download className="w-3 h-3 mr-1.5" /> Export
+        </button>
+        {onDuplicate && (
           <button
-            onClick={() => setShowShare(true)}
+            onClick={onDuplicate}
             className="flex items-center hover:opacity-100"
-            title="Share via link"
+            title="Duplicate deck"
           >
-            <LinkIcon className="w-3 h-3 mr-1.5" /> Share
+            <Copy className="w-3 h-3 mr-1.5" /> Dupe
           </button>
-          {/* Public toggle — only meaningful when signed in (cloud backend
-              owns the is_public column). Toggle is visible regardless so
-              local-only users can see the option exists. */}
-          <button
-            onClick={() => onUpdate(setDeckPublic(deck, !deck.is_public))}
-            className="flex items-center hover:opacity-100"
-            title={deck.is_public ? 'This deck is in the public gallery. Click to unlist.' : 'Click to add this deck to the public gallery.'}
-            style={{ color: deck.is_public ? '#a3c98a' : CREAM_DIM }}
-          >
-            <Globe className="w-3 h-3 mr-1.5" /> {deck.is_public ? 'Public' : 'Private'}
-          </button>
-          {(otherDecks.length > 0 || deck.commander) && (
-            <button
-              onClick={() => setShowCompare(true)}
-              className="flex items-center hover:opacity-100"
-              title="Compare with another deck or the EDHREC average"
-            >
-              <GitCompare className="w-3 h-3 mr-1.5" /> Compare
-            </button>
-          )}
-          <button
-            onClick={() => setShowExport(true)}
-            className="flex items-center hover:opacity-100"
-            title="Export decklist"
-          >
-            <Download className="w-3 h-3 mr-1.5" /> Export
-          </button>
-          {onDuplicate && (
-            <button
-              onClick={onDuplicate}
-              className="flex items-center hover:opacity-100"
-              title="Duplicate deck"
-            >
-              <Copy className="w-3 h-3 mr-1.5" /> Dupe
-            </button>
-          )}
-        </div>
+        )}
+        {/* Spacer pushes Rules to the right edge */}
+        <span className="flex-1" />
         <button
           onClick={() => setShowRules(true)}
-          className="hidden md:flex items-center justify-end px-5 font-serif text-[11px] tracking-[0.3em] uppercase hover:opacity-100"
-          style={{ color: CREAM_DIM }}
+          className="flex items-center hover:opacity-100"
+          title="Commander rules reference"
         >
-          <BookOpen className="w-3 h-3 mr-2" /> Rules
+          <BookOpen className="w-3 h-3 mr-1.5" /> Rules
         </button>
-      </nav>
+      </div>
 
       <div className="my-8 fade-up">
         <CommanderPicker deck={deck} onSet={setCommander} />

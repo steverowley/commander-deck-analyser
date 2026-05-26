@@ -104,13 +104,18 @@ export async function deleteDeck(id) {
 
 /**
  * Public gallery — recent public decks across all users, with the
- * owner's username joined in.
+ * owner's username joined in client-side.
+ *
+ * Two-query design: PostgREST can't auto-join decks → profiles because
+ * there's no direct FK (both tables reference auth.users, not each
+ * other). Fetching profiles separately + mapping by owner_id is
+ * cheaper than adding an explicit FK column.
  */
 export async function loadPublicDecks(limit = 24) {
   if (!supabase) return [];
-  const { data, error } = await supabase
+  const { data: decks, error } = await supabase
     .from('decks')
-    .select('id, name, commander_name, data, updated_at, owner_id, profiles:profiles!decks_owner_id_fkey(username)')
+    .select('id, name, commander_name, is_public, data, updated_at, owner_id')
     .eq('is_public', true)
     .order('updated_at', { ascending: false })
     .limit(limit);
@@ -118,9 +123,20 @@ export async function loadPublicDecks(limit = 24) {
     console.warn('Supabase loadPublicDecks failed', error);
     return [];
   }
-  return (data || []).map((row) => ({
+  if (!decks?.length) return [];
+
+  const ownerIds = [...new Set(decks.map((d) => d.owner_id))];
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('user_id, username')
+    .in('user_id', ownerIds);
+
+  const usernameByOwner = new Map();
+  for (const p of profiles || []) usernameByOwner.set(p.user_id, p.username);
+
+  return decks.map((row) => ({
     ...rowToDeck(row),
-    ownerUsername: row.profiles?.username || 'someone',
+    ownerUsername: usernameByOwner.get(row.owner_id) || 'someone',
   }));
 }
 
