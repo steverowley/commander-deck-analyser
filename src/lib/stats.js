@@ -18,7 +18,7 @@ import { computeHealth } from './health.js';
 import { classifyArchetype } from './strategy.js';
 import { deckTotalPrice } from './pricing.js';
 
-export function aggregateStats(decks) {
+export function aggregateStats(decks, currency = 'usd') {
   const result = {
     deckCount: decks.length,
     cardCount: 0,
@@ -26,6 +26,7 @@ export function aggregateStats(decks) {
     totalPriceUnpriced: 0,
     bracketHistogram: [0, 0, 0, 0, 0],
     colorHistogram: { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 },
+    identityHistogram: [], // [{ key: 'WBR', name: 'Mardu', colors: ['W','B','R'], count }]
     avgHealth: 0,
     archetypeHistogram: [],
     mostRecent: null,
@@ -35,13 +36,15 @@ export function aggregateStats(decks) {
   let healthSum = 0;
   let healthCount = 0;
   const archetypeCounts = new Map();
+  const identityCounts = new Map(); // key → { name, colors, count }
   let recent = null;
 
   for (const d of decks) {
     result.cardCount += d.cards.reduce((s, c) => s + c.count, 0);
 
-    // Price
-    const price = deckTotalPrice(d);
+    // Price — honour the active currency setting so the dashboard total
+    // matches what each archive deck-card shows.
+    const price = deckTotalPrice(d, currency);
     result.totalPrice += price.total;
     result.totalPriceUnpriced += price.unpriced;
 
@@ -69,6 +72,17 @@ export function aggregateStats(decks) {
       if (c in result.colorHistogram) result.colorHistogram[c]++;
     }
 
+    // Identity-combo histogram: group decks by their commander's full
+    // colour identity. Mono-W, Azorius, Esper, Mardu etc. all bucket
+    // distinctly. Decks without a commander are skipped.
+    if (d.commander) {
+      const colors = id.filter((c) => ['W', 'U', 'B', 'R', 'G'].includes(c));
+      const key = colors.length === 0 ? 'C' : sortIdentity(colors).join('');
+      const existing = identityCounts.get(key);
+      if (existing) existing.count++;
+      else identityCounts.set(key, { key, name: identityName(colors), colors, count: 1 });
+    }
+
     if (!recent || (d.updated || 0) > (recent.updated || 0)) {
       recent = d;
     }
@@ -78,7 +92,40 @@ export function aggregateStats(decks) {
   result.archetypeHistogram = Array.from(archetypeCounts.entries())
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count);
+  result.identityHistogram = Array.from(identityCounts.values())
+    .sort((a, b) => b.count - a.count);
   result.mostRecent = recent;
 
   return result;
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Colour-identity → standard MTG combo names (Azorius, Mardu, Esper…)
+
+const WUBRG = ['W', 'U', 'B', 'R', 'G'];
+
+function sortIdentity(colors) {
+  return colors.slice().sort((a, b) => WUBRG.indexOf(a) - WUBRG.indexOf(b));
+}
+
+const COMBO_NAMES = {
+  '': 'Colorless',
+  // Mono
+  W: 'Mono-White', U: 'Mono-Blue', B: 'Mono-Black', R: 'Mono-Red', G: 'Mono-Green',
+  // Guilds (2-colour)
+  WU: 'Azorius', UB: 'Dimir', BR: 'Rakdos', RG: 'Gruul', WG: 'Selesnya',
+  WB: 'Orzhov', UR: 'Izzet', BG: 'Golgari', WR: 'Boros', UG: 'Simic',
+  // Shards (3-colour, contiguous)
+  GWU: 'Bant', WUB: 'Esper', UBR: 'Grixis', BRG: 'Jund', WRG: 'Naya',
+  // Wedges (3-colour, opposite + neighbours)
+  WBG: 'Abzan', WUR: 'Jeskai', UBG: 'Sultai', WBR: 'Mardu', URG: 'Temur',
+  // 4-colour
+  WUBR: 'Yore-Tiller', UBRG: 'Glint-Eye', WBRG: 'Dune-Brood', WURG: 'Ink-Treader', WUBG: 'Witch-Maw',
+  // 5-colour
+  WUBRG: 'Five-Color',
+};
+
+export function identityName(colors) {
+  const key = colors.length === 0 ? '' : sortIdentity(colors).join('');
+  return COMBO_NAMES[key] || `${colors.length}-Color`;
 }

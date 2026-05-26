@@ -1761,25 +1761,26 @@ export function RecommendationsTab({ deck, onUpdate }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-baseline md:justify-between gap-3">
-        <div>
-          <div className="font-serif text-sm italic" style={{ color: CREAM_DIM }}>
-            Based on EDHREC data for <span style={{ color: CREAM }}>{deck.commander.name}</span>. Recs are cards typical decks run; Cuts flags the weakest cards already in your list.
-          </div>
+      <div className="space-y-3">
+        <div className="font-serif text-sm italic" style={{ color: CREAM_DIM }}>
+          Based on EDHREC data for <span style={{ color: CREAM }}>{deck.commander.name}</span>. Recs are cards typical decks run; Cuts flags the weakest cards already in your list.
         </div>
-        <div className="flex gap-px border self-start flex-wrap" style={{ borderColor: CREAM_FAINT }}>
+        {/* Picker on its own row so the three options can't L-wrap into a
+            confused stack at narrow widths. */}
+        <div className="inline-flex border" style={{ borderColor: CREAM_FAINT }}>
           {[
             { id: 'synergy', label: 'Top Synergy' },
             { id: 'theme', label: 'By Theme' },
             { id: 'cuts', label: `Cuts${cuts.length ? ` · ${cuts.length}` : ''}` },
-          ].map((v) => (
+          ].map((v, i) => (
             <button
               key={v.id}
               onClick={() => setView(v.id)}
-              className="px-4 py-2 font-serif text-[10px] tracking-[0.3em] uppercase transition"
+              className="px-4 py-2 font-serif text-[10px] tracking-[0.25em] uppercase transition whitespace-nowrap"
               style={{
                 color: view === v.id ? CREAM : CREAM_DIM,
                 background: view === v.id ? 'rgba(243,231,201,0.06)' : 'transparent',
+                borderLeft: i > 0 ? `1px solid ${CREAM_FAINT}` : 'none',
               }}
             >
               {v.label}

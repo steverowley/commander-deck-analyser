@@ -7,6 +7,7 @@ import { renameDeck, setDeckNotes, setDeckPublic } from '../lib/deckops.js';
 import { CardsTab, PackagesTab, CurveTab, BracketTab, StagesTab, ProbabilitiesTab, RecommendationsTab } from './Tabs.jsx';
 import { RulesModal, ExportModal, ShareModal, CompareModal, NotesModal } from './Modals.jsx';
 import { ManaCost } from './ManaCost.jsx';
+import { InlineOracle } from './UI.jsx';
 import { ErrorBoundary } from './ErrorBoundary.jsx';
 
 // ───────────────────────────────────────────────────────────────────────────────
@@ -117,7 +118,7 @@ function CommanderPicker({ deck, onSet }) {
               className="font-serif text-sm mt-4 whitespace-pre-wrap leading-relaxed line-clamp-6"
               style={{ color: CREAM_DIM }}
             >
-              {deck.commander.oracle_text}
+              <InlineOracle text={deck.commander.oracle_text} />
             </div>
           )}
           {(deck.commander.power || deck.commander.loyalty) && (

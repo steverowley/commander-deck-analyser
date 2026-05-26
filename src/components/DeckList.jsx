@@ -131,20 +131,20 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
       {/* Hero */}
       <div className="text-center py-20 md:py-32 fade-up">
         <div className="text-[10px] md:text-[11px] tracking-[0.45em] uppercase mb-8 font-serif" style={{ color: CREAM_DIM }}>
-          Open Source · Auto-Tag Engine
+          For Commander · Open Source
         </div>
         <h1
           className="font-serif font-black uppercase leading-[0.92] tracking-tight"
           style={{ color: CREAM, fontSize: 'clamp(2.5rem, 7vw, 5rem)' }}
         >
-          A deck builder
+          Build sharper
           <br />
-          that remembers
+          Commander decks.
           <br />
-          every card.
+          Win more pods.
         </h1>
         <p className="max-w-xl mx-auto mt-10 font-serif text-base md:text-lg leading-relaxed" style={{ color: CREAM_DIM }}>
-          Auto-tagged synergy packages, bracket assessment, game-stage analysis, and hypergeometric probability — for the decks you actually play.
+          Every card auto-tagged. Every deck archetype-classified, bracket-scored, and playtested before you sleeve it. Recommends what to add, flags what to cut, simulates 1,000 openings so you know your odds.
         </p>
       </div>
 
@@ -475,10 +475,12 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
 }
 
 function ArchiveDashboard({ decks }) {
-  const stats = useMemo(() => aggregateStats(decks), [decks]);
+  const currency = loadSettings().currency || 'usd';
+  const stats = useMemo(() => aggregateStats(decks, currency), [decks, currency]);
   const maxBracket = Math.max(...stats.bracketHistogram, 1);
-  const totalColors = Object.values(stats.colorHistogram).reduce((s, n) => s + n, 0);
-  const priceLabel = stats.totalPriceUnpriced > 0 ? `~${formatPrice(stats.totalPrice)}` : formatPrice(stats.totalPrice);
+  const maxIdentity = Math.max(...stats.identityHistogram.map((x) => x.count), 1);
+  const approx = stats.totalPriceUnpriced > 0 || isConverted(currency) ? '~' : '';
+  const priceLabel = `${approx}${formatPrice(stats.totalPrice, currency)}`;
 
   return (
     <div className="mt-12 fade-up" style={{ animationDelay: '180ms' }}>
@@ -519,34 +521,41 @@ function ArchiveDashboard({ decks }) {
           </div>
         </div>
 
-        {/* Color usage */}
+        {/* Identity combos (Mardu, Esper, Mono-Black etc.) — actually
+            distinguishes a Mardu deck from an Esper deck instead of just
+            counting individual colours across the whole archive. */}
         <div className="border" style={{ borderColor: CREAM_FAINT }}>
           <div className="px-4 py-2 border-b font-serif text-[10px] tracking-[0.3em] uppercase" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
-            Colors played
+            Color identities
           </div>
           <div className="p-4 space-y-2">
-            {['W', 'U', 'B', 'R', 'G', 'C'].filter((c) => stats.colorHistogram[c] > 0).map((c) => {
-              const n = stats.colorHistogram[c];
-              const pct = totalColors > 0 ? (n / totalColors) * 100 : 0;
+            {stats.identityHistogram.length === 0 ? (
+              <div className="font-serif text-xs italic" style={{ color: CREAM_DIM }}>
+                Set commanders to populate this chart.
+              </div>
+            ) : stats.identityHistogram.map((item) => {
+              const pct = (item.count / maxIdentity) * 100;
               return (
-                <div key={c} className="grid grid-cols-12 gap-2 items-center">
-                  <div className="col-span-1 flex items-center" style={{ fontSize: '1rem' }}>
-                    <ManaSymbol sym={c} size="1em" />
+                <div key={item.key} className="grid grid-cols-12 gap-2 items-center">
+                  <div className="col-span-4 flex items-center gap-1.5 min-w-0" style={{ fontSize: '0.85rem' }}>
+                    <span className="flex items-center gap-1 shrink-0">
+                      {item.colors.length > 0
+                        ? item.colors.map((c) => <ManaSymbol key={c} sym={c} size="0.85em" />)
+                        : <ManaSymbol sym="C" size="0.85em" />}
+                    </span>
+                    <span className="font-serif text-xs truncate" style={{ color: CREAM }}>
+                      {item.name}
+                    </span>
                   </div>
-                  <div className="col-span-9 h-1.5 border" style={{ borderColor: CREAM_FAINT }}>
-                    <div className="h-full" style={{ background: CREAM, opacity: 0.7, width: `${pct}%` }}></div>
+                  <div className="col-span-6 h-2" style={{ background: 'rgba(243,231,201,0.08)' }}>
+                    <div className="h-full" style={{ background: CREAM, opacity: 0.7, width: `${pct}%` }} />
                   </div>
                   <div className="col-span-2 text-right font-mono text-[10px]" style={{ color: CREAM }}>
-                    {n} deck{n === 1 ? '' : 's'}
+                    {item.count}
                   </div>
                 </div>
               );
             })}
-            {totalColors === 0 && (
-              <div className="font-serif text-xs italic" style={{ color: CREAM_DIM }}>
-                Set commanders to populate this chart.
-              </div>
-            )}
           </div>
         </div>
       </div>
