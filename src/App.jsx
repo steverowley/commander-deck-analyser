@@ -36,6 +36,10 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [showCollection, setShowCollection] = useState(false);
+  // Bumped whenever the user's collection mutates from outside the
+  // VaultSection (e.g. via the global drop overlay or the CollectionModal).
+  // DeckList watches this as a useEffect dependency to re-fetch.
+  const [collectionRev, setCollectionRev] = useState(0);
   // Migration state — when a user signs in for the first time with local
   // decks present, we kick off an auto-upload.
   const [migrating, setMigrating] = useState(false);
@@ -334,6 +338,7 @@ export default function App() {
             onSettings={() => setShowSettings(true)}
             onProfile={() => setProfileMode('edit')}
             onCollection={() => setShowCollection(true)}
+            collectionRev={collectionRev}
             user={auth.user}
             cloudEnabled={isCloudEnabled()}
             onSignIn={() => setShowAuth(true)}
@@ -393,7 +398,10 @@ export default function App() {
       )}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       {showCollection && (
-        <CollectionModal onClose={() => setShowCollection(false)} signedIn={!!auth.user} />
+        <CollectionModal
+          onClose={() => { setShowCollection(false); setCollectionRev((r) => r + 1); }}
+          signedIn={!!auth.user}
+        />
       )}
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       {profileMode && auth.user && (
@@ -406,7 +414,12 @@ export default function App() {
       <OfflineIndicator />
       <GlobalDropOverlay
         activeDeckName={activeDeck?.name}
-        onAddToVault={(card) => addToCollection(card.name, 1)}
+        onAddToVault={async (card) => {
+          await addToCollection(card.name, 1);
+          // Bump the rev so DeckList's VaultSection refreshes its
+          // collection state and the new thumbnail appears immediately.
+          setCollectionRev((r) => r + 1);
+        }}
         onAddToDeck={activeDeck ? (card) => {
           const next = addCardsToDeck(activeDeck, [{ name: card.name, count: 1, scryfall: card }]);
           handleUpdate(next);
