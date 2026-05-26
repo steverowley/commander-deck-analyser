@@ -29,19 +29,15 @@ export function GlobalDropOverlay({ onAddToVault, onAddToDeck, activeDeckName })
   const depthRef = useRef(0);
 
   useEffect(() => {
-    function isCardDrag(dt) {
-      if (!dt) return false;
-      const types = Array.from(dt.types || []);
-      return (
-        types.includes(SCRYFALL_DRAG_MIME) ||
-        types.includes('text/uri-list') ||
-        types.includes('text/html') ||
-        types.includes('text/plain')
-      );
-    }
+    // Cross-origin drag security: browsers hide most of the
+    // dataTransfer types on dragenter / dragover — you only see
+    // 'Files' or the full type list once the drop actually fires.
+    // So we can't reliably type-check on enter. Activate the
+    // overlay on ANY drag that enters the window; the drop handler
+    // sorts out whether it's actually a Scryfall card.
 
     const onDragEnter = (e) => {
-      if (!isCardDrag(e.dataTransfer)) return;
+      if (!e.dataTransfer) return;
       depthRef.current += 1;
       setActive(true);
     };
@@ -50,14 +46,12 @@ export function GlobalDropOverlay({ onAddToVault, onAddToDeck, activeDeckName })
       if (depthRef.current === 0) setActive(false);
     };
     const onDragOver = (e) => {
-      if (!isCardDrag(e.dataTransfer)) return;
-      // Critical: prevent the browser's default of navigating to the
-      // image URL when the user drops anywhere on the window.
+      // Always preventDefault so the browser doesn't run its default
+      // 'navigate to URL' behaviour when the drop lands.
       e.preventDefault();
-      e.dataTransfer.dropEffect = 'copy';
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
     };
     const onDropDoc = (e) => {
-      if (!isCardDrag(e.dataTransfer)) return;
       // Drop hit document (not one of our zones) — still prevent the
       // navigation so the page doesn't disappear.
       e.preventDefault();
@@ -77,38 +71,54 @@ export function GlobalDropOverlay({ onAddToVault, onAddToDeck, activeDeckName })
     };
   }, []);
 
-  const handleZoneDrop = async (target) => async (e) => {
+  // Factory: takes the add-target function (vault or deck), returns
+  // an actual event handler. Critical: outer function is sync — must
+  // RETURN a function, not a Promise — otherwise React's onDrop never
+  // sees a real handler and the drop silently no-ops.
+  const handleZoneDrop = (target) => async (e) => {
     e.preventDefault();
     e.stopPropagation();
     depthRef.current = 0;
     setActive(false);
     setError(null);
+    // Log so users can diagnose if a drop doesn't resolve.
+    const types = Array.from(e.dataTransfer?.types || []);
+    console.log('[Vault] Drop received. Available types:', types);
     // Internal panel drag — fast path.
     const raw = e.dataTransfer.getData(SCRYFALL_DRAG_MIME);
     if (raw) {
       try {
         const payload = JSON.parse(raw);
         if (payload?.kind === 'vault:card' && payload.card?.scryfall) {
-          target(payload.card.scryfall);
+          await target(payload.card.scryfall);
           return;
         }
       } catch {}
     }
     const url = extractDroppedScryfallUrl(e.dataTransfer);
+    console.log('[Vault] Extracted URL from drop:', url);
     if (!url) {
-      setError('Could not find a Scryfall card URL in that drag.');
-      setTimeout(() => setError(null), 4000);
+      const sample = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('text/uri-list');
+      setError(sample
+        ? `No Scryfall URL in drop — got "${sample.slice(0, 80)}". Drag the card image itself.`
+        : 'No data in that drop. Try dragging the card image directly.');
+      setTimeout(() => setError(null), 6000);
       return;
     }
     setResolving(true);
     try {
       const card = await resolveScryfallUrl(url);
+      console.log('[Vault] Resolved card:', card?.name || '(null)');
       if (!card) {
-        setError('Scryfall didn\'t recognise that URL. Try dragging the card image itself.');
-        setTimeout(() => setError(null), 4000);
+        setError(`Scryfall didn't recognise that URL. Try dragging the card image itself.`);
+        setTimeout(() => setError(null), 6000);
         return;
       }
-      target(card);
+      await target(card);
+    } catch (err) {
+      console.error('[Vault] Drop handler error:', err);
+      setError(`Failed to add card: ${err.message || err}`);
+      setTimeout(() => setError(null), 6000);
     } finally {
       setResolving(false);
     }

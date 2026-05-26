@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.8.4 — Actually fix the Scryfall drop handler
+
+The previous "fix the drag" PRs touched the drop zone wiring and the activation logic, but the drop handler itself was still silently broken: `handleZoneDrop` was declared `async (target) => async (e) => {...}`. The outer `async` meant the factory returned a **Promise** instead of a **function**, so React's `onDrop` never got a real handler and the drop was a no-op.
+
+- Removed the outer `async` so the factory is synchronous.
+- Drop activation also made permissive — Chrome/Safari hide `dataTransfer.types` on dragenter / dragover for cross-origin drags, so we now activate the overlay on any drag entering the window and figure out at drop time whether it's a Scryfall card.
+- Added `console.log` traces (`[Vault] Drop received...` / `Extracted URL...` / `Resolved card...`) so future failures can be diagnosed from the browser console without redeploying.
+- Error toasts now include a snippet of the actual dropped data so you can see *why* the drop didn't resolve.
+
 ## v0.8.3 — Dropped cards refresh the Vault instantly
 
 - **Fix**: dragging a card from scryfall.com onto the Vault drop zone wrote to the backend but the homepage thumbnail strip didn't update until you reloaded the page. `App.jsx` now bumps a `collectionRev` counter after every drop (and after closing the Vault modal), which DeckList watches as a useEffect dependency to re-fetch.
