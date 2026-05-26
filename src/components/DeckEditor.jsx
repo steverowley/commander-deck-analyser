@@ -233,133 +233,128 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, otherDecks = [
 
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-8">
-      {/* Two-row header: status nav up top, action buttons in a dedicated
-          flex-wrap row underneath so they have full width to breathe and
-          can reflow on narrower screens without overlapping. */}
-      <nav className="grid grid-cols-2 md:grid-cols-3 border-b mt-6" style={{ borderColor: CREAM_FAINT }}>
-        <div className="p-5 md:border-r flex items-center gap-3 min-w-0" style={{ borderColor: CREAM_FAINT }}>
-          <button onClick={onBack} className="hover:opacity-100 transition shrink-0" style={{ color: CREAM_DIM }}>
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <div className="flex-1 min-w-0 overflow-hidden">
-            {editingName ? (
-              <input
-                value={nameDraft}
-                autoFocus
-                onChange={(e) => setNameDraft(e.target.value)}
-                onBlur={commitRename}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') commitRename();
-                  else if (e.key === 'Escape') {
+      {/* Header — deck name + status. On mobile the Cards/Commander
+          status cells render as a 2-col strip below the title so all
+          three pieces of info stay visible. */}
+      <nav className="border-b mt-6" style={{ borderColor: CREAM_FAINT }}>
+        <div className="grid grid-cols-1 md:grid-cols-3">
+          <div className="p-5 md:border-r flex items-center gap-3 min-w-0" style={{ borderColor: CREAM_FAINT }}>
+            <button onClick={onBack} className="hover:opacity-100 transition shrink-0" style={{ color: CREAM_DIM }}>
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <div className="flex-1 min-w-0 overflow-hidden">
+              {editingName ? (
+                <input
+                  value={nameDraft}
+                  autoFocus
+                  onChange={(e) => setNameDraft(e.target.value)}
+                  onBlur={commitRename}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitRename();
+                    else if (e.key === 'Escape') {
+                      setNameDraft(deck.name);
+                      setEditingName(false);
+                    }
+                  }}
+                  className="font-serif text-xl font-black leading-none tracking-wider w-full bg-transparent border-b focus:outline-none uppercase"
+                  style={{ color: CREAM, borderColor: CREAM_FAINT }}
+                />
+              ) : (
+                <button
+                  onClick={() => {
                     setNameDraft(deck.name);
-                    setEditingName(false);
-                  }
-                }}
-                className="font-serif text-xl font-black leading-none tracking-wider w-full bg-transparent border-b focus:outline-none uppercase"
-                style={{ color: CREAM, borderColor: CREAM_FAINT }}
-              />
-            ) : (
-              <button
-                onClick={() => {
-                  setNameDraft(deck.name);
-                  setEditingName(true);
-                }}
-                className="font-serif text-xl font-black leading-none tracking-wider text-left flex items-center gap-2 group w-full min-w-0"
-                style={{ color: CREAM }}
-                title="Rename"
-              >
-                <span className="truncate min-w-0">{deck.name.toUpperCase()}</span>
-                <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 transition shrink-0" style={{ color: CREAM_DIM }} />
-              </button>
-            )}
-            <div className="font-serif text-[10px] tracking-[0.3em] uppercase mt-1" style={{ color: CREAM_DIM }}>
-              Vault · Deck
+                    setEditingName(true);
+                  }}
+                  className="font-serif text-xl font-black leading-none tracking-wider text-left flex items-center gap-2 group w-full min-w-0"
+                  style={{ color: CREAM }}
+                  title="Rename"
+                >
+                  <span className="truncate min-w-0">{deck.name.toUpperCase()}</span>
+                  <Pencil className="w-3 h-3 opacity-0 group-hover:opacity-100 transition shrink-0" style={{ color: CREAM_DIM }} />
+                </button>
+              )}
+              <div className="font-serif text-[10px] tracking-[0.3em] uppercase mt-1" style={{ color: CREAM_DIM }}>
+                Vault · Deck
+              </div>
             </div>
           </div>
-        </div>
-        <div
-          className="hidden md:flex items-center px-5 border-r font-serif text-[11px] tracking-[0.3em] uppercase"
-          style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
-        >
-          Cards ·{' '}
-          <span className="ml-1" style={{ color: CREAM }}>
-            {pad(totalCards)} / {pad(100 - (deck.commander ? 1 : 0))}
-          </span>
-        </div>
-        <div
-          className="hidden md:flex items-center px-5 font-serif text-[11px] tracking-[0.3em] uppercase"
-          style={{ color: CREAM_DIM }}
-        >
-          Commander ·{' '}
-          <span className="ml-1" style={{ color: deck.commander ? CREAM : ACCENT }}>
-            {deck.commander ? 'set' : 'null'}
-          </span>
+          <div
+            className="flex items-center px-4 md:px-5 py-3 md:py-0 border-t md:border-t-0 md:border-r font-serif text-[11px] tracking-[0.3em] uppercase"
+            style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
+          >
+            Cards ·{' '}
+            <span className="ml-1" style={{ color: CREAM }}>
+              {pad(totalCards)} / {pad(100 - (deck.commander ? 1 : 0))}
+            </span>
+          </div>
+          <div
+            className="flex items-center px-4 md:px-5 py-3 md:py-0 border-t md:border-t-0 font-serif text-[11px] tracking-[0.3em] uppercase"
+            style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
+          >
+            Commander ·{' '}
+            <span className="ml-1" style={{ color: deck.commander ? CREAM : ACCENT }}>
+              {deck.commander ? 'set' : 'null'}
+            </span>
+          </div>
         </div>
       </nav>
 
-      {/* Action row — dedicated horizontal strip below the nav. flex-wrap
-          handles 5+ buttons reflowing on narrow viewports. */}
+      {/* Action row — icon-only on mobile, icon+label on desktop. Wraps
+          to a second line on narrow desktop widths thanks to flex-wrap. */}
       <div
-        className="hidden md:flex items-center flex-wrap gap-x-5 gap-y-2 border-b px-5 py-2.5 font-serif text-[11px] tracking-[0.3em] uppercase"
+        className="flex items-center flex-wrap gap-x-4 md:gap-x-5 gap-y-2 border-b px-4 md:px-5 py-2.5 font-serif text-[11px] tracking-[0.3em] uppercase overflow-x-auto"
         style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
       >
-        <button
+        <ActionButton
           onClick={() => setShowNotes(true)}
-          className="flex items-center hover:opacity-100"
+          icon={FileText}
+          label={`Notes${deck.notes ? ' ·' : ''}`}
           title="Deck notes / scratchpad"
-          style={{ color: deck.notes ? CREAM : CREAM_DIM }}
-        >
-          <FileText className="w-3 h-3 mr-1.5" /> Notes{deck.notes ? ' ·' : ''}
-        </button>
-        <button
+          activeColor={deck.notes ? CREAM : null}
+        />
+        <ActionButton
           onClick={() => setShowShare(true)}
-          className="flex items-center hover:opacity-100"
+          icon={LinkIcon}
+          label="Share"
           title="Share via link"
-        >
-          <LinkIcon className="w-3 h-3 mr-1.5" /> Share
-        </button>
-        <button
+        />
+        <ActionButton
           onClick={() => onUpdate(setDeckPublic(deck, !deck.is_public))}
-          className="flex items-center hover:opacity-100"
+          icon={Globe}
+          label={deck.is_public ? 'Public' : 'Private'}
           title={deck.is_public ? 'This deck is in the public gallery. Click to unlist.' : 'Click to add this deck to the public gallery.'}
-          style={{ color: deck.is_public ? '#a3c98a' : CREAM_DIM }}
-        >
-          <Globe className="w-3 h-3 mr-1.5" /> {deck.is_public ? 'Public' : 'Private'}
-        </button>
+          activeColor={deck.is_public ? '#a3c98a' : null}
+        />
         {(otherDecks.length > 0 || deck.commander) && (
-          <button
+          <ActionButton
             onClick={() => setShowCompare(true)}
-            className="flex items-center hover:opacity-100"
+            icon={GitCompare}
+            label="Compare"
             title="Compare with another deck or the EDHREC average"
-          >
-            <GitCompare className="w-3 h-3 mr-1.5" /> Compare
-          </button>
+          />
         )}
-        <button
+        <ActionButton
           onClick={() => setShowExport(true)}
-          className="flex items-center hover:opacity-100"
+          icon={Download}
+          label="Export"
           title="Export decklist"
-        >
-          <Download className="w-3 h-3 mr-1.5" /> Export
-        </button>
+        />
         {onDuplicate && (
-          <button
+          <ActionButton
             onClick={onDuplicate}
-            className="flex items-center hover:opacity-100"
+            icon={Copy}
+            label="Dupe"
             title="Duplicate deck"
-          >
-            <Copy className="w-3 h-3 mr-1.5" /> Dupe
-          </button>
+          />
         )}
-        {/* Spacer pushes Rules to the right edge */}
-        <span className="flex-1" />
-        <button
+        {/* Spacer pushes Rules to the right edge on desktop */}
+        <span className="hidden md:block flex-1" />
+        <ActionButton
           onClick={() => setShowRules(true)}
-          className="flex items-center hover:opacity-100"
+          icon={BookOpen}
+          label="Rules"
           title="Commander rules reference"
-        >
-          <BookOpen className="w-3 h-3 mr-1.5" /> Rules
-        </button>
+        />
       </div>
 
       <div className="my-8 fade-up">
@@ -415,5 +410,20 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, otherDecks = [
         />
       )}
     </div>
+  );
+}
+
+// Action-strip button — icon-only on mobile, icon + label on md+.
+function ActionButton({ onClick, icon: Icon, label, title, activeColor }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center hover:opacity-100 shrink-0"
+      title={title}
+      style={{ color: activeColor || CREAM_DIM }}
+    >
+      <Icon className="w-3.5 h-3.5 md:w-3 md:h-3 md:mr-1.5" />
+      <span className="hidden md:inline">{label}</span>
+    </button>
   );
 }

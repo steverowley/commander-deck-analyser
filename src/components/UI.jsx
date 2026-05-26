@@ -4,6 +4,7 @@ import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad } from '../lib/utils.js';
 import { cardImageUrl, searchCardAutocomplete, fetchCardByExactName } from '../lib/scryfall.js';
 import { ManaCost, ManaSymbol } from './ManaCost.jsx';
+import { getLatestRelease } from '../lib/changelog.js';
 
 // ───────────────────────────────────────────────────────────────────────────────
 
@@ -41,6 +42,78 @@ export function HelpTip({ children, side = 'right' }) {
           }}
         >
           {children}
+        </span>
+      )}
+    </span>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Version pill with a hover/tap popover that shows the latest CHANGELOG
+ * entry inline. `align` controls which edge of the chip the popover
+ * anchors to so it doesn't clip off-screen.
+ */
+export function VersionChip({ version, align = 'right' }) {
+  const [open, setOpen] = useState(false);
+  const release = getLatestRelease();
+  return (
+    <span className="relative inline-block" onMouseLeave={() => setOpen(false)}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        onMouseEnter={() => setOpen(true)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        className="font-serif text-[11px] tracking-[0.3em] uppercase hover:opacity-100 transition cursor-help"
+        style={{ color: CREAM_DIM }}
+        aria-label="What's new"
+      >
+        v{version}
+      </button>
+      {open && (
+        <span
+          className="absolute z-40 w-80 max-h-96 overflow-auto border p-4 normal-case tracking-normal text-left"
+          style={{
+            background: BG,
+            borderColor: CREAM_FAINT,
+            color: CREAM_DIM,
+            top: '100%',
+            marginTop: '8px',
+            [align]: 0,
+          }}
+        >
+          <div className="flex items-baseline justify-between mb-2 pb-2 border-b" style={{ borderColor: CREAM_FAINT }}>
+            <span className="font-serif text-[10px] tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
+              v{release.version}
+            </span>
+            <span className="font-serif text-[10px] italic" style={{ color: CREAM_DIM }}>
+              latest
+            </span>
+          </div>
+          {release.title && (
+            <div className="font-serif text-sm italic mb-3" style={{ color: CREAM }}>
+              {release.title}
+            </div>
+          )}
+          {release.sections.map((s, i) => (
+            <div key={i} className={i === 0 ? '' : 'mt-3'}>
+              {s.heading && (
+                <div className="font-serif text-[10px] tracking-[0.2em] uppercase font-bold mb-1" style={{ color: CREAM_DIM }}>
+                  {s.heading}
+                </div>
+              )}
+              <ul className="font-serif text-xs leading-snug space-y-1" style={{ color: CREAM_DIM }}>
+                {s.items.slice(0, 6).map((item, j) => (
+                  <li key={j} className="flex gap-1.5">
+                    <span style={{ color: CREAM_FAINT }}>·</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </span>
       )}
     </span>
