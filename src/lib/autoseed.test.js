@@ -262,6 +262,32 @@ describe('buildSeededDeck', () => {
     expect(totalCount(cards)).toBe(99);
   });
 
+  it('caps non-basic lands at the colour-identity utility reserve and pads the rest with basics', async () => {
+    // EDHREC pool packed with 40 utility lands — without the cap the
+    // builder would dump all 40 into the deck and never reach for a
+    // basic. Mono-red has a reserve of 2 utility lands, so the deck
+    // should contain at most 2 utility lands and the rest of the
+    // land target as basics.
+    const pool = [
+      ...Array.from({ length: 40 }, (_, i) => makeLand(i)),
+      ...Array.from({ length: 60 }, (_, i) => makeCreature(i)),
+      ...Array.from({ length: 20 }, (_, i) => makeRamp(i)),
+    ];
+    fetchRecommendations.mockResolvedValue(pool.map((c) => ({ name: c.name })));
+    fetchCardsByName.mockResolvedValue({ results: buildResults(pool), notFound: [], errors: [] });
+
+    const commander = { name: 'Mono-R Cmdr', color_identity: ['R'] };
+    const { cards, summary } = await buildSeededDeck(commander);
+    expect(totalCount(cards)).toBe(99);
+    // At most `utilityReserve(1)` = 2 utility lands picked from the pool.
+    const utilityLandsPicked = cards.filter((c) =>
+      c.name.startsWith('Utility Land ')
+    ).reduce((s, c) => s + c.count, 0);
+    expect(utilityLandsPicked).toBeLessThanOrEqual(2);
+    // Basics fill the rest of the land target.
+    expect(summary.basics).toBeGreaterThanOrEqual(15);
+  });
+
   it('uses Wastes for a colorless commander when padding basics', async () => {
     const pool = [
       ...Array.from({ length: 3 }, (_, i) => makeLand(i)),

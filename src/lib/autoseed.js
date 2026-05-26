@@ -19,6 +19,7 @@ import { recommendByCurve } from './health.js';
 import { cardPrice } from './pricing.js';
 import { archetypeById, tagsMatchArchetype } from './archetypes.js';
 import { BANNED_CARDS } from './constants.js';
+import { utilityReserve } from './landbase.js';
 import { lc } from './utils.js';
 
 // Larger pool when filters are in play so we still hit 99 after
@@ -209,7 +210,16 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
       summary[key]++;
     }
   };
-  addFromBucket('land', targets.lands);
+  // Lands: cap nonbasic / utility lands at the reserve appropriate
+  // for the commander's colour identity. Real EDH decks are mostly
+  // basics with a handful of utility / dual / fixing lands — the
+  // EDHREC pool tends to be top-heavy on flashy utility, so without
+  // the cap the auto-seed produces 36 utility lands and zero basics,
+  // which is jank. Anything beyond the cap gets filled by the
+  // dedicated basic-land padding below.
+  const identityCount = (commander.color_identity || []).filter((c) => 'WUBRG'.includes(c)).length;
+  const utilityCap = utilityReserve(identityCount);
+  addFromBucket('land', Math.min(targets.lands, utilityCap));
   addFromBucket('ramp', targets.ramp);
   addFromBucket('draw', targets.draw);
   addFromBucket('removal', targets.removal);
@@ -217,13 +227,14 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
   // Fill remaining slots with synergy / strategy cards. Pull from
   // `other` first (the actual strategy fillers), then dip into the
   // category overflows in case the user rolled a commander whose
-  // top picks are mostly utility.
+  // top picks are mostly utility. Lands deliberately excluded — we
+  // capped non-basics above and the rest gets padded with basics
+  // below; including lands here would bypass the cap.
   const overflow = [
     ...buckets.other,
     ...buckets.ramp,
     ...buckets.draw,
     ...buckets.removal,
-    ...buckets.land,
   ];
   while (totalSlots(entries) < DECK_TOTAL && overflow.length > 0) {
     const card = overflow.shift();

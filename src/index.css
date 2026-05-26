@@ -31,16 +31,22 @@ input::placeholder, textarea::placeholder { color: rgba(243, 231, 201, 0.3); }
 
 ::selection { background: rgba(243, 231, 201, 0.2); color: #f3e7c9; }
 
-/* On-theme cursor — cream arrow + cream filled-circle pointer over
-   the dark teal background. Falls back to the OS defaults when the
-   inline SVG can't be parsed (older browsers). Inputs keep the
-   standard I-beam so text editing stays familiar. */
+/* On-theme cursors — quill nib for default, MTG-style tap symbol for
+   interactive elements. Cream-on-dark fills match Vault's palette;
+   inline SVG data URIs ship with zero asset weight. Inputs keep the
+   standard I-beam so text editing stays familiar. Browsers cap
+   cursor images at 32×32; we use 28×28 + a 1.5px stroke so the
+   silhouette stays readable on light photos too. */
 body {
-  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22'><path d='M3 2 L3 18 L7.5 14 L10.5 21 L13.5 19.5 L10.5 13 L17 12.5 Z' fill='rgb(243,231,201)' stroke='rgb(13,22,20)' stroke-width='1.2' stroke-linejoin='round'/></svg>") 3 2, default;
+  cursor:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'><path d='M 4 2 L 4.5 21 L 9.5 16.5 L 12 25 L 16 23.5 L 13 16 L 20.5 15 Z' fill='rgb(243,231,201)' stroke='rgb(13,22,20)' stroke-width='1.4' stroke-linejoin='round' stroke-linecap='round'/><path d='M 6 5 L 6.5 16' stroke='rgba(13,22,20,0.45)' stroke-width='0.9' stroke-linecap='round'/></svg>") 4 2,
+    default;
 }
 
 a, button, [role='button'], select, summary, label, [type='button'], [type='submit'], [type='reset'] {
-  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22'><circle cx='11' cy='11' r='5' fill='rgb(243,231,201)' stroke='rgb(13,22,20)' stroke-width='1.5'/><circle cx='11' cy='11' r='1.5' fill='rgb(13,22,20)'/></svg>") 11 11, pointer;
+  cursor:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'><circle cx='14' cy='14' r='11' fill='rgb(243,231,201)' stroke='rgb(13,22,20)' stroke-width='1.5'/><circle cx='14' cy='14' r='9' fill='none' stroke='rgba(13,22,20,0.22)' stroke-width='0.7'/><path d='M 10 10 L 18 18' stroke='rgb(13,22,20)' stroke-width='2.6' stroke-linecap='round'/><path d='M 18 18 L 14 18 M 18 18 L 18 14' stroke='rgb(13,22,20)' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round' fill='none'/></svg>") 14 14,
+    pointer;
 }
 
 input[type='text'], input[type='email'], input[type='password'], input[type='search'], input[type='url'], input[type='number'], textarea {
