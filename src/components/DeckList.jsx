@@ -12,6 +12,7 @@ import { ManaSymbol } from './ManaCost.jsx';
 import { VersionChip } from './UI.jsx';
 import { ImportDeckModal, RandomDeckModal } from './Modals.jsx';
 import { GalleryView } from './GalleryView.jsx';
+import { RandomRollsView } from './RandomRollsView.jsx';
 
 export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup, onSettings, onProfile, user, cloudEnabled, onSignIn, onSignOut, onImportFromGallery, onViewGalleryDeck, onRandomBuild }) {
   const [name, setName] = useState('');
@@ -544,6 +545,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
       </div>
       )}
 
+      {cloudEnabled && <RandomRollsView onImportFromGallery={onImportFromGallery} onViewDeck={onViewGalleryDeck} />}
       {cloudEnabled && <GalleryView onImportFromGallery={onImportFromGallery} onViewDeck={onViewGalleryDeck} />}
 
       {/* Footer — stacks on mobile so the version chip + Backup + Settings
@@ -592,6 +594,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
       {showRandom && (
         <RandomDeckModal
           onClose={() => setShowRandom(false)}
+          canShare={!!user}
           onBuild={(payload) => {
             onRandomBuild?.(payload);
             setShowRandom(false);

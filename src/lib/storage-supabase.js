@@ -117,6 +117,10 @@ export async function loadPublicDecks(limit = 24) {
     .from('decks')
     .select('id, name, commander_name, is_public, data, updated_at, owner_id')
     .eq('is_public', true)
+    // Rolled decks live in their own gallery section; keep the
+    // curated Public Gallery free of bot-output by excluding any
+    // deck with a seedMeta marker.
+    .is('data->seedMeta', null)
     .order('updated_at', { ascending: false })
     .limit(limit);
   if (error) {
@@ -131,6 +135,42 @@ export async function loadPublicDecks(limit = 24) {
     .select('user_id, username')
     .in('user_id', ownerIds);
 
+  const usernameByOwner = new Map();
+  for (const p of profiles || []) usernameByOwner.set(p.user_id, p.username);
+
+  return decks.map((row) => ({
+    ...rowToDeck(row),
+    ownerUsername: usernameByOwner.get(row.owner_id) || 'someone',
+  }));
+}
+
+/**
+ * Random-rolls gallery — recent public decks that were auto-seeded via
+ * the Roll-a-deck flow. Identified by the presence of `data->seedMeta`,
+ * which the modal stamps onto each rolled deck.
+ *
+ * Same two-query join (decks → profiles) as the regular gallery.
+ */
+export async function loadRandomRolls(limit = 12) {
+  if (!supabase) return [];
+  const { data: decks, error } = await supabase
+    .from('decks')
+    .select('id, name, commander_name, is_public, data, created_at, updated_at, owner_id')
+    .eq('is_public', true)
+    .not('data->seedMeta', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) {
+    console.warn('Supabase loadRandomRolls failed', error);
+    return [];
+  }
+  if (!decks?.length) return [];
+
+  const ownerIds = [...new Set(decks.map((d) => d.owner_id))];
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('user_id, username')
+    .in('user_id', ownerIds);
   const usernameByOwner = new Map();
   for (const p of profiles || []) usernameByOwner.set(p.user_id, p.username);
 

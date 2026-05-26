@@ -173,13 +173,18 @@ export default function App() {
     setActiveId(copy.id);
   };
 
-  const handleImport = async ({ name, commander, cards, notes }) => {
+  const handleImport = async ({ name, commander, cards, notes, seedMeta, isPublic }) => {
     const base = {
       id: 'deck_' + Date.now(),
       name,
       commander: commander || null,
       cards: [],
       notes: notes || undefined,
+      // seedMeta records how a rolled deck was generated (bracket /
+      // budget / archetype / commander identity). The random-rolls
+      // gallery filters on its presence.
+      seedMeta: seedMeta || undefined,
+      is_public: !!isPublic,
       created: Date.now(),
       updated: Date.now(),
     };
