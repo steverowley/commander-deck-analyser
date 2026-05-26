@@ -8,6 +8,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { X, Loader2, Library, Camera, ClipboardPaste, Trash2, Plus, Minus } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, parseDecklist, lc } from '../lib/utils.js';
+import { fetchCardsByName, cardImageUrl } from '../lib/scryfall.js';
 import { CardSearchBar } from './UI.jsx';
 import {
   loadCollection,
@@ -29,10 +30,26 @@ export function CollectionModal({ onClose, signedIn }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [view, setView] = useState('grid'); // 'grid' | 'list'
+  const [cardData, setCardData] = useState({});  // name → scryfall card
 
   useEffect(() => {
     loadCollection().then(setCollection);
   }, []);
+
+  // Fetch Scryfall data for every card in the collection so we can
+  // render thumbnails. Batched (75 names per request) via the existing
+  // collection endpoint helper; results are memo-cached by name.
+  useEffect(() => {
+    if (!collection) return;
+    const names = Object.values(collection).map((c) => c.name);
+    if (names.length === 0) return;
+    const missing = names.filter((n) => !cardData[n.toLowerCase()]);
+    if (missing.length === 0) return;
+    fetchCardsByName(missing).then(({ results }) => {
+      setCardData((cur) => ({ ...cur, ...results }));
+    });
+  }, [collection]);
 
   const refresh = async () => setCollection(await loadCollection());
 
@@ -144,6 +161,22 @@ export function CollectionModal({ onClose, signedIn }) {
         </div>
 
         <div className="px-5 py-2 border-b flex items-center gap-3" style={{ borderColor: CREAM_FAINT }}>
+          <div className="flex border shrink-0" style={{ borderColor: CREAM_FAINT }}>
+            {['grid', 'list'].map((v) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className="font-mono text-[9px] uppercase tracking-wider px-2 py-1"
+                style={{
+                  color: view === v ? CREAM : CREAM_DIM,
+                  background: view === v ? 'rgba(243,231,201,0.08)' : 'transparent',
+                }}
+                title={`Switch to ${v} view`}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
           <input
             type="text"
             value={filter}
@@ -189,6 +222,52 @@ export function CollectionModal({ onClose, signedIn }) {
           ) : entries.length === 0 ? (
             <div className="p-10 text-center font-serif text-sm italic" style={{ color: CREAM_DIM }}>
               {filter ? 'No cards match that filter.' : 'No cards yet. Scan with the camera, paste a list, or search to add one.'}
+            </div>
+          ) : view === 'grid' ? (
+            <div className="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {entries.map((entry) => {
+                const card = cardData[entry.name.toLowerCase()];
+                return (
+                  <div
+                    key={entry.name}
+                    className="border flex flex-col"
+                    style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}
+                  >
+                    {card ? (
+                      <img
+                        src={cardImageUrl(card, 'small')}
+                        alt={entry.name}
+                        className="w-full aspect-[5/7] object-cover"
+                        loading="lazy"
+                        onError={(e) => (e.currentTarget.style.display = 'none')}
+                      />
+                    ) : (
+                      <div className="w-full aspect-[5/7] flex items-center justify-center" style={{ color: CREAM_DIM }}>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      </div>
+                    )}
+                    <div className="px-2 py-1.5 border-t flex items-center justify-between gap-1.5" style={{ borderColor: CREAM_FAINT }}>
+                      <span className="font-serif text-[10px] uppercase font-bold truncate flex-1" style={{ color: CREAM }} title={entry.name}>
+                        {entry.name}
+                      </span>
+                    </div>
+                    <div className="px-2 pb-2 flex items-center justify-between gap-1.5">
+                      <div className="flex items-center gap-px border" style={{ borderColor: CREAM_FAINT }}>
+                        <button onClick={() => adjust(entry, -1)} className="w-6 h-6 font-mono" style={{ color: CREAM_DIM }} aria-label="Decrease">
+                          <Minus className="w-2.5 h-2.5 mx-auto" />
+                        </button>
+                        <span className="w-6 text-center font-mono text-[10px]" style={{ color: CREAM }}>{entry.quantity}</span>
+                        <button onClick={() => adjust(entry, +1)} className="w-6 h-6 font-mono" style={{ color: CREAM_DIM }} aria-label="Increase">
+                          <Plus className="w-2.5 h-2.5 mx-auto" />
+                        </button>
+                      </div>
+                      <button onClick={() => remove(entry)} className="hover:text-red-400 shrink-0" style={{ color: CREAM_DIM }} title="Remove from Vault">
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div>
