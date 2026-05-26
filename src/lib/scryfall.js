@@ -407,6 +407,38 @@ export async function fetchRandomCommander({ colors = [], partner = false } = {}
  * Returns the normalised card on success, null otherwise. Caches
  * the result so subsequent lookups are instant.
  */
+/**
+ * Pull a Scryfall URL out of a DataTransfer the browser handed us on
+ * drop. External drags from scryfall.com tabs land in different
+ * data-transfer slots across browsers — uri-list in Chrome, html
+ * in some Firefox builds, plain in Safari. Try them all.
+ */
+export function extractDroppedScryfallUrl(dt) {
+  if (!dt) return null;
+  // text/uri-list — most common, often multi-line w/ comments.
+  const uriList = dt.getData('text/uri-list');
+  if (uriList) {
+    const line = uriList.split('\n').map((s) => s.trim()).find((s) => s && !s.startsWith('#'));
+    if (line && looksLikeScryfall(line)) return line;
+  }
+  // text/plain — Safari + many other browsers use this.
+  const plain = dt.getData('text/plain');
+  if (plain && looksLikeScryfall(plain.trim())) return plain.trim();
+  // text/html — when dragging an image, often contains <img src="..."> or <a href="...">.
+  const html = dt.getData('text/html');
+  if (html) {
+    const srcMatch = html.match(/src="([^"]+)"/i);
+    if (srcMatch && looksLikeScryfall(srcMatch[1])) return srcMatch[1];
+    const hrefMatch = html.match(/href="([^"]+)"/i);
+    if (hrefMatch && looksLikeScryfall(hrefMatch[1])) return hrefMatch[1];
+  }
+  return null;
+}
+
+function looksLikeScryfall(url) {
+  return /scryfall\.io|scryfall\.com/i.test(url);
+}
+
 export async function resolveScryfallUrl(url) {
   if (!url || typeof url !== 'string') return null;
   let endpoint = null;
