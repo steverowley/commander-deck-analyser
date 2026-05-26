@@ -44,6 +44,12 @@ export function ManaSymbol({ sym, size = '1em', title }) {
         height: size,
         display: 'inline-block',
         verticalAlign: '-0.15em',
+        // Tiny horizontal breathing room so adjacent symbols inside
+        // oracle text (e.g. "{R}{R}{R}") read as a sequence rather
+        // than a blob. ManaCost's flex `gap` adds to this for the
+        // dedicated cost row but the result is still tight enough to
+        // read as a single mana cost.
+        marginInline: '0.075em',
       }}
     />
   );

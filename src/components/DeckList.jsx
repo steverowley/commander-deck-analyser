@@ -74,14 +74,57 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
 
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-8">
-      {/* Top nav — two-tier on mobile so every cell stays visible:
-          row 1 is logo + version chip, row 2 wraps the stats/auth cells. */}
+      {/* Top nav — separate mobile + desktop branches. Mobile uses a
+          vertical stack (logo + chip, then a stats row, then an auth
+          row) with explicit borders. Desktop keeps the 5-col grid. */}
       <nav className="border-b mt-6" style={{ borderColor: CREAM_FAINT }}>
-        <div className="grid grid-cols-[1fr_auto] md:grid-cols-5">
+        {/* Mobile */}
+        <div className="md:hidden">
+          <div className="flex items-start justify-between p-5">
+            <div>
+              <div className="font-serif text-3xl font-black leading-[0.9] tracking-wider" style={{ color: CREAM }}>
+                VAULT
+              </div>
+              <div className="font-serif text-[10px] tracking-[0.35em] uppercase mt-1.5" style={{ color: CREAM_DIM }}>
+                Deck · Builder
+              </div>
+            </div>
+            <VersionChip version={__APP_VERSION__} align="right" />
+          </div>
           <div
-            className="p-5 md:border-r col-span-1 md:col-span-1"
-            style={{ borderColor: CREAM_FAINT }}
+            className="border-t flex items-center justify-between px-5 py-3 text-[10px] tracking-[0.3em] uppercase font-serif"
+            style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
           >
+            <span>Decks · {pad(decks.length)}</span>
+            <span style={{ opacity: 0.4 }}>·</span>
+            <span>Cards · {pad(totalCards, 4)}</span>
+          </div>
+          <div
+            className="border-t flex items-center justify-between px-5 py-3 text-[10px] tracking-[0.3em] uppercase font-serif"
+            style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
+          >
+            {user ? (
+              <>
+                <span className="truncate min-w-0">
+                  Cloud · <span style={{ color: CREAM }} title={user.email}>{user.email?.split('@')[0]}</span>
+                </span>
+                <button onClick={onSignOut} className="hover:opacity-100 shrink-0 ml-3" style={{ color: CREAM_DIM }}>
+                  Sign out
+                </button>
+              </>
+            ) : cloudEnabled ? (
+              <button onClick={onSignIn} className="hover:opacity-100 mx-auto" style={{ color: CREAM_DIM }}>
+                Sign in →
+              </button>
+            ) : (
+              <span className="mx-auto">Local</span>
+            )}
+          </div>
+        </div>
+
+        {/* Desktop */}
+        <div className="hidden md:grid md:grid-cols-5">
+          <div className="p-5 border-r" style={{ borderColor: CREAM_FAINT }}>
             <div className="font-serif text-3xl font-black leading-[0.9] tracking-wider" style={{ color: CREAM }}>
               VAULT
             </div>
@@ -89,27 +132,20 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
               Deck · Builder
             </div>
           </div>
-
-          {/* Mobile-only version chip — sits inline with the logo so the
-              changelog hover is reachable on small screens. */}
-          <div className="flex md:hidden items-start justify-end px-4 pt-5">
-            <VersionChip version={__APP_VERSION__} align="right" />
-          </div>
-
           <div
-            className="flex items-center px-4 md:px-5 py-3 md:py-0 border-t md:border-t-0 md:border-r text-[11px] tracking-[0.3em] uppercase font-serif col-span-1"
+            className="flex items-center px-5 border-r text-[11px] tracking-[0.3em] uppercase font-serif"
             style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
           >
             Decks · {pad(decks.length)}
           </div>
           <div
-            className="flex items-center px-4 md:px-5 py-3 md:py-0 border-t md:border-t-0 md:border-r text-[11px] tracking-[0.3em] uppercase font-serif col-span-1"
+            className="flex items-center px-5 border-r text-[11px] tracking-[0.3em] uppercase font-serif"
             style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
           >
             Cards · {pad(totalCards, 4)}
           </div>
           <div
-            className="flex items-center px-4 md:px-5 py-3 md:py-0 border-t md:border-t-0 md:border-r text-[11px] tracking-[0.3em] uppercase font-serif col-span-2 md:col-span-1 min-w-0"
+            className="flex items-center px-5 border-r text-[11px] tracking-[0.3em] uppercase font-serif min-w-0"
             style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
           >
             {user ? (
@@ -117,41 +153,27 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
                 Cloud · <span style={{ color: CREAM }} title={user.email}>{user.email?.split('@')[0]}</span>
               </span>
             ) : cloudEnabled ? (
-              <button
-                onClick={onSignIn}
-                className="hover:opacity-100"
-                style={{ color: CREAM_DIM }}
-              >
+              <button onClick={onSignIn} className="hover:opacity-100" style={{ color: CREAM_DIM }}>
                 Sign in →
               </button>
             ) : (
               <span>Local</span>
             )}
           </div>
-
-          {/* Right-edge cell — hidden on mobile (its content lives in the
-              header row above) so we don't double up the version chip. */}
           <div
-            className="hidden md:flex items-center justify-end px-5 text-[11px] tracking-[0.3em] uppercase font-serif gap-3"
+            className="flex items-center justify-end px-5 text-[11px] tracking-[0.3em] uppercase font-serif gap-4"
             style={{ color: CREAM_DIM }}
           >
             {user && (
-              <button onClick={onSignOut} className="hover:opacity-100" style={{ color: CREAM_DIM }}>
-                Sign out
-              </button>
+              <>
+                <button onClick={onSignOut} className="hover:opacity-100" style={{ color: CREAM_DIM }}>
+                  Sign out
+                </button>
+                <span style={{ opacity: 0.4 }}>·</span>
+              </>
             )}
             <VersionChip version={__APP_VERSION__} align="right" />
           </div>
-
-          {/* Mobile-only sign-out row — keeps the action reachable when
-              the cell above only has room for the email. */}
-          {user && (
-            <div className="flex md:hidden items-center justify-end px-4 py-3 border-t text-[11px] tracking-[0.3em] uppercase font-serif col-span-2" style={{ borderColor: CREAM_FAINT }}>
-              <button onClick={onSignOut} className="hover:opacity-100" style={{ color: CREAM_DIM }}>
-                Sign out
-              </button>
-            </div>
-          )}
         </div>
       </nav>
 
@@ -164,11 +186,9 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
           className="font-serif font-black uppercase leading-[0.92] tracking-tight"
           style={{ color: CREAM, fontSize: 'clamp(2.5rem, 7vw, 5rem)' }}
         >
-          Build sharper
+          From 200 maybes
           <br />
-          Commander decks.
-          <br />
-          Win more pods.
+          to 99 keepers.
         </h1>
         <p className="max-w-xl mx-auto mt-10 font-serif text-base md:text-lg leading-relaxed" style={{ color: CREAM_DIM }}>
           Every card auto-tagged. Every deck archetype-classified, bracket-scored, and playtested before you sleeve it. Recommends what to add, flags what to cut, simulates 1,000 openings so you know your odds.

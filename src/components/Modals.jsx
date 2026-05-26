@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { X, Loader2, Check, BookOpen, Copy, Download, Link as LinkIcon, GitCompare, Archive, FileText, Settings as SettingsIcon } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, parseDecklist, lc } from '../lib/utils.js';
-import { fetchCardsByName, fetchCardByExactName, refreshCachedCards } from '../lib/scryfall.js';
+import { fetchCardsByName, fetchCardByExactName, refreshCachedCards, fetchPrintings, cardImageUrl } from '../lib/scryfall.js';
 import { exportDecklist } from '../lib/deckops.js';
 import { buildShareUrl } from '../lib/share.js';
 import { deckTotalPrice, formatPrice, isConverted } from '../lib/pricing.js';
@@ -1413,6 +1413,125 @@ export function NotesModal({ deck, onClose, onSave }) {
             style={{ color: CREAM }}
           >
             Save →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Printing picker — fetches every printing of a card from Scryfall and
+ * lets the user pick which art / set to use for this deck. The choice
+ * is per-deck (commander slot or a deck-entry's scryfall payload),
+ * so swapping art here doesn't touch any other deck or the global cache.
+ */
+export function PrintingPickerModal({ card, onClose, onPick }) {
+  const [printings, setPrintings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    setError(null);
+    fetchPrintings(card)
+      .then((list) => {
+        if (!alive) return;
+        setPrintings(list);
+        if (list.length === 0) setError('No printings found.');
+      })
+      .catch((e) => alive && setError(e.message || 'Failed to load printings.'))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [card?.name, card?.oracle_id]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(13,22,20,0.92)', backdropFilter: 'blur(6px)' }}
+      onClick={onClose}
+    >
+      <div
+        className="border w-full max-w-4xl max-h-[88vh] flex flex-col"
+        style={{ background: BG, borderColor: CREAM_FAINT }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-5 py-4 border-b flex items-baseline justify-between" style={{ borderColor: CREAM_FAINT }}>
+          <div>
+            <div className="font-serif text-[10px] tracking-[0.3em] uppercase font-bold" style={{ color: CREAM_DIM }}>
+              Change art
+            </div>
+            <div className="font-serif text-lg font-black uppercase mt-1" style={{ color: CREAM }}>
+              {card?.name}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ color: CREAM_DIM }}>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-auto p-5">
+          {loading && (
+            <div className="flex items-center gap-2 font-mono text-xs" style={{ color: CREAM_DIM }}>
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading printings from Scryfall...
+            </div>
+          )}
+          {error && !loading && (
+            <div className="font-mono text-xs" style={{ color: ACCENT }}>{error}</div>
+          )}
+          {!loading && printings.length > 0 && (
+            <>
+              <div className="font-serif text-xs italic mb-4" style={{ color: CREAM_DIM }}>
+                {printings.length} printings · click one to apply it to this deck.
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                {printings.map((p) => {
+                  const active = p.id === card?.id || (!card?.id && p.image_uris?.normal === card?.image_uris?.normal);
+                  return (
+                    <button
+                      key={p.id || `${p.set}-${p.collector_number}`}
+                      onClick={() => onPick(p)}
+                      className="border p-2 text-left transition flex flex-col gap-2 hover:opacity-100"
+                      style={{
+                        borderColor: active ? CREAM : CREAM_FAINT,
+                        background: active ? 'rgba(243,231,201,0.08)' : 'transparent',
+                      }}
+                      title={`${p.set_name} · #${p.collector_number}`}
+                    >
+                      <img
+                        src={cardImageUrl(p, 'small')}
+                        alt={`${p.name} (${p.set})`}
+                        className="w-full aspect-[5/7] object-cover"
+                        loading="lazy"
+                        onError={(e) => (e.currentTarget.style.display = 'none')}
+                      />
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="font-mono text-[10px] uppercase truncate" style={{ color: CREAM }}>
+                          {p.set}
+                        </span>
+                        <span className="font-mono text-[9px]" style={{ color: CREAM_DIM }}>
+                          #{p.collector_number}
+                        </span>
+                      </div>
+                      <div className="font-serif text-[10px] italic truncate" style={{ color: CREAM_DIM }}>
+                        {p.set_name}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="px-5 py-3 border-t flex justify-end" style={{ borderColor: CREAM_FAINT }}>
+          <button onClick={onClose} className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+            Close
           </button>
         </div>
       </div>
