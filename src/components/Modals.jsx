@@ -1567,12 +1567,16 @@ const BUDGET_PRESETS = [
 // existing Bracket tab numbering used elsewhere in the app.
 const BRACKET_OPTIONS = [1, 2, 3, 4, 5];
 
-export function RandomDeckModal({ onClose, onBuild }) {
+export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
   const [colors, setColors] = useState([]);
   const [partner, setPartner] = useState(false);
   const [bracket, setBracket] = useState(3);
   const [budgetId, setBudgetId] = useState('any');
   const [archetypeId, setArchetypeId] = useState('any');
+  // Whether to publish the rolled deck to the random-rolls gallery.
+  // Defaults on when the user is signed in (canShare=true); local-only
+  // users can't push to the gallery so the toggle is hidden for them.
+  const [shareRoll, setShareRoll] = useState(true);
   const [commander, setCommander] = useState(null);
   const [rolling, setRolling] = useState(false);
   const [building, setBuilding] = useState(false);
@@ -1626,11 +1630,21 @@ export function RandomDeckModal({ onClose, onBuild }) {
         budget != null ? `${isConverted(currency) ? '~' : ''}${formatPrice(budget, currency)} budget` : null,
         archetype.id !== 'any' ? `${archetype.label.toLowerCase()} archetype` : null,
       ].filter(Boolean).join(', ');
+      const willShare = canShare && shareRoll;
       onBuild({
         name: commander.name,
         commander,
         cards,
         notes: `Auto-seeded from EDHREC averages for ${commander.name} (${optsNote}).${breakdown}${missing?.length ? ` ${missing.length} card(s) unresolved.` : ''}`,
+        seedMeta: {
+          bracket,
+          budget,
+          currency,
+          archetype: archetypeId,
+          colors,
+          rolledAt: Date.now(),
+        },
+        isPublic: willShare,
       });
     } catch (e) {
       setError(e.message || 'Build failed.');
@@ -1870,6 +1884,26 @@ export function RandomDeckModal({ onClose, onBuild }) {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {canShare && (
+            <div className="flex items-center gap-3 border-t pt-4" style={{ borderColor: CREAM_FAINT }}>
+              <button
+                onClick={() => setShareRoll((s) => !s)}
+                className="w-9 h-5 border flex items-center transition"
+                style={{
+                  borderColor: CREAM_FAINT,
+                  background: shareRoll ? 'rgba(243,231,201,0.15)' : 'transparent',
+                  justifyContent: shareRoll ? 'flex-end' : 'flex-start',
+                }}
+                aria-pressed={shareRoll}
+              >
+                <span className="block w-3 h-3 mx-0.5" style={{ background: shareRoll ? CREAM : CREAM_DIM }} />
+              </button>
+              <span className="font-serif text-xs" style={{ color: CREAM_DIM }}>
+                Share to the random-rolls gallery (others can View / Copy)
+              </span>
             </div>
           )}
 
