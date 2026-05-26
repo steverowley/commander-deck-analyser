@@ -47,10 +47,11 @@ input[type='text'], input[type='email'], input[type='password'], input[type='sea
   cursor: text;
 }
 
-/* Foil overlay — soft rainbow sheen + an animated highlight stripe.
-   Used on the commander panel when deck.commander_foil is true. Pair
-   the wrapper with .foil-wrap and put .foil-shine inside it as a
-   pointer-events:none overlay so clicks still hit the underlying image. */
+/* Foil overlay — multiple styles, cycled via the Foil chip on the
+   commander panel. Each style supplies its own .foil-tint background
+   + optional .foil-shine animated sweep. Both layers inherit
+   border-radius from the .foil-wrap so the gradient hugs the card
+   silhouette. */
 .foil-wrap {
   position: relative;
   isolation: isolate;
@@ -62,7 +63,9 @@ input[type='text'], input[type='email'], input[type='password'], input[type='sea
   pointer-events: none;
   border-radius: inherit;
 }
-.foil-tint {
+
+/* Rainbow — the original glossy rainbow sheen (default). */
+.foil-tint.foil-rainbow {
   background: conic-gradient(
     from 210deg,
     rgba(255, 0, 170, 0.28),
@@ -74,7 +77,7 @@ input[type='text'], input[type='email'], input[type='password'], input[type='sea
   mix-blend-mode: color-dodge;
   opacity: 0.55;
 }
-.foil-shine {
+.foil-shine.foil-rainbow {
   background: linear-gradient(
     115deg,
     transparent 30%,
@@ -88,6 +91,88 @@ input[type='text'], input[type='email'], input[type='password'], input[type='sea
   mix-blend-mode: screen;
   animation: foil-sweep 4.2s ease-in-out infinite;
 }
+
+/* Galaxy — deep purple-blue with scattered star sparkles. */
+.foil-tint.foil-galaxy {
+  background:
+    radial-gradient(circle at 20% 25%, rgba(255,255,255,0.85) 0.6px, transparent 1.5px) 0 0 / 26px 26px,
+    radial-gradient(circle at 75% 60%, rgba(255,255,255,0.7)  0.5px, transparent 1.3px) 8px 12px / 42px 42px,
+    radial-gradient(circle at 45% 85%, rgba(255,255,255,0.55) 0.4px, transparent 1px)   15px 5px / 55px 55px,
+    conic-gradient(from 30deg,
+      rgba(60, 0, 120, 0.5),
+      rgba(0, 30, 140, 0.55),
+      rgba(150, 0, 100, 0.5),
+      rgba(80, 0, 150, 0.55),
+      rgba(60, 0, 120, 0.5));
+  mix-blend-mode: screen;
+  opacity: 0.72;
+}
+.foil-shine.foil-galaxy {
+  background: linear-gradient(
+    120deg,
+    transparent 35%,
+    rgba(180, 140, 255, 0.45) 49%,
+    rgba(220, 200, 255, 0.65) 50%,
+    rgba(180, 140, 255, 0.45) 51%,
+    transparent 65%
+  );
+  background-size: 250% 250%;
+  background-position: 0% 50%;
+  mix-blend-mode: screen;
+  animation: foil-sweep 6.5s ease-in-out infinite;
+}
+
+/* Surge — fast neon hard-light wave with intense saturation. */
+.foil-tint.foil-surge {
+  background: linear-gradient(125deg,
+    rgba(255, 0, 200, 0.45),
+    rgba(255, 200, 0, 0.45),
+    rgba(0, 255, 200, 0.45),
+    rgba(255, 0, 200, 0.45));
+  background-size: 250% 100%;
+  mix-blend-mode: hard-light;
+  opacity: 0.6;
+  animation: surge-wave 5s ease-in-out infinite;
+}
+.foil-shine.foil-surge {
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255, 255, 255, 0.7) 50%,
+    transparent 65%
+  );
+  background-size: 200% 200%;
+  background-position: 0% 50%;
+  mix-blend-mode: screen;
+  animation: foil-sweep 2.6s ease-in-out infinite;
+}
+@keyframes surge-wave {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+/* Etched — subtle linear silver striping, no animated sweep. */
+.foil-tint.foil-etched {
+  background: repeating-linear-gradient(135deg,
+    rgba(255, 255, 255, 0.22) 0px,
+    rgba(255, 255, 255, 0.22) 2px,
+    transparent 2px,
+    transparent 9px);
+  mix-blend-mode: overlay;
+  opacity: 0.75;
+}
+
+/* Oil slick — slow ellipse-based pools that blend into each other. */
+.foil-tint.foil-oil {
+  background:
+    radial-gradient(ellipse at 30% 60%, rgba(255, 80, 200, 0.55), transparent 55%),
+    radial-gradient(ellipse at 70% 40%, rgba(80, 255, 180, 0.5),  transparent 55%),
+    radial-gradient(ellipse at 50% 80%, rgba(255, 255, 80, 0.4),  transparent 60%),
+    radial-gradient(ellipse at 20% 30%, rgba(180, 80, 255, 0.42), transparent 50%);
+  mix-blend-mode: hard-light;
+  opacity: 0.62;
+}
+
 @keyframes foil-sweep {
   0%   { background-position: 0% 50%; }
   50%  { background-position: 100% 50%; }

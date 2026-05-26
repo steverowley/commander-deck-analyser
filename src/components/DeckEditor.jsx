@@ -12,14 +12,44 @@ import { ErrorBoundary } from './ErrorBoundary.jsx';
 
 // ───────────────────────────────────────────────────────────────────────────────
 
-function CommanderPicker({ deck, onSet, onToggleFoil }) {
+// Foil styles cycled by the chip on the commander art. Order = cycle
+// order. 'off' is implicit (null/undefined commander_foil).
+const FOIL_STYLES = ['rainbow', 'galaxy', 'surge', 'etched', 'oil'];
+const FOIL_LABELS = {
+  rainbow: 'Rainbow',
+  galaxy:  'Galaxy',
+  surge:   'Surge',
+  etched:  'Etched',
+  oil:     'Oil slick',
+};
+
+function normaliseFoilStyle(value) {
+  // Legacy boolean `true` from earlier versions maps to the original
+  // rainbow style so existing saved decks keep their visual.
+  if (value === true) return 'rainbow';
+  if (typeof value === 'string' && FOIL_STYLES.includes(value)) return value;
+  return null;
+}
+
+function nextFoilStyle(current) {
+  const norm = normaliseFoilStyle(current);
+  if (!norm) return FOIL_STYLES[0];
+  const idx = FOIL_STYLES.indexOf(norm);
+  // Cycle off after the last style.
+  if (idx >= FOIL_STYLES.length - 1) return null;
+  return FOIL_STYLES[idx + 1];
+}
+
+function CommanderPicker({ deck, onSet, onCycleFoil }) {
   const [q, setQ] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [highlight, setHighlight] = useState(0);
   const [showPrintings, setShowPrintings] = useState(false);
-  const foil = !!deck.commander_foil;
+  const foilStyle = normaliseFoilStyle(deck.commander_foil);
+  const foil = !!foilStyle;
+  const foilLabel = foilStyle ? FOIL_LABELS[foilStyle] : null;
 
   useEffect(() => {
     if (!q || q.length < 2) {
@@ -110,30 +140,34 @@ function CommanderPicker({ deck, onSet, onToggleFoil }) {
                 }}
               />
             </button>
-            {foil && (
+            {foilStyle && (
               <>
-                <span className="foil-tint pointer-events-none" style={{ borderRadius: '4.75% / 3.5%' }} />
-                <span className="foil-shine pointer-events-none" style={{ borderRadius: '4.75% / 3.5%' }} />
+                <span className={`foil-tint foil-${foilStyle} pointer-events-none`} style={{ borderRadius: '4.75% / 3.5%' }} />
+                <span className={`foil-shine foil-${foilStyle} pointer-events-none`} style={{ borderRadius: '4.75% / 3.5%' }} />
               </>
             )}
-            {/* Foil hover chip — top-right corner */}
+            {/* Foil cycle chip — top-right corner. Cycles
+                off → rainbow → galaxy → surge → etched → oil → off
+                on each click. */}
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                onToggleFoil?.();
+                onCycleFoil?.();
               }}
               className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 text-[9px] tracking-[0.2em] uppercase font-serif border md:opacity-0 md:group-hover:opacity-100 transition z-10"
               style={{
                 background: BG,
                 borderColor: foil ? CREAM : CREAM_FAINT,
                 color: foil ? CREAM : CREAM_DIM,
-                opacity: foil ? 1 : undefined, // stay visible while active so users can see how to toggle off
+                opacity: foil ? 1 : undefined,
               }}
-              title={foil ? 'Foil overlay on — click to remove' : 'Click to add a foil sheen'}
+              title={foil
+                ? `Foil: ${foilLabel} — click to cycle. After Oil slick, click cycles back to off.`
+                : 'Click to add a foil sheen — cycles through Rainbow / Galaxy / Surge / Etched / Oil slick.'}
               aria-pressed={foil}
             >
-              <Sparkle className="w-3 h-3" /> Foil{foil ? ' ·' : ''}
+              <Sparkle className="w-3 h-3" /> {foil ? foilLabel : 'Foil'}
             </button>
             {/* Art hover chip — bottom-right corner */}
             <span
@@ -161,12 +195,14 @@ function CommanderPicker({ deck, onSet, onToggleFoil }) {
               </button>
               <span style={{ opacity: 0.4, color: CREAM_DIM }}>·</span>
               <button
-                onClick={onToggleFoil}
+                onClick={onCycleFoil}
                 className="font-serif text-[10px] tracking-[0.3em] uppercase hover:opacity-100 flex items-center gap-1.5"
                 style={{ color: foil ? CREAM : CREAM_DIM }}
-                title={foil ? 'Foil overlay on — click to remove' : 'Click to add a foil sheen'}
+                title={foil
+                  ? `Foil: ${foilLabel} — click to cycle. After Oil slick, click cycles back to off.`
+                  : 'Click to add a foil sheen — cycles Rainbow / Galaxy / Surge / Etched / Oil slick.'}
               >
-                <Sparkle className="w-3 h-3" /> Foil{foil ? ' ·' : ''}
+                <Sparkle className="w-3 h-3" /> {foil ? `Foil · ${foilLabel}` : 'Foil'}
               </button>
               <span style={{ opacity: 0.4, color: CREAM_DIM }}>·</span>
               <button
@@ -474,7 +510,7 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, onSaveTransien
         <CommanderPicker
           deck={deck}
           onSet={setCommander}
-          onToggleFoil={() => onUpdate({ ...deck, commander_foil: !deck.commander_foil })}
+          onCycleFoil={() => onUpdate({ ...deck, commander_foil: nextFoilStyle(deck.commander_foil) })}
         />
       </div>
 
