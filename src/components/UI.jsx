@@ -464,7 +464,7 @@ export function CardRow({ entry, idx, onChangeCount, onRemove, onEditTags, onDem
 
   return (
     <div
-      className="border-b p-3 flex gap-3 items-start transition"
+      className="border-b p-2 sm:p-3 flex gap-2 sm:gap-3 items-start transition"
       style={{ borderColor: CREAM_FAINT }}
       onMouseEnter={(e) => {
         handleMouseEnter(e);
@@ -476,20 +476,23 @@ export function CardRow({ entry, idx, onChangeCount, onRemove, onEditTags, onDem
         e.currentTarget.style.background = 'transparent';
       }}
     >
-      <div className="font-mono text-[10px] w-8 pt-1.5 shrink-0 tracking-wider" style={{ color: CREAM_DIM }}>
+      <div className="font-mono text-[10px] w-5 sm:w-8 pt-1.5 shrink-0 tracking-wider" style={{ color: CREAM_DIM }}>
         {pad(idx + 1)}
       </div>
       <CardThumb card={c} onClick={() => setShowPreview(true)} />
       <div className="flex-1 min-w-0">
-        <div className="flex items-baseline gap-3">
+        {/* Name + type stack on mobile so a long type_line doesn't push
+            the card name into truncated 'M...' territory. On sm+ they
+            sit inline like before. */}
+        <div className="flex flex-col sm:flex-row sm:items-baseline gap-x-3 gap-y-0.5 min-w-0">
           <button
             onClick={() => setShowPreview(true)}
-            className="font-serif font-bold uppercase tracking-tight truncate text-left"
+            className="font-serif font-bold uppercase tracking-tight truncate text-left min-w-0"
             style={{ color: CREAM, fontSize: '0.95rem' }}
           >
             {c.name}
           </button>
-          <span className="font-serif text-xs italic shrink-0" style={{ color: CREAM_DIM }}>
+          <span className="font-serif text-xs italic truncate" style={{ color: CREAM_DIM }}>
             {c.type_line}
           </span>
         </div>
@@ -523,8 +526,9 @@ export function CardRow({ entry, idx, onChangeCount, onRemove, onEditTags, onDem
         <div className="flex items-center gap-px border" style={{ borderColor: CREAM_FAINT }}>
           <button
             onClick={() => onChangeCount(entry, entry.count - 1)}
-            className="w-6 h-5 text-xs font-mono"
+            className="w-7 h-7 sm:w-6 sm:h-5 text-sm sm:text-xs font-mono"
             style={{ color: CREAM_DIM }}
+            aria-label="Decrease count"
           >
             −
           </button>
@@ -533,28 +537,29 @@ export function CardRow({ entry, idx, onChangeCount, onRemove, onEditTags, onDem
           </span>
           <button
             onClick={() => onChangeCount(entry, entry.count + 1)}
-            className="w-6 h-5 text-xs font-mono"
+            className="w-7 h-7 sm:w-6 sm:h-5 text-sm sm:text-xs font-mono"
             style={{ color: CREAM_DIM }}
+            aria-label="Increase count"
           >
             +
           </button>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => onEditTags(entry)} className="hover:opacity-100" style={{ color: CREAM_DIM }} title="Edit tags / notes">
-            <Tag className="w-3 h-3" />
+        <div className="flex gap-2 sm:gap-2">
+          <button onClick={() => onEditTags(entry)} className="hover:opacity-100 p-1.5 sm:p-0 -m-1.5 sm:m-0" style={{ color: CREAM_DIM }} title="Edit tags / notes">
+            <Tag className="w-3.5 sm:w-3 h-3.5 sm:h-3" />
           </button>
           {onDemoteToWishlist && (
             <button
               onClick={() => onDemoteToWishlist(entry)}
-              className="hover:opacity-100"
+              className="hover:opacity-100 p-1.5 sm:p-0 -m-1.5 sm:m-0"
               style={{ color: CREAM_DIM }}
               title="Move to wishlist (set aside, doesn't count against 100)"
             >
-              <Bookmark className="w-3 h-3" />
+              <Bookmark className="w-3.5 sm:w-3 h-3.5 sm:h-3" />
             </button>
           )}
-          <button onClick={() => onRemove(entry)} className="hover:text-red-400" style={{ color: CREAM_DIM }} title="Remove from deck">
-            <Trash2 className="w-3 h-3" />
+          <button onClick={() => onRemove(entry)} className="hover:text-red-400 p-1.5 sm:p-0 -m-1.5 sm:m-0" style={{ color: CREAM_DIM }} title="Remove from deck">
+            <Trash2 className="w-3.5 sm:w-3 h-3.5 sm:h-3" />
           </button>
         </div>
       </div>
