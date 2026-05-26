@@ -1,18 +1,19 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Upload, BookOpen } from 'lucide-react';
+import { Upload, BookOpen, Search } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, hypergeom } from '../lib/utils.js';
 import { assessBracket } from '../lib/analyzers.js';
 import { computeHealth } from '../lib/health.js';
 import { buildStagePlans, synergyHubs, packageWeight, classifyArchetype } from '../lib/strategy.js';
 import { BRACKETS } from '../lib/constants.js';
-import { addCardsToDeck, safeAddCards, setCardCount, removeCardFromDeck, setCardTags, setCardNote, setStrictIdentity, promoteFromWishlist, demoteToWishlist, removeFromWishlist, addToWishlist, retag } from '../lib/deckops.js';
+import { addCardsToDeck, safeAddCards, setCardCount, removeCardFromDeck, setCardTags, setCardNote, setStrictIdentity, promoteFromWishlist, demoteToWishlist, removeFromWishlist, addToWishlist } from '../lib/deckops.js';
 import { simulateOpeners, simulatePlayout, simulateMulliganTree } from '../lib/goldfish.js';
 import { analyzeLandBase } from '../lib/landbase.js';
 import { fetchRecommendations, topRecommendations, recommendationsByTheme, themesForArchetype, suggestCuts } from '../lib/edhrec.js';
 import { fetchCardByExactName } from '../lib/scryfall.js';
 import { checkDeckLegality } from '../lib/legality.js';
 import { CardSearchBar, CardRow, TagPill, CardThumb, StatBox, FlagBox, ProbCard, EmptyState, HelpTip } from './UI.jsx';
+import { ScryfallSearchPanel, SCRYFALL_DRAG_MIME } from './ScryfallSearchPanel.jsx';
 import { ManaSymbol } from './ManaCost.jsx';
 import { BulkAddModal, TagEditModal } from './Modals.jsx';
 
@@ -293,6 +294,8 @@ export function CardsTab({ deck, onUpdate }) {
   const [editingTags, setEditingTags] = useState(null);
   const [filter, setFilter] = useState('');
   const [sortBy, setSortBy] = useState('type');
+  const [showScryfall, setShowScryfall] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
 
   const [recentlyRejected, setRecentlyRejected] = useState([]);
   const [searchTarget, setSearchTarget] = useState('deck');
@@ -350,9 +353,35 @@ export function CardsTab({ deck, onUpdate }) {
   const total = deck.cards.reduce((s, c) => s + c.count, 0);
   const limit = 100 - (deck.commander ? 1 : 0);
 
+  const handleDragOver = (e) => {
+    if (Array.from(e.dataTransfer.types).includes(SCRYFALL_DRAG_MIME)) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      setDragOver(true);
+    }
+  };
+  const handleDragLeave = () => setDragOver(false);
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    try {
+      const raw = e.dataTransfer.getData(SCRYFALL_DRAG_MIME);
+      if (!raw) return;
+      const payload = JSON.parse(raw);
+      if (payload?.kind === 'vault:card' && payload.card?.scryfall) {
+        addCards([{ name: payload.card.name, count: 1, scryfall: payload.card.scryfall }]);
+      }
+    } catch {}
+  };
+
   return (
-    <div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+    <div
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      style={dragOver ? { outline: `2px dashed ${CREAM}`, outlineOffset: '6px', borderRadius: '6px' } : undefined}
+    >
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
         <div className="md:col-span-2">
           <CardSearchBar
             onAdd={addFromSearch}
@@ -360,6 +389,16 @@ export function CardsTab({ deck, onUpdate }) {
             onTargetChange={setSearchTarget}
           />
         </div>
+        <button
+          onClick={() => setShowScryfall(true)}
+          className="border flex items-center justify-center gap-2 font-serif text-[11px] tracking-[0.3em] uppercase py-3 transition"
+          style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(243,231,201,0.02)' }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.06)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.02)')}
+          title="Open Scryfall search — drag results onto the deck to add them"
+        >
+          <Search className="w-3 h-3" /> Scryfall
+        </button>
         <button
           onClick={() => setShowBulk(true)}
           className="border flex items-center justify-center gap-2 font-serif text-[11px] tracking-[0.3em] uppercase py-3 transition"
@@ -478,6 +517,14 @@ export function CardsTab({ deck, onUpdate }) {
       </div>
 
       {showBulk && <BulkAddModal onClose={() => setShowBulk(false)} onAdd={addCards} />}
+      {showScryfall && (
+        <ScryfallSearchPanel
+          open={showScryfall}
+          onClose={() => setShowScryfall(false)}
+          addLabel="Add to deck"
+          onAdd={(card) => addCards([{ name: card.name, count: 1, scryfall: card }])}
+        />
+      )}
       {editingTags && (
         <TagEditModal
           entry={editingTags}
@@ -496,16 +543,9 @@ export function CardsTab({ deck, onUpdate }) {
 export function PackagesTab({ deck }) {
   const [focusTag, setFocusTag] = useState(null);
 
-  // Defensive: re-tag the deck's cards on the fly. The normal flow
-  // already keeps tags in sync via addCardsToDeck/retag, but rolled
-  // (transient) decks sometimes land here without populated tags —
-  // re-running detection is cheap and guarantees Packages always
-  // reflects the current pool.
-  const taggedCards = useMemo(() => retag(deck.cards), [deck.cards]);
-
   const packages = useMemo(() => {
     const map = {};
-    for (const c of taggedCards) {
+    for (const c of deck.cards) {
       if (!c.scryfall) continue;
       for (const t of c.tags || []) {
         if (!map[t]) map[t] = [];
@@ -518,9 +558,9 @@ export function PackagesTab({ deck }) {
       if (wDiff !== 0) return wDiff;
       return b[1].length - a[1].length;
     });
-  }, [taggedCards]);
+  }, [deck.cards]);
 
-  const hubs = useMemo(() => synergyHubs({ ...deck, cards: taggedCards }, 3), [taggedCards, deck]);
+  const hubs = useMemo(() => synergyHubs(deck, 3), [deck.cards]);
 
   if (deck.cards.length === 0) {
     return (
