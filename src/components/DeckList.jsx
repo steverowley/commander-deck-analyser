@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Trash2, Crown, Copy, Upload, Calculator, Dices } from 'lucide-react';
+import { Trash2, Crown, Copy, Upload, Calculator, Dices, Search } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, ACCENT } from '../theme.js';
 import { pad } from '../lib/utils.js';
 import { cardImageUrl } from '../lib/scryfall.js';
@@ -226,9 +226,9 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
         </p>
       </div>
 
-      {/* Numbered create / import / roll section */}
+      {/* Numbered create / import / roll / search section */}
       <div
-        className="grid grid-cols-1 md:grid-cols-3 border-t border-l fade-up"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 border-t border-l fade-up"
         style={{ borderColor: CREAM_FAINT, animationDelay: '120ms' }}
       >
         <div className="border-r border-b p-6 md:p-8" style={{ borderColor: CREAM_FAINT }}>
@@ -312,6 +312,30 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
             <Dices className="w-4 h-4" style={{ color: CREAM_DIM }} />
             <span className="font-mono text-sm" style={{ color: CREAM_DIM }}>
               random commander + auto-build...
+            </span>
+          </button>
+        </div>
+        <div className="border-r border-b p-6 md:p-8" style={{ borderColor: CREAM_FAINT }}>
+          <div className="flex items-baseline justify-between mb-4">
+            <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
+              <span style={{ color: CREAM_DIM }}>4.</span> Search Scryfall
+            </div>
+            <button
+              onClick={() => setShowScryfall(true)}
+              className="font-serif text-[10px] tracking-[0.35em] uppercase hover:opacity-100 transition"
+              style={{ color: CREAM_DIM }}
+            >
+              Open →
+            </button>
+          </div>
+          <button
+            onClick={() => setShowScryfall(true)}
+            className="w-full border px-4 py-3 text-left flex items-center gap-3"
+            style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.03)' }}
+          >
+            <Search className="w-4 h-4" style={{ color: CREAM_DIM }} />
+            <span className="font-mono text-sm" style={{ color: CREAM_DIM }}>
+              find a card · drag to Vault or deck...
             </span>
           </button>
         </div>
