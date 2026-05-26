@@ -12,7 +12,7 @@ import { loadPublicDecks } from '../lib/storage-supabase.js';
 import { assessBracket } from '../lib/analyzers.js';
 import { ManaSymbol } from './ManaCost.jsx';
 
-export function GalleryView({ onImportFromGallery }) {
+export function GalleryView({ onImportFromGallery, onViewDeck }) {
   const [decks, setDecks] = useState(null);
   const [error, setError] = useState(null);
 
@@ -71,14 +71,14 @@ export function GalleryView({ onImportFromGallery }) {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 border-t border-l" style={{ borderColor: CREAM_FAINT }}>
         {decks.map((d) => (
-          <GalleryCard key={d.id} deck={d} onImport={onImportFromGallery} />
+          <GalleryCard key={d.id} deck={d} onImport={onImportFromGallery} onView={onViewDeck} />
         ))}
       </div>
     </div>
   );
 }
 
-function GalleryCard({ deck, onImport }) {
+function GalleryCard({ deck, onImport, onView }) {
   const bracket = useMemo(() => deck.cards?.length ? assessBracket(deck).bracket : null, [deck]);
   const total = deck.cards?.reduce((s, c) => s + c.count, 0) || 0;
   const identity = deck.commander?.color_identity || [];
@@ -110,15 +110,28 @@ function GalleryCard({ deck, onImport }) {
       <div className="font-mono text-[10px] tracking-wider mt-auto pt-2" style={{ color: CREAM_DIM }}>
         {pad(total)} cards · by {deck.ownerUsername}
       </div>
-      {onImport && (
-        <button
-          onClick={() => onImport(deck)}
-          className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-1 self-start"
-          style={{ borderColor: CREAM_FAINT, color: CREAM }}
-        >
-          Copy → my archive
-        </button>
-      )}
+      <div className="flex flex-wrap gap-2 self-start">
+        {onView && (
+          <button
+            onClick={() => onView(deck)}
+            className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-1"
+            style={{ borderColor: CREAM_FAINT, color: CREAM }}
+            title="Open this deck in the read-only viewer"
+          >
+            View →
+          </button>
+        )}
+        {onImport && (
+          <button
+            onClick={() => onImport(deck)}
+            className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-1"
+            style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
+            title="Copy a private editable version into your archive"
+          >
+            Copy → mine
+          </button>
+        )}
+      </div>
     </div>
   );
 }

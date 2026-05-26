@@ -126,7 +126,12 @@ export default function App() {
   };
 
   const handleUpdate = async (updated) => {
-    await saveDeck(updated);
+    // Gallery view-mode decks live in state only — don't try to persist
+    // them to either backend (the `view:` id isn't a valid Supabase uuid
+    // and we don't want them to creep into the local archive either).
+    if (!updated.__readonly && !String(updated.id).startsWith('view:')) {
+      await saveDeck(updated);
+    }
     setDecks(decks.map((d) => (d.id === updated.id ? updated : d)));
   };
 
@@ -277,6 +282,23 @@ export default function App() {
               await saveDeck(copy);
               const reloaded = await loadDecks();
               setDecks(reloaded);
+            }}
+            onViewGalleryDeck={(deck) => {
+              // Open a gallery deck in a transient session — temporarily
+              // slot it into local state with a synthetic id and open it.
+              // It isn't persisted to either backend; the user has to hit
+              // "Copy → mine" if they want to keep it.
+              const viewerDeck = {
+                ...deck,
+                id: `view:${deck.id}`,
+                __readonly: true,
+              };
+              setDecks((current) =>
+                current.some((d) => d.id === viewerDeck.id)
+                  ? current
+                  : [viewerDeck, ...current]
+              );
+              selectDeck(viewerDeck.id);
             }}
           />
         )}

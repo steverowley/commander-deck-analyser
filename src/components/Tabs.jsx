@@ -260,8 +260,15 @@ function HealthPanel({ health }) {
               <div className="col-span-3 font-serif text-[11px] tracking-[0.2em] uppercase" style={{ color: CREAM_DIM }}>
                 {comp.label}
               </div>
-              <div className="col-span-7 h-1.5 border" style={{ borderColor: CREAM_FAINT }}>
-                <div className="h-full" style={{ background: CREAM, opacity: 0.75, width: `${(comp.points / comp.weight) * 100}%` }}></div>
+              <div className="col-span-7 h-2" style={{ background: 'rgba(243,231,201,0.08)' }}>
+                <div
+                  className="h-full"
+                  style={{
+                    background: comp.points === 0 ? 'transparent' : CREAM,
+                    opacity: 0.85,
+                    width: `${(comp.points / comp.weight) * 100}%`,
+                  }}
+                />
               </div>
               <div className="col-span-2 text-right font-mono text-[10px]" style={{ color: CREAM }}>
                 {comp.points}/{comp.weight}
@@ -921,8 +928,8 @@ function LandBaseSection({ deck }) {
                   <div className="col-span-3 font-serif text-sm" style={{ color: CREAM }}>
                     {name}
                   </div>
-                  <div className="col-span-6 h-1.5 border" style={{ borderColor: CREAM_FAINT }}>
-                    <div className="h-full" style={{ background: CREAM, opacity: 0.75, width: `${(rec / 20) * 100}%` }}></div>
+                  <div className="col-span-6 h-2" style={{ background: 'rgba(243,231,201,0.08)' }}>
+                    <div className="h-full" style={{ background: rec === 0 ? 'transparent' : CREAM, opacity: 0.85, width: `${(rec / 20) * 100}%` }}></div>
                   </div>
                   <div className="col-span-2 text-right font-mono text-xs" style={{ color: CREAM }}>
                     {have} → {rec}
@@ -1311,8 +1318,8 @@ function MulliganTreeResult({ tree }) {
                 <div className="col-span-2 font-serif text-xs" style={{ color: CREAM }}>
                   {s === 7 ? 'No mull' : `Mull to ${s}`}
                 </div>
-                <div className="col-span-8 h-1.5 border" style={{ borderColor: CREAM_FAINT }}>
-                  <div className="h-full" style={{ background: CREAM, opacity: 0.75, width: `${tree.stop[s] * 100}%` }}></div>
+                <div className="col-span-8 h-2" style={{ background: 'rgba(243,231,201,0.08)' }}>
+                  <div className="h-full" style={{ background: tree.stop[s] === 0 ? 'transparent' : CREAM, opacity: 0.85, width: `${tree.stop[s] * 100}%` }}></div>
                 </div>
                 <div className="col-span-2 text-right font-mono text-xs" style={{ color: CREAM }}>
                   {(tree.stop[s] * 100).toFixed(1)}%
@@ -1324,8 +1331,8 @@ function MulliganTreeResult({ tree }) {
                 <div className="col-span-2 font-serif text-xs" style={{ color: CREAM_DIM }}>
                   Mull 4 or fewer
                 </div>
-                <div className="col-span-8 h-1.5 border" style={{ borderColor: CREAM_FAINT }}>
-                  <div className="h-full" style={{ background: ACCENT, opacity: 0.75, width: `${tree.stop.further * 100}%` }}></div>
+                <div className="col-span-8 h-2" style={{ background: 'rgba(243,231,201,0.08)' }}>
+                  <div className="h-full" style={{ background: tree.stop.further === 0 ? 'transparent' : ACCENT, opacity: 0.85, width: `${tree.stop.further * 100}%` }}></div>
                 </div>
                 <div className="col-span-2 text-right font-mono text-xs" style={{ color: ACCENT }}>
                   {(tree.stop.further * 100).toFixed(1)}%
