@@ -1589,7 +1589,7 @@ export function RandomDeckModal({ onClose, onBuild }) {
     try {
       const { cards, missing, summary } = await buildSeededDeck(commander, setProgress);
       const breakdown = summary
-        ? ` Lands ${summary.lands + summary.basics}${summary.basics ? ` (${summary.basics} basics)` : ''}, ramp ${summary.ramp}, draw ${summary.draw}, removal ${summary.removal}, strategy ${summary.other}.`
+        ? ` Lands ${summary.land + summary.basics}${summary.basics ? ` (${summary.basics} basics)` : ''}, ramp ${summary.ramp}, draw ${summary.draw}, removal ${summary.removal}, strategy ${summary.other}.`
         : '';
       onBuild({
         name: commander.name,

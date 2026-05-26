@@ -1,0 +1,131 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+// We mock the two network-touching modules so the autoseed pipeline
+// runs deterministically. The shapes match what each real function
+// returns.
+
+vi.mock('./edhrec.js', () => ({
+  fetchRecommendations: vi.fn(),
+  topRecommendations: vi.fn((recs, _exclude, limit) => recs.slice(0, limit)),
+}));
+vi.mock('./scryfall.js', () => ({
+  fetchCardsByName: vi.fn(),
+}));
+
+import { fetchRecommendations } from './edhrec.js';
+import { fetchCardsByName } from './scryfall.js';
+import { buildSeededDeck } from './autoseed.js';
+
+const BASICS = {
+  plains:  { name: 'Plains',   type_line: 'Basic Land — Plains',   cmc: 0 },
+  island:  { name: 'Island',   type_line: 'Basic Land — Island',   cmc: 0 },
+  swamp:   { name: 'Swamp',    type_line: 'Basic Land — Swamp',    cmc: 0 },
+  mountain:{ name: 'Mountain', type_line: 'Basic Land — Mountain', cmc: 0 },
+  forest:  { name: 'Forest',   type_line: 'Basic Land — Forest',   cmc: 0 },
+};
+
+function totalCount(cards) {
+  return cards.reduce((s, c) => s + c.count, 0);
+}
+
+function makeCreature(i) {
+  return { name: `Creature ${i}`, type_line: 'Creature — Goblin', cmc: 3, oracle_text: 'Vanilla beater.' };
+}
+function makeRamp(i) {
+  return { name: `Ramp ${i}`, type_line: 'Sorcery', cmc: 2, oracle_text: 'Search your library for a basic land card and put it onto the battlefield.' };
+}
+function makeDraw(i) {
+  return { name: `Draw ${i}`, type_line: 'Sorcery', cmc: 3, oracle_text: 'Draw two cards.' };
+}
+function makeRemoval(i) {
+  return { name: `Removal ${i}`, type_line: 'Instant', cmc: 2, oracle_text: 'Destroy target creature.' };
+}
+function makeLand(i) {
+  return { name: `Utility Land ${i}`, type_line: 'Land', cmc: 0, oracle_text: '{T}: Add one mana of any color.' };
+}
+
+function buildResults(cards) {
+  const out = {};
+  for (const c of cards) out[c.name.toLowerCase()] = c;
+  // basics for the lookup path
+  out.plains = BASICS.plains;
+  out.island = BASICS.island;
+  out.swamp = BASICS.swamp;
+  out.mountain = BASICS.mountain;
+  out.forest = BASICS.forest;
+  return out;
+}
+
+describe('buildSeededDeck', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('returns exactly 99 cards (count-summed) even when EDHREC has very few lands', async () => {
+    // Pool: 90 creatures (other), 5 utility lands → way short of the
+    // land target. Padding must fill in basics WITHOUT blowing past 99.
+    const pool = [
+      ...Array.from({ length: 5 }, (_, i) => makeLand(i)),
+      ...Array.from({ length: 90 }, (_, i) => makeCreature(i)),
+    ];
+    fetchRecommendations.mockResolvedValue({ themes: [] });
+    // topRecommendations is mocked above to slice — feed pool names
+    // through it by stuffing the recs response directly into recs:
+    const recsAsCardviews = pool.map((c) => ({ name: c.name }));
+    fetchRecommendations.mockResolvedValue(recsAsCardviews);
+    fetchCardsByName.mockImplementation(async (names) => ({
+      results: buildResults(pool),
+      notFound: [],
+      errors: [],
+    }));
+
+    const commander = { name: 'Test Cmdr', color_identity: ['R'] };
+    const { cards, summary } = await buildSeededDeck(commander);
+
+    expect(totalCount(cards)).toBe(99);
+    expect(summary.basics).toBeGreaterThan(0); // padding kicked in
+  });
+
+  it('returns exactly 99 cards when EDHREC supplies a full balanced pool', async () => {
+    const pool = [
+      ...Array.from({ length: 40 }, (_, i) => makeLand(i)),
+      ...Array.from({ length: 20 }, (_, i) => makeRamp(i)),
+      ...Array.from({ length: 20 }, (_, i) => makeDraw(i)),
+      ...Array.from({ length: 20 }, (_, i) => makeRemoval(i)),
+      ...Array.from({ length: 80 }, (_, i) => makeCreature(i)),
+    ];
+    fetchRecommendations.mockResolvedValue(pool.map((c) => ({ name: c.name })));
+    fetchCardsByName.mockResolvedValue({ results: buildResults(pool), notFound: [], errors: [] });
+
+    const commander = { name: 'Big Cmdr', color_identity: ['W', 'U', 'B'] };
+    const { cards, summary } = await buildSeededDeck(commander);
+
+    expect(totalCount(cards)).toBe(99);
+    expect(summary.ramp).toBeGreaterThanOrEqual(7);
+    expect(summary.draw).toBeGreaterThanOrEqual(7);
+    expect(summary.removal).toBeGreaterThanOrEqual(7);
+  });
+
+  it('uses Wastes for a colorless commander when padding basics', async () => {
+    const pool = [
+      ...Array.from({ length: 3 }, (_, i) => makeLand(i)),
+      ...Array.from({ length: 80 }, (_, i) => makeCreature(i)),
+    ];
+    fetchRecommendations.mockResolvedValue(pool.map((c) => ({ name: c.name })));
+    fetchCardsByName.mockResolvedValue({
+      results: { ...buildResults(pool), wastes: { name: 'Wastes', type_line: 'Basic Land', cmc: 0 } },
+      notFound: [],
+      errors: [],
+    });
+
+    const commander = { name: 'Kozilek', color_identity: [] };
+    const { cards } = await buildSeededDeck(commander);
+
+    expect(totalCount(cards)).toBe(99);
+    const wastes = cards.find((c) => c.name === 'Wastes');
+    expect(wastes?.count ?? 0).toBeGreaterThan(0);
+  });
+});

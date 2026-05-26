@@ -103,7 +103,11 @@ export async function buildSeededDeck(commander, onProgress) {
   onProgress?.(`Balancing — target ${targets.lands} lands, ${targets.ramp} ramp, ${targets.draw} draw, ${targets.removal} removal...`);
 
   const entries = [];
-  const summary = { lands: 0, ramp: 0, draw: 0, removal: 0, other: 0, basics: 0 };
+  // Summary keys deliberately match the bucket keys (`land`, `ramp`,
+  // `draw`, `removal`, `other`) so `summary[key]` works inside the
+  // priority-fill loop. `basics` is separate because basics are
+  // distributed below; the modal sums lands + basics for the display.
+  const summary = { land: 0, ramp: 0, draw: 0, removal: 0, other: 0, basics: 0 };
 
   // Fill priority buckets in order. Each `add` consumes a slot from
   // the 99-card budget, so check the budget before grabbing.
@@ -135,38 +139,38 @@ export async function buildSeededDeck(commander, onProgress) {
     summary.other++;
   }
 
-  // Pad lands with basics if EDHREC didn't deliver enough nonbasics.
+  // Pad lands with basics if EDHREC didn't deliver enough lands.
   // Distributed round-robin across the commander's color identity so
   // pip ratios stay roughly even — good enough for an auto-seed
-  // starting point that the user can tune.
-  let landSlots = totalLandSlots(entries);
+  // starting point that the user can tune. CRITICAL: we MUST stay at
+  // or below 99 cards; previous version blew through because the
+  // make-room loop only dropped one filler.
+  const landSlots = totalLandSlots(entries);
   if (landSlots < targets.lands) {
-    const missingLands = Math.min(
-      targets.lands - landSlots,
-      DECK_TOTAL - totalSlots(entries) + (targets.lands - landSlots)
-    );
-    if (missingLands > 0) {
-      onProgress?.(`Padding ${missingLands} basic lands...`);
+    const wanted = targets.lands - landSlots;
+    onProgress?.(`Padding ${wanted} basic lands...`);
+    // Only drop fillers when there isn't already room. With existing
+    // room R and wanted W, we need max(0, W - R) drops.
+    const roomBefore = DECK_TOTAL - totalSlots(entries);
+    const needToDrop = Math.max(0, wanted - roomBefore);
+    let dropped = 0;
+    for (let i = entries.length - 1; i >= 0 && dropped < needToDrop; i--) {
+      if (categorize(entries[i].scryfall) === 'other') {
+        entries.splice(i, 1);
+        summary.other--;
+        dropped++;
+      }
+    }
+    const room = DECK_TOTAL - totalSlots(entries);
+    const padCount = Math.min(wanted, room);
+    if (padCount > 0) {
       const identity = (commander.color_identity || []).filter((c) => 'WUBRG'.includes(c));
       const basicNames = identity.length === 0
         ? [BASIC_BY_COLOR.C]
         : identity.map((c) => BASIC_BY_COLOR[c]);
       const { results: basicResults } = await fetchCardsByName(basicNames);
-      // Make room for basics — if we already hit 99, drop the
-      // lowest-priority synergy fillers (the last 'other' entries)
-      // to free slots.
-      let need = missingLands;
-      while (need > 0 && totalSlots(entries) >= DECK_TOTAL) {
-        // Drop a non-priority filler from the tail.
-        const idx = [...entries].reverse().findIndex((e) => categorize(e.scryfall) === 'other');
-        if (idx < 0) break;
-        const realIdx = entries.length - 1 - idx;
-        entries.splice(realIdx, 1);
-        summary.other--;
-        // We freed one slot; keep going until we've made enough room.
-      }
       const distribution = {};
-      for (let i = 0; i < need; i++) {
+      for (let i = 0; i < padCount; i++) {
         const name = basicNames[i % basicNames.length];
         distribution[name] = (distribution[name] || 0) + 1;
       }
@@ -176,6 +180,23 @@ export async function buildSeededDeck(commander, onProgress) {
         entries.push(entryFor(card, count));
         summary.basics += count;
       }
+    }
+  }
+
+  // Belt-and-braces safety: never return a deck over 99 cards.
+  // Trim from the tail if some prior step miscounted.
+  while (totalSlots(entries) > DECK_TOTAL) {
+    const last = entries[entries.length - 1];
+    if (last.count > 1) {
+      last.count--;
+      if (last.scryfall && categorize(last.scryfall) === 'land' && /^(Plains|Island|Swamp|Mountain|Forest|Wastes)$/.test(last.name)) {
+        summary.basics--;
+      }
+    } else {
+      const removed = entries.pop();
+      const cat = categorize(removed.scryfall);
+      if (cat === 'land' && /^(Plains|Island|Swamp|Mountain|Forest|Wastes)$/.test(removed.name)) summary.basics--;
+      else if (summary[cat] !== undefined) summary[cat]--;
     }
   }
 
