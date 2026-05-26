@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.9.2 — Drag a CSV onto the page + better import errors
+
+- **Drop a Moxfield .csv file straight onto the page.** The existing global drop overlay now accepts file drops too. Any `.csv` file (matched by extension or `text/csv` MIME) is read with `File.text()`, detected as a Moxfield export, parsed, and bulk-upserted into your Vault. Drop it on either zone — both route to the CSV import path. Success toast on completion.
+- **Better import errors.** Previous CSV imports said "1195 failed" with no detail. `bulkImportVault` now returns the actual Supabase error message (`{ added, failed, error }`); the modal + drop toast both surface it. Sample row logged to console.
+- **Deduplicates rows by name** before upserting — a CSV with the same card twice was rejecting the whole chunk because the upsert payload had duplicate primary keys. Last-write-wins per name within a single import.
+
 ## v0.9.1 — Moxfield CSV import into the Vault
 
 - **Bulk paste** in the Manage Vault modal now auto-detects a Moxfield "haves" CSV export (matched on the `Count, Tradelist Count, Name, ...` header). Parses Count + Name + Foil + Edition + Collector Number and writes to the Vault.

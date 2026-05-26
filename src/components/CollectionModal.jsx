@@ -89,13 +89,14 @@ export function CollectionModal({ onClose, signedIn }) {
           setError('Looks like a Moxfield CSV but I couldn\'t parse any rows.');
           return;
         }
-        const { added, failed } = await bulkImportVault(rows);
+        const { added, failed, error: importError } = await bulkImportVault(rows);
         await refresh();
-        setBulkText('');
-        setShowBulk(false);
         if (failed > 0) {
-          setError(`Imported ${added} of ${rows.length} cards; ${failed} failed.`);
-          setTimeout(() => setError(null), 6000);
+          setError(`Imported ${added} of ${rows.length} cards; ${failed} failed${importError ? `: ${importError}` : ''}. (Check the browser console for details.)`);
+          setTimeout(() => setError(null), 10000);
+        } else {
+          setBulkText('');
+          setShowBulk(false);
         }
         return;
       }
