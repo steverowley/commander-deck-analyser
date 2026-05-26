@@ -10,7 +10,7 @@ import { addCardsToDeck, safeAddCards, setCardCount, removeCardFromDeck, setCard
 import { simulateOpeners, simulatePlayout, simulateMulliganTree } from '../lib/goldfish.js';
 import { analyzeLandBase } from '../lib/landbase.js';
 import { fetchRecommendations, topRecommendations, recommendationsByTheme, themesForArchetype, suggestCuts } from '../lib/edhrec.js';
-import { fetchCardByExactName, resolveScryfallUrl } from '../lib/scryfall.js';
+import { fetchCardByExactName, resolveScryfallUrl, extractDroppedScryfallUrl } from '../lib/scryfall.js';
 import { checkDeckLegality } from '../lib/legality.js';
 import { CardSearchBar, CardRow, TagPill, CardThumb, StatBox, FlagBox, ProbCard, EmptyState, HelpTip } from './UI.jsx';
 import { ScryfallSearchPanel, SCRYFALL_DRAG_MIME } from './ScryfallSearchPanel.jsx';
@@ -353,20 +353,13 @@ export function CardsTab({ deck, onUpdate }) {
   const total = deck.cards.reduce((s, c) => s + c.count, 0);
   const limit = 100 - (deck.commander ? 1 : 0);
 
-  // Accept three drop sources, same as the Vault drop zone:
-  //   1. Our internal Scryfall search panel (custom MIME)
-  //   2. External drag from scryfall.com — an image (text/uri-list)
-  //      pointing at cards.scryfall.io, or a link to a card page
-  //   3. Plain-text drop where the payload is a Scryfall URL
+  // Accept any external drag — dataTransfer types are sometimes
+  // hidden from dragover for cross-origin drags. Always allow the
+  // drop and figure out at drop time whether we can resolve it.
   const handleDragOver = (e) => {
-    const types = Array.from(e.dataTransfer.types || []);
-    if (types.includes(SCRYFALL_DRAG_MIME)
-        || types.includes('text/uri-list')
-        || types.includes('text/plain')) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'copy';
-      setDragOver(true);
-    }
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    setDragOver(true);
   };
   const handleDragLeave = () => setDragOver(false);
   const handleDrop = async (e) => {
@@ -382,8 +375,7 @@ export function CardsTab({ deck, onUpdate }) {
         }
       } catch {}
     }
-    const url = (e.dataTransfer.getData('text/uri-list') || '').split('\n').find((s) => s && !s.startsWith('#'))
-              || e.dataTransfer.getData('text/plain');
+    const url = extractDroppedScryfallUrl(e.dataTransfer);
     if (!url) return;
     const card = await resolveScryfallUrl(url);
     if (card) addCards([{ name: card.name, count: 1, scryfall: card }]);

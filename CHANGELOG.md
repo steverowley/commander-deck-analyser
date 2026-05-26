@@ -1,5 +1,59 @@
 # Changelog
 
+## v0.8.0 — Vault rebrand, Scryfall drag, polish round
+
+### Vault (formerly Collection)
+- Renamed **Collection** → **Vault** throughout the UI. Same backend; the inventory of cards you own is now first-class branding.
+- **Homepage Vault section** — landing-page block summarises unique / total counts, recently-added cards, and offers **Manage Vault** + **Search →** actions. Always visible (even when empty) so the feature is discoverable.
+- VAULT logo on the landing nav is now a clickable link back to the homepage / scroll-to-top.
+
+### Scryfall drag-and-drop
+- **External drag from scryfall.com tabs** (Moxfield-style). Drag a card image straight from any `scryfall.com` browser tab onto your Vault or a deck's Cards tab — the URL is parsed (`cards.scryfall.io` image, `scryfall.com/card/...` page, or `api.scryfall.com/cards/...`) and the matched card lands in the target. Card-by-uuid cached so repeated drops are instant.
+- **In-app Scryfall search panel** with draggable card thumbnails. Slide-out from the right edge of the screen, accessible from a new **`4. Search Scryfall`** tile on the homepage create section.
+- Drop zones: Vault section + every deck's Cards tab. Internal-panel drops take the fast path (no extra network round-trip).
+
+### Auto-seed roller — three big fixes
+- **Total budget enforced**, not just per-card cap. A `$50` Budget preset used to produce ~$500 decks because 99 cards × per-card cap = `$594`. Now a post-build swap loop replaces the most expensive non-basic non-owned cards with basic lands until the deck total fits the chosen budget.
+- **Builder prefers basics** — non-basic lands now capped at `utilityReserve(colorCount)` (2 mono / 6 two-colour / 10 three / 12 four+). Rest of the land target fills with basics matching the commander's identity, which matches real EDH deck construction.
+- **Archive leak fixed** — `loadDecks` now explicitly filters `.eq('owner_id', userId)`. Previously RLS let an anonymous-read "anyone can read public decks" policy leak every other user's public deck into your archive grid.
+
+### Random rolls
+- **Persistent random-rolls table** — rolled decks are now snapshotted into a dedicated `public.random_rolls` table that survives the user deleting the deck from their archive. Owner FK is `ON DELETE SET NULL` so account deletions don't wipe historical rolls either.
+- **Rolled decks are transient by default** — `onRandomBuild` opens the built deck in a viewing-only session (id `roll:<ts>`). They no longer pollute your archive unless you hit **Save to my archive →** in the editor banner.
+
+### Foil styles
+- **Five foil treatments** cycle on the chip: Rainbow, Galaxy (purple-blue with star sparkles), Surge (neon hard-light), Etched (silver linear striping), Oil slick (slow ellipse pools). `deck.commander_foil` accepts a style id; legacy `true` migrates to `'rainbow'`. Foil chip is hover-only on md+ to match the Art chip.
+
+### Profile / accounts polish
+- Profile editor reachable from the `Cloud · email` button anywhere it appears; first-sign-in user is locked into an onboarding modal to pick a username before going further.
+
+### Editor + card row
+- **Deck cost** now visible in the editor header (`Cost · $X · 4 unpriced`). Mobile + desktop layouts updated.
+- **Per-card prices** on every CardRow (`cmc · 3 · $4.25`). Currency-aware via Settings.
+- **Owned-card pricing** — `deckTotalPrice` returns `ownedTotal` + `toBuy`. Archive deck cards + dashboard tile show "$X (Y to buy)" in green when you already own some.
+
+### Mobile + UX
+- Card-row name no longer truncates to `M...` on mobile — name + type stack vertically below `sm`. Count buttons enlarged to 28×28 px touch targets.
+- Card scanner: **auto-scan loop** every ~1.5 s (no need to keep tapping Scan). Confidence gate via Levenshtein similarity so low-confidence reads keep scanning instead of locking on a wrong card. Crop region recomputed from the on-screen guide so the OCR actually targets the title strip. Tesseract page-seg mode = 7 for single-line accuracy.
+- **Public Gallery cards restyled** to match the Latest Random Rolls layout (commander thumb + badge row + timestamp).
+
+### Bug fixes
+- Packages tab on rolled decks no longer goes empty silently — explicit empty-state copy when there are no detected tags.
+- Ramp count no longer inflated by basic lands (lands stripped from Ramp / Mana rock tags in `detectTags`).
+- Land-base advisor accounts for existing nonbasics — `basicSlots = max(0, target - max(nonbasic, utilityReserve))`.
+- Random-deck builder no longer produces 130+ card piles (summary key mismatch + basic-pad over-add fixed).
+- Commander suggestions dropdown bumped to `z-40` so the sticky tab bar doesn't cover it.
+- Mana symbols in oracle text get tiny inline `margin-inline` so `{R}{R}{R}` reads as a sequence instead of a blob.
+- Version chip popover is click-to-toggle (was hover, which closed the panel mid-scroll).
+- Cards tab + Vault drop zones accept `text/uri-list` / `text/plain` in addition to the internal MIME — fixes drops from external Scryfall tabs that the previous wiring silently ignored.
+
+### Internals
+- New helpers: `resolveScryfallUrl`, `archetypeById`, `tagsMatchArchetype`, `saveRandomRoll`.
+- New components: `ScryfallSearchPanel`, `VaultSection` (homepage), `RandomRollsView`, `CollectionModal`, `CardScanner`, `ProfileModal`.
+- New tables: `public.random_rolls`, `public.collection`, `public.profiles`.
+- New devDep: `tesseract.js` (lazy-loaded only when the scanner opens).
+- 176 Vitest tests pass.
+
 ## v0.7.0 — Roll-a-deck, collections, webcam scanner
 
 ### Random commander → auto-seeded decks

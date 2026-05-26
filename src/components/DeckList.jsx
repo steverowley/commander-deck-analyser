@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Trash2, Crown, Copy, Upload, Calculator, Dices, Search } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, ACCENT } from '../theme.js';
 import { pad } from '../lib/utils.js';
-import { cardImageUrl, resolveScryfallUrl } from '../lib/scryfall.js';
+import { cardImageUrl, resolveScryfallUrl, extractDroppedScryfallUrl } from '../lib/scryfall.js';
 import { assessBracket } from '../lib/analyzers.js';
 import { computeHealth } from '../lib/health.js';
 import { deckTotalPrice, formatPrice, isConverted } from '../lib/pricing.js';
@@ -975,21 +975,15 @@ function VaultSection({ collection, onOpen, onSearch, onAddCard }) {
     .sort((a, b) => (b.added_at || 0) - (a.added_at || 0))
     .slice(0, 8);
 
-  // Accept three drop sources:
-  //   1. Our internal Scryfall search panel (custom MIME)
-  //   2. External drag from scryfall.com — an image (text/uri-list)
-  //      pointing at cards.scryfall.io, or a link to a card page on
-  //      scryfall.com itself
-  //   3. Plain-text drop where the payload is a Scryfall URL
+  // Accept any external drag — we'll figure out at drop time whether
+  // we can resolve it to a card. Some browsers (Safari, Firefox in
+  // some configs) hide the data types from dragover for cross-origin
+  // drags so checking types here can silently reject valid drops.
+  // Always preventDefault and read the payload on drop.
   const handleDragOver = (e) => {
-    const types = Array.from(e.dataTransfer.types || []);
-    if (types.includes(SCRYFALL_DRAG_MIME)
-        || types.includes('text/uri-list')
-        || types.includes('text/plain')) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'copy';
-      setDragOver(true);
-    }
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    setDragOver(true);
   };
   const handleDragLeave = () => setDragOver(false);
   const handleDrop = async (e) => {
@@ -1006,9 +1000,9 @@ function VaultSection({ collection, onOpen, onSearch, onAddCard }) {
         }
       } catch {}
     }
-    // 2. External URL from scryfall.com (image or card page).
-    const url = (e.dataTransfer.getData('text/uri-list') || '').split('\n').find((s) => s && !s.startsWith('#'))
-              || e.dataTransfer.getData('text/plain');
+    // 2. External drag from scryfall.com — try every data source
+    //    the browser might have stashed the URL in.
+    const url = extractDroppedScryfallUrl(e.dataTransfer);
     if (!url) return;
     const card = await resolveScryfallUrl(url);
     if (card) onAddCard?.(card);
