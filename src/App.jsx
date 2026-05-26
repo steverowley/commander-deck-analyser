@@ -16,6 +16,8 @@ import { AuthModal } from './components/AuthModal.jsx';
 import { ProfileModal } from './components/ProfileModal.jsx';
 import { BackupModal, SettingsModal } from './components/Modals.jsx';
 import { CollectionModal } from './components/CollectionModal.jsx';
+import { GlobalDropOverlay } from './components/GlobalDropOverlay.jsx';
+import { addToCollection } from './lib/collection.js';
 import { loadProfile } from './lib/profile.js';
 
 export default function App() {
@@ -402,6 +404,14 @@ export default function App() {
         />
       )}
       <OfflineIndicator />
+      <GlobalDropOverlay
+        activeDeckName={activeDeck?.name}
+        onAddToVault={(card) => addToCollection(card.name, 1)}
+        onAddToDeck={activeDeck ? (card) => {
+          const next = addCardsToDeck(activeDeck, [{ name: card.name, count: 1, scryfall: card }]);
+          handleUpdate(next);
+        } : null}
+      />
     </div>
   );
 }
