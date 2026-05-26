@@ -77,42 +77,72 @@ function CommanderPicker({ deck, onSet, onToggleFoil }) {
           className="md:col-span-2 p-6 md:border-r border-b md:border-b-0 flex items-center justify-center relative group"
           style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}
         >
-          <button
-            type="button"
-            onClick={() => setShowPrintings(true)}
-            className="relative block foil-wrap w-56 sm:w-64 md:w-56"
-            title="Change art / printing"
+          {/* Card wrapper. Art opens the printing picker; Foil toggles
+              the foil overlay. Both action buttons are siblings of the
+              image (not nested) so we don't get button-in-button HTML.
+              `foil-wrap` lives here so the gradient overlays inherit
+              the rounded-card radius. */}
+          <div
+            className="relative foil-wrap w-56 sm:w-64 md:w-56"
             style={{ borderRadius: '4.75% / 3.5%' }}
           >
-            <img
-              src={cardImageUrl(deck.commander, 'png')}
-              alt={deck.commander.name}
-              className="block w-full"
+            <button
+              type="button"
+              onClick={() => setShowPrintings(true)}
+              className="relative block w-full"
+              title="Change art / printing"
               style={{ borderRadius: '4.75% / 3.5%' }}
-              onError={(e) => {
-                // Fall back to the JPG variant if the PNG fails (some
-                // older printings still 404 on the PNG endpoint).
-                if (!e.target.dataset.fallback) {
-                  e.target.dataset.fallback = '1';
-                  e.target.src = cardImageUrl(deck.commander, 'normal');
-                } else {
-                  e.target.style.display = 'none';
-                }
-              }}
-            />
+            >
+              <img
+                src={cardImageUrl(deck.commander, 'png')}
+                alt={deck.commander.name}
+                className="block w-full"
+                style={{ borderRadius: '4.75% / 3.5%' }}
+                onError={(e) => {
+                  // Fall back to the JPG variant if the PNG fails (some
+                  // older printings still 404 on the PNG endpoint).
+                  if (!e.target.dataset.fallback) {
+                    e.target.dataset.fallback = '1';
+                    e.target.src = cardImageUrl(deck.commander, 'normal');
+                  } else {
+                    e.target.style.display = 'none';
+                  }
+                }}
+              />
+            </button>
             {foil && (
               <>
-                <span className="foil-tint" style={{ borderRadius: '4.75% / 3.5%' }} />
-                <span className="foil-shine" style={{ borderRadius: '4.75% / 3.5%' }} />
+                <span className="foil-tint pointer-events-none" style={{ borderRadius: '4.75% / 3.5%' }} />
+                <span className="foil-shine pointer-events-none" style={{ borderRadius: '4.75% / 3.5%' }} />
               </>
             )}
+            {/* Foil hover chip — top-right corner */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFoil?.();
+              }}
+              className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 text-[9px] tracking-[0.2em] uppercase font-serif border md:opacity-0 md:group-hover:opacity-100 transition z-10"
+              style={{
+                background: BG,
+                borderColor: foil ? CREAM : CREAM_FAINT,
+                color: foil ? CREAM : CREAM_DIM,
+                opacity: foil ? 1 : undefined, // stay visible while active so users can see how to toggle off
+              }}
+              title={foil ? 'Foil overlay on — click to remove' : 'Click to add a foil sheen'}
+              aria-pressed={foil}
+            >
+              <Sparkle className="w-3 h-3" /> Foil{foil ? ' ·' : ''}
+            </button>
+            {/* Art hover chip — bottom-right corner */}
             <span
-              className="absolute bottom-2 right-2 flex items-center gap-1 px-2 py-1 text-[9px] tracking-[0.2em] uppercase font-serif border md:opacity-0 md:group-hover:opacity-100 transition z-10"
+              className="absolute bottom-2 right-2 flex items-center gap-1 px-2 py-1 text-[9px] tracking-[0.2em] uppercase font-serif border md:opacity-0 md:group-hover:opacity-100 transition z-10 pointer-events-none"
               style={{ background: BG, borderColor: CREAM_FAINT, color: CREAM }}
             >
               <Images className="w-3 h-3" /> Art
             </span>
-          </button>
+          </div>
         </div>
         <div className="md:col-span-3 p-6">
           <div className="flex items-baseline justify-between mb-4 gap-3">

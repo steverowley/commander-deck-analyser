@@ -275,6 +275,66 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
     }
   }
 
+  // Budget enforcement — the per-card cap on its own isn't enough.
+  // 99 cards at the cap can still overshoot the total (e.g. a $50
+  // budget at 12% per-card = $6 per card × 99 ≈ $594). Sweep the
+  // built deck and swap out the most-expensive non-basic non-owned
+  // cards for basic lands until the total fits the budget.
+  if (Number.isFinite(opts.budget) && opts.budget > 0) {
+    const isBasicName = (n) => /^(Plains|Island|Swamp|Mountain|Forest|Wastes)$/.test(n);
+    const computeTotal = () => entries.reduce((s, e) => {
+      const p = cardPrice(e.scryfall, currency) || 0;
+      return s + p * e.count;
+    }, 0);
+    const identity = (commander.color_identity || []).filter((c) => 'WUBRG'.includes(c));
+    const basicNames = identity.length === 0
+      ? [BASIC_BY_COLOR.C]
+      : identity.map((c) => BASIC_BY_COLOR[c]);
+    let basicResults = null;
+    let total = computeTotal();
+    let safety = 60;
+    while (total > opts.budget && safety-- > 0) {
+      // Find the most expensive entry that isn't already a basic and
+      // isn't in the user's owned collection (owned = free for them).
+      let worstIdx = -1;
+      let worstPrice = 0;
+      for (let i = 0; i < entries.length; i++) {
+        const e = entries[i];
+        if (isBasicName(e.name)) continue;
+        if (collection && collection[lc(e.name)]) continue;
+        const p = cardPrice(e.scryfall, currency) || 0;
+        if (p > worstPrice) {
+          worstPrice = p;
+          worstIdx = i;
+        }
+      }
+      // Don't bother swapping cards under 50¢ — they barely move the
+      // total and the swap loop should converge before this.
+      if (worstIdx < 0 || worstPrice < 0.5) break;
+
+      const removed = entries.splice(worstIdx, 1)[0];
+      const cat = categorize(removed.scryfall);
+      if (cat === 'land') summary.land = Math.max(0, summary.land - 1);
+      else if (summary[cat] !== undefined) summary[cat] = Math.max(0, summary[cat] - 1);
+
+      // Replace with a basic land so the deck stays at 99 cards.
+      if (!basicResults) {
+        const fetched = await fetchCardsByName(basicNames);
+        basicResults = fetched.results;
+      }
+      const pickIndex = summary.basics % basicNames.length;
+      const basicName = basicNames[pickIndex];
+      const basicCard = basicResults?.[basicName.toLowerCase()];
+      if (basicCard) {
+        const existing = entries.find((e) => e.name === basicName);
+        if (existing) existing.count++;
+        else entries.push(entryFor(basicCard, 1));
+        summary.basics++;
+      }
+      total = computeTotal();
+    }
+  }
+
   // Belt-and-braces safety: never return a deck over 99 cards.
   // Trim from the tail if some prior step miscounted.
   while (totalSlots(entries) > DECK_TOTAL) {
