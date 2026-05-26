@@ -16,7 +16,7 @@ import { RandomRollsView } from './RandomRollsView.jsx';
 import { loadCollection, addToCollection } from '../lib/collection.js';
 import { ScryfallSearchPanel, SCRYFALL_DRAG_MIME } from './ScryfallSearchPanel.jsx';
 
-export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup, onSettings, onProfile, onCollection, user, cloudEnabled, onSignIn, onSignOut, onImportFromGallery, onViewGalleryDeck, onRandomBuild }) {
+export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup, onSettings, onProfile, onCollection, collectionRev = 0, user, cloudEnabled, onSignIn, onSignOut, onImportFromGallery, onViewGalleryDeck, onRandomBuild }) {
   const [name, setName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showImport, setShowImport] = useState(false);
@@ -26,7 +26,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
 
   useEffect(() => {
     loadCollection().then(setCollection);
-  }, [user?.id]);
+  }, [user?.id, collectionRev]);
   const [search, setSearch] = useState('');
   const [bracketFilter, setBracketFilter] = useState(null); // 1..5
   const [colorFilter, setColorFilter] = useState(null);     // 'W' | 'U' | 'B' | 'R' | 'G' | 'C'

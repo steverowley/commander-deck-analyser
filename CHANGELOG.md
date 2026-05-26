@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.3 — Dropped cards refresh the Vault instantly
+
+- **Fix**: dragging a card from scryfall.com onto the Vault drop zone wrote to the backend but the homepage thumbnail strip didn't update until you reloaded the page. `App.jsx` now bumps a `collectionRev` counter after every drop (and after closing the Vault modal), which DeckList watches as a useEffect dependency to re-fetch.
+- Same trigger fires after the Vault modal closes — so any add/remove/quantity edit inside the modal also refreshes the homepage strip.
+
 ## v0.8.2 — See the cards in your Vault
 
 - **Homepage Vault section** now renders the 12 most recently-added cards as **image thumbnails** instead of a plain comma-separated text list. Multi-quantity entries get a `×N` badge in the corner.
