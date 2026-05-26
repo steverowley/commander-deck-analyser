@@ -6,6 +6,7 @@ import { fetchCardsByName, fetchCardByExactName, refreshCachedCards, fetchPrinti
 import { buildSeededDeck } from '../lib/autoseed.js';
 import { ARCHETYPES } from '../lib/archetypes.js';
 import { loadCollection, uniqueCount } from '../lib/collection.js';
+import { saveRandomRoll } from '../lib/storage-supabase.js';
 import { exportDecklist } from '../lib/deckops.js';
 import { buildShareUrl } from '../lib/share.js';
 import { deckTotalPrice, formatPrice, isConverted } from '../lib/pricing.js';
@@ -1641,20 +1642,32 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
         archetype.id !== 'any' ? `${archetype.label.toLowerCase()} archetype` : null,
       ].filter(Boolean).join(', ');
       const willShare = canShare && shareRoll;
+      const seedMeta = {
+        bracket,
+        budget,
+        currency,
+        archetype: archetypeId,
+        colors,
+        rolledAt: Date.now(),
+      };
+      // Snapshot the roll into random_rolls — survives the user
+      // later deleting the deck from their archive. Best-effort;
+      // a failure here doesn't block creating the deck itself.
+      if (willShare) {
+        saveRandomRoll({ commander, cards, seedMeta }).catch((e) => {
+          console.warn('Vault: random-roll snapshot failed', e);
+        });
+      }
       onBuild({
         name: commander.name,
         commander,
         cards,
         notes: `Auto-seeded from EDHREC averages for ${commander.name} (${optsNote}).${breakdown}${missing?.length ? ` ${missing.length} card(s) unresolved.` : ''}`,
-        seedMeta: {
-          bracket,
-          budget,
-          currency,
-          archetype: archetypeId,
-          colors,
-          rolledAt: Date.now(),
-        },
-        isPublic: willShare,
+        seedMeta,
+        // Personal deck stays private by default now — sharing is
+        // captured via the random_rolls snapshot, no need to also
+        // pollute the user's archive with a forced-public deck.
+        isPublic: false,
       });
     } catch (e) {
       setError(e.message || 'Build failed.');

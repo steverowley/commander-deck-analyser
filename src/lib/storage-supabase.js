@@ -117,10 +117,6 @@ export async function loadPublicDecks(limit = 24) {
     .from('decks')
     .select('id, name, commander_name, is_public, data, updated_at, owner_id')
     .eq('is_public', true)
-    // Rolled decks live in their own gallery section; keep the
-    // curated Public Gallery free of bot-output by excluding any
-    // deck with a seedMeta marker.
-    .is('data->seedMeta', null)
     .order('updated_at', { ascending: false })
     .limit(limit);
   if (error) {
@@ -145,38 +141,73 @@ export async function loadPublicDecks(limit = 24) {
 }
 
 /**
- * Random-rolls gallery — recent public decks that were auto-seeded via
- * the Roll-a-deck flow. Identified by the presence of `data->seedMeta`,
- * which the modal stamps onto each rolled deck.
+ * Insert a roll snapshot into random_rolls. Called from the
+ * Roll-a-deck flow when the user opts in to share. Persists the
+ * commander + cards + roll metadata independently of the user's
+ * editable decks, so deleting the deck from their archive doesn't
+ * remove the roll from the gallery.
  *
- * Same two-query join (decks → profiles) as the regular gallery.
+ * Returns { ok } — failures are logged but never block the build.
+ */
+export async function saveRandomRoll({ commander, cards, seedMeta }) {
+  if (!supabase || !commander) return { ok: false };
+  const userId = await currentUserId().catch(() => null);
+  if (!userId) return { ok: false };
+  const { error } = await supabase.from('random_rolls').insert({
+    owner_id: userId,
+    commander_name: commander.name || null,
+    commander_data: commander,
+    cards_data: cards || [],
+    seed_meta: seedMeta || null,
+  });
+  if (error) {
+    console.warn('Supabase saveRandomRoll failed', error);
+    return { ok: false };
+  }
+  return { ok: true };
+}
+
+/**
+ * Random-rolls gallery — reads from the dedicated random_rolls table
+ * so entries persist even if the user later deletes the deck from
+ * their archive. Joins profiles client-side by owner_id.
  */
 export async function loadRandomRolls(limit = 12) {
   if (!supabase) return [];
-  const { data: decks, error } = await supabase
-    .from('decks')
-    .select('id, name, commander_name, is_public, data, created_at, updated_at, owner_id')
-    .eq('is_public', true)
-    .not('data->seedMeta', 'is', null)
+  const { data: rolls, error } = await supabase
+    .from('random_rolls')
+    .select('id, owner_id, commander_name, commander_data, cards_data, seed_meta, created_at')
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error) {
     console.warn('Supabase loadRandomRolls failed', error);
     return [];
   }
-  if (!decks?.length) return [];
+  if (!rolls?.length) return [];
 
-  const ownerIds = [...new Set(decks.map((d) => d.owner_id))];
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('user_id, username')
-    .in('user_id', ownerIds);
-  const usernameByOwner = new Map();
-  for (const p of profiles || []) usernameByOwner.set(p.user_id, p.username);
+  const ownerIds = [...new Set(rolls.map((r) => r.owner_id).filter(Boolean))];
+  let usernameByOwner = new Map();
+  if (ownerIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, username')
+      .in('user_id', ownerIds);
+    for (const p of profiles || []) usernameByOwner.set(p.user_id, p.username);
+  }
 
-  return decks.map((row) => ({
-    ...rowToDeck(row),
-    ownerUsername: usernameByOwner.get(row.owner_id) || 'someone',
+  // Adapt to the same shape gallery cards expect: a `deck` object with
+  // commander, cards, ownerUsername, created, seedMeta. The id is the
+  // roll's own uuid so React keys stay stable.
+  return rolls.map((r) => ({
+    id: `roll:${r.id}`,
+    name: r.commander_name || 'Random roll',
+    commander: r.commander_data,
+    cards: r.cards_data || [],
+    seedMeta: r.seed_meta || null,
+    created: new Date(r.created_at).getTime(),
+    updated: new Date(r.created_at).getTime(),
+    ownerUsername: r.owner_id ? (usernameByOwner.get(r.owner_id) || 'someone') : '[deleted]',
+    __fromRandomRolls: true,
   }));
 }
 
