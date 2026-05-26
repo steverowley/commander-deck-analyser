@@ -37,6 +37,44 @@ export const supabase = URL && KEY
     })
   : null;
 
+/**
+ * Pull any OAuth callback params out of the URL and surface errors.
+ * Returns the captured error string (if any) so the UI can show it.
+ *
+ * Called once on app boot — Supabase parses the `?code=...&state=...`
+ * itself on init, but leaves the URL alone (which means a refresh
+ * re-triggers the exchange and gets "flow_state_already_used"). We
+ * scrub the params after a tick so the next reload starts fresh.
+ *
+ * Also surfaces `?error=...&error_description=...` so users see a
+ * concrete message when an OAuth flow fails instead of nothing.
+ */
+export function consumeOAuthParams() {
+  if (typeof window === 'undefined') return null;
+  const { search, hash } = window.location;
+  const hasAuthParams =
+    /[?&](code|state|error|error_code|error_description|access_token|refresh_token)=/.test(search) ||
+    /[#&](access_token|error|error_code)=/.test(hash);
+  if (!hasAuthParams) return null;
+
+  // Grab any error before we clear the URL.
+  const params = new URLSearchParams(search.replace(/^\?/, '') + '&' + hash.replace(/^#/, ''));
+  const error = params.get('error_description') || params.get('error') || null;
+
+  // Defer the cleanup so Supabase has its chance to parse first. Without
+  // this, the SDK reads an empty URL and never picks up the session.
+  setTimeout(() => {
+    try {
+      const url = new window.URL(window.location.href);
+      url.search = '';
+      url.hash = '';
+      window.history.replaceState({}, '', url.toString());
+    } catch {}
+  }, 1500);
+
+  return error;
+}
+
 export function isCloudEnabled() {
   return !!supabase;
 }
