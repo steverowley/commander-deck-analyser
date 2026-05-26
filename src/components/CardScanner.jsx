@@ -39,8 +39,12 @@ async function getWorker(onProgress) {
     });
     // Tighten the character set to what appears in card names so
     // Tesseract doesn't waste guesses on glyphs that can't be card names.
+    // PSM 7 = treat the image as a single text line — appropriate for
+    // a card-name strip and a big accuracy win over the default
+    // auto-segmentation mode.
     await worker.setParameters({
       tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 ,'-./",
+      tessedit_pageseg_mode: '7',
     });
     tesseractWorker = worker;
     tesseractLoading = null;
@@ -123,22 +127,43 @@ export function CardScanner({ onClose, onAdded }) {
         }
         return;
       }
-      // Heuristic crop — assume the card fills most of the frame's
-      // height. The name strip is in the top ~12% so we sample that
-      // band with a margin to handle hand-shake.
-      const cropY = 0;
-      const cropH = Math.floor(h * 0.16);
-      canvas.width = w;
-      canvas.height = cropH;
+      // Crop to the same region the on-screen dashed guide marks
+      // (the card-name strip), computed from the overlay's geometry
+      // so the OCR sees exactly what the user is told to frame.
+      //
+      // Overlay = parent with 6% padding, card outline is aspect 5:7
+      // with height = 85% of the inner area, centred. The title-strip
+      // box inside the card is the top ~10% (slightly tighter than
+      // the visual hint so we miss the type bar).
+      const cardH = h * 0.85 * 0.88;
+      const cardW = cardH * (5 / 7);
+      const cardTop = (h - cardH) / 2;
+      const cardLeft = (w - cardW) / 2;
+      const cropY = Math.max(0, Math.floor(cardTop + 4));
+      const cropX = Math.max(0, Math.floor(cardLeft + 6));
+      const cropH = Math.floor(cardH * 0.10);
+      const cropW = Math.min(w - cropX, Math.floor(cardW - 12));
+      // Up-sample to give Tesseract more pixels to chew on. Card-name
+      // text is typically only 30-50px tall at native resolution which
+      // OCRs poorly; doubling the canvas before recognition improves
+      // accuracy meaningfully.
+      const scale = 2;
+      canvas.width = cropW * scale;
+      canvas.height = cropH * scale;
       const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, cropY, w, cropH, 0, 0, w, cropH);
-      // Optional contrast boost. Simple grayscale + threshold.
-      const img = ctx.getImageData(0, 0, w, cropH);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, canvas.width, canvas.height);
+      // Light contrast boost — greyscale + a soft S-curve. The
+      // previous aggressive 140/90 threshold flattened too much detail
+      // for stylised set fonts; this keeps mid-tones so Tesseract's
+      // adaptive binariser can do its own pass.
+      const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const px = img.data;
       for (let i = 0; i < px.length; i += 4) {
         const g = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
-        const v = g > 140 ? 255 : g < 90 ? 0 : g;
-        px[i] = px[i + 1] = px[i + 2] = v;
+        const boosted = Math.max(0, Math.min(255, (g - 128) * 1.6 + 128));
+        px[i] = px[i + 1] = px[i + 2] = boosted;
       }
       ctx.putImageData(img, 0, 0);
 
@@ -438,9 +463,15 @@ export function CardScanner({ onClose, onAdded }) {
 }
 
 function cleanOcr(text) {
-  return (text || '')
-    .split('\n')[0]
-    .replace(/[^A-Za-z0-9 ,'\-./]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+  // PSM 7 should give us a single line, but Tesseract still sometimes
+  // emits multi-line output (margin noise, set-symbol artefacts). Take
+  // the LONGEST line — the card title strip is typically the dominant
+  // text content in the crop, so it wins the length contest.
+  const lines = (text || '')
+    .split('\n')
+    .map((l) => l.replace(/[^A-Za-z0-9 ,'\-./]/g, '').replace(/\s+/g, ' ').trim())
+    .filter((l) => l.length >= 3);
+  if (lines.length === 0) return '';
+  lines.sort((a, b) => b.length - a.length);
+  return lines[0];
 }

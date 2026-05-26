@@ -1,5 +1,62 @@
 # Changelog
 
+## v0.7.0 — Roll-a-deck, collections, webcam scanner
+
+### Random commander → auto-seeded decks
+- **Roll a deck** tile on the landing page (third option in the create section) opens a flow that picks a random commander and auto-seeds a 99-card list around it via EDHREC's typical-deck averages.
+- Settings: **Color identity** (WUBRG multi-select), **Partner / background** toggle, **Bracket target 1-5** (filters Game Changers / MLD / combos at low brackets), **Budget cap** (Any / Budget / Casual / Tuned / Premium — currency-aware), **Archetype preference** (Tokens / Tribal / Voltron / Aristocrats / Reanimator / Spellslinger / counters / Combo / Stax / Lifegain / Group hug).
+- **Curve-aware bucket fill** — lands / ramp / draw / removal targets come from `recommendByCurve`. Falls back to basic-land padding when the EDHREC pool doesn't supply enough lands. 99-card cap is now an invariant (pinned by tests).
+- **Always-on ban-list filter** — `BANNED_CARDS` excluded from every roll regardless of bracket, even at cEDH.
+
+### Latest Random Rolls gallery
+- New landing-page section above the curated Public Gallery, showing recent rolled decks across all users.
+- Tiles match the Public Gallery style: commander thumb, name, identity pips, `B<bracket>` / budget / archetype badges, `@user · 5m ago`, View / Copy → mine.
+- Snapshots live in a dedicated `random_rolls` table so they **survive the original user deleting the deck from their archive**. Owner FK is `ON DELETE SET NULL` so account deletions don't wipe historical rolls either.
+- Opt-in toggle inside the Roll modal — defaults on for signed-in users, hidden for anonymous.
+
+### Collection + webcam scanner
+- New **Collection** inventory (link in the landing footer). Add cards via webcam, bulk paste (Moxfield format), or autocomplete; quantities edited inline with `-/+/×` controls.
+- **Auto-scanning webcam scanner** — opens the device camera, draws a card-outline guide, and runs OCR every ~1.5s automatically (no need to tap a button each time). Scanner uses **Tesseract.js** (lazy-loaded, PSM 7 single-line mode, ~2× upscale of the cropped title strip), fuzzy-matches the read against Scryfall's autocomplete, and presents the best hit with alternative suggestions.
+- Storage is Supabase-backed for signed-in users (RLS-locked to owner) and localStorage for anonymous.
+- **"Only use cards I own"** toggle in the Roll-a-deck modal filters the EDHREC pool to your inventory; basics still pad out the rest of the deck.
+
+### Collection-aware pricing
+- `deckTotalPrice` now optionally takes the user's collection and returns `ownedTotal` + `toBuy`. Archive deck cards show `(£X to buy)` in green when you already own some of the cards; the Archive Dashboard total tile reflects the same.
+- Auto-seed budget filter lets owned cards bypass the per-card price cap (they're $0 to you), so a $50 Sol Ring you own can still land in a $100 budget deck.
+
+### Per-card art + foil
+- **Per-card printing picker** — click any card thumbnail anywhere in the app, open the preview, tap **Art** to browse every printing on Scryfall and pick one. The chosen printing is a per-deck override; the global card cache is untouched.
+- Commander panel got the same affordance plus a **Foil** toggle that overlays a rainbow sheen + animated diagonal shine over the card art.
+- Commander image switched to Scryfall's PNG variant for transparent rounded corners (kills the ugly white border on Beta-era cards).
+
+### Profiles + accounts
+- First-sign-in **username picker** modal locks new users into choosing a public handle before the gallery credits decks "shared by @username".
+- **Profile editor** reachable from the nav (`Cloud · email` is now a button) and footer; shows username, email, and member-since date.
+- Username validation: 2-24 chars, letters/digits/underscore/hyphen, friendly "already taken" error on conflicts.
+
+### Mobile + nav polish
+- Tab bar on the editor scrolls horizontally on mobile instead of wrapping into a 4-col grid with an empty cell.
+- Action strip uses `flex-wrap` (no horizontal scroll), so every Notes / Share / Public / Compare / Export / Dupe / Rules icon stays reachable.
+- CardRow no longer truncates names to `M...` — name + type stack vertically on mobile, count buttons are now a 28×28 px touch target, action icons have a `-m-1.5 p-1.5` halo for hit-testing.
+- Top navs on the landing page and editor have dedicated mobile branches with vertical stacks; the desktop grids are unchanged.
+- Footer reflows on narrow viewports.
+
+### Bug fixes
+- **Random deck no longer produces 130+ card piles** — fixed two bugs in `buildSeededDeck` (summary key mismatch + basic-pad over-add). 99-card invariant pinned by 3 new tests.
+- **Ramp count was inflated by basic lands** — `detectTags` now strips `Ramp` / `Mana rock` from any card whose type line includes `Land`. Health panel, Stages, and Strategy plans all benefit.
+- **Land Base advisor ignored existing nonbasics** — `basicSlots = max(0, target - max(currentNonbasic, utilityReserve))`. A mono-red deck with 17 basics + 20 nonbasics no longer gets told to add 18 more Mountains.
+- **Viewing a gallery deck no longer pollutes your archive** — view-mode decks live in a separate `viewingDeck` state; navigating back clears them.
+- **Commander suggestions dropdown** bumped from `z-20` to `z-40` so it's no longer covered by the sticky tab bar.
+- **Mana symbol spacing** — adjacent `{R}{R}{R}` in oracle text reads as a sequence instead of a blob.
+- **Version chip changelog popover** is now click-to-toggle (not hover) so you can actually scroll the release notes without it closing.
+
+### Internals
+- New modules: `lib/autoseed.js`, `lib/archetypes.js`, `lib/collection.js`, `lib/profile.js`, `lib/changelog.js`.
+- New components: `RandomDeckModal`, `RandomRollsView`, `PrintingPickerModal`, `ProfileModal`, `CollectionModal`, `CardScanner`, `VersionChip`.
+- New tables: `public.collection`, `public.profiles`, `public.random_rolls`.
+- New devDep: `tesseract.js` (lazy-loaded only when the scanner opens).
+- Test count: 160 → 174.
+
 ## v0.6.0 — Cloud-first, mobile-friendly, smarter health
 
 ### Cloud sync, accounts, gallery
