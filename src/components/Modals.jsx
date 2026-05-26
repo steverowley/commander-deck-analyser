@@ -5,7 +5,7 @@ import { pad, parseDecklist, lc } from '../lib/utils.js';
 import { fetchCardsByName, fetchCardByExactName, refreshCachedCards } from '../lib/scryfall.js';
 import { exportDecklist } from '../lib/deckops.js';
 import { buildShareUrl } from '../lib/share.js';
-import { deckTotalPrice, formatPrice } from '../lib/pricing.js';
+import { deckTotalPrice, formatPrice, isConverted } from '../lib/pricing.js';
 import { compareDecks } from '../lib/compare.js';
 import { buildBackup, parseBackup, backupFilename } from '../lib/backup.js';
 import { loadSettings, updateSetting } from '../lib/settings.js';
@@ -374,14 +374,15 @@ export function ExportModal({ deck, onClose }) {
             Moxfield/MTGA-compatible text. Paste this into any deck builder that accepts plain decklists.
           </p>
           {(() => {
-            const price = deckTotalPrice(deck);
+            const currency = loadSettings().currency || 'usd';
+            const price = deckTotalPrice(deck, currency);
             if (price.priced === 0) return null;
-            const approx = price.unpriced > 0 ? '~' : '';
+            const approx = price.unpriced > 0 || isConverted(currency) ? '~' : '';
             return (
               <div className="flex items-center gap-3 mb-3 font-mono text-[11px]" style={{ color: CREAM_DIM }}>
                 <span>Deck price ·</span>
                 <span style={{ color: CREAM, fontSize: '1.1rem', fontFamily: 'inherit' }}>
-                  {approx}{formatPrice(price.total)} USD
+                  {approx}{formatPrice(price.total, currency)} {currency.toUpperCase()}
                 </span>
                 {price.unpriced > 0 && <span>({price.unpriced} card{price.unpriced === 1 ? '' : 's'} unpriced)</span>}
               </div>
@@ -1257,10 +1258,10 @@ export function SettingsModal({ onClose }) {
           </SettingsRow>
           <SettingsRow
             label="Price currency"
-            description="Which Scryfall price field to display on deck cards + the Export modal."
+            description="USD / EUR come straight from Scryfall. GBP is converted from USD at an approximate rate (shown with a ~ prefix)."
           >
             <div className="flex border" style={{ borderColor: CREAM_FAINT }}>
-              {['usd', 'eur'].map((c) => (
+              {['usd', 'eur', 'gbp'].map((c) => (
                 <button
                   key={c}
                   onClick={() => update('currency', c)}

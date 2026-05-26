@@ -5,7 +5,8 @@ import { pad } from '../lib/utils.js';
 import { cardImageUrl } from '../lib/scryfall.js';
 import { assessBracket } from '../lib/analyzers.js';
 import { computeHealth } from '../lib/health.js';
-import { deckTotalPrice, formatPrice } from '../lib/pricing.js';
+import { deckTotalPrice, formatPrice, isConverted } from '../lib/pricing.js';
+import { loadSettings } from '../lib/settings.js';
 import { aggregateStats } from '../lib/stats.js';
 import { ManaSymbol } from './ManaCost.jsx';
 import { ImportDeckModal } from './Modals.jsx';
@@ -629,14 +630,17 @@ function DeckCardMeta({ deck, searchMatch }) {
         </>
       )}
       {hasCards && (() => {
-        const price = deckTotalPrice(deck);
+        const currency = loadSettings().currency || 'usd';
+        const price = deckTotalPrice(deck, currency);
         if (price.priced === 0) return null;
-        const approx = price.unpriced > 0 ? '~' : '';
+        // ~ means either some cards are unpriced OR the currency is
+        // client-side converted (GBP from USD).
+        const approx = price.unpriced > 0 || isConverted(currency) ? '~' : '';
         return (
           <>
             <span>·</span>
             <span title={price.unpriced > 0 ? `${price.unpriced} card(s) unpriced` : 'All cards priced'}>
-              {approx}{formatPrice(price.total)}
+              {approx}{formatPrice(price.total, currency)}
             </span>
           </>
         );
