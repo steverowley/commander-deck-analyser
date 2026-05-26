@@ -389,6 +389,56 @@ export async function fetchRandomCommander({ colors = [], partner = false } = {}
  * Build a card image URL. Uses Scryfall's hosted images, proxied through
  * weserv.nl to avoid hot-linking issues and provide some caching.
  */
+/**
+ * Resolve a Scryfall URL (image CDN, card page, or API endpoint)
+ * into a normalised card object. Used by the drag-and-drop drop
+ * zones — when a user drags a card image from scryfall.com onto
+ * Vault or a deck, the drop handler hands the URL to this and we
+ * fetch the actual card data.
+ *
+ * Supported shapes:
+ *   - https://cards.scryfall.io/<size>/<face>/<a>/<b>/<uuid>.<ext>
+ *     → looks up /cards/<uuid>
+ *   - https://scryfall.com/card/<set>/<collector>[/<slug>]
+ *     → looks up /cards/<set>/<collector>
+ *   - https://api.scryfall.com/cards/<uuid>
+ *   - https://api.scryfall.com/cards/<set>/<collector>
+ *
+ * Returns the normalised card on success, null otherwise. Caches
+ * the result so subsequent lookups are instant.
+ */
+export async function resolveScryfallUrl(url) {
+  if (!url || typeof url !== 'string') return null;
+  let endpoint = null;
+  try {
+    const u = new URL(url.trim());
+    const host = u.hostname.toLowerCase();
+    if (host === 'cards.scryfall.io' || host === 'img.scryfall.com') {
+      // .../<a>/<b>/<uuid>.jpg or .png — pluck the uuid out of the path.
+      const m = u.pathname.match(/\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+      if (m) endpoint = `${SCRYFALL}/cards/${m[1]}`;
+    } else if (host === 'scryfall.com' || host === 'www.scryfall.com') {
+      // /card/<set>/<collector>[/<slug>]
+      const m = u.pathname.match(/\/card\/([^/]+)\/([^/]+)/i);
+      if (m) endpoint = `${SCRYFALL}/cards/${m[1]}/${encodeURIComponent(m[2])}`;
+    } else if (host === 'api.scryfall.com') {
+      // Trust the URL as an API endpoint as-is if it's a /cards/ path.
+      if (u.pathname.startsWith('/cards/')) endpoint = `${SCRYFALL}${u.pathname}`;
+    }
+  } catch {
+    return null;
+  }
+  if (!endpoint) return null;
+  try {
+    const res = await fetch(endpoint);
+    if (!res.ok) return null;
+    const card = await res.json();
+    return cacheCard(card);
+  } catch {
+    return null;
+  }
+}
+
 export function cardImageUrl(card, version = 'small') {
   if (!card?.name) return null;
   const direct =

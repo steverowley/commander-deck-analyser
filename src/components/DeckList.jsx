@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Trash2, Crown, Copy, Upload, Calculator, Dices, Search } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, ACCENT } from '../theme.js';
 import { pad } from '../lib/utils.js';
-import { cardImageUrl } from '../lib/scryfall.js';
+import { cardImageUrl, resolveScryfallUrl } from '../lib/scryfall.js';
 import { assessBracket } from '../lib/analyzers.js';
 import { computeHealth } from '../lib/health.js';
 import { deckTotalPrice, formatPrice, isConverted } from '../lib/pricing.js';
@@ -975,25 +975,43 @@ function VaultSection({ collection, onOpen, onSearch, onAddCard }) {
     .sort((a, b) => (b.added_at || 0) - (a.added_at || 0))
     .slice(0, 8);
 
+  // Accept three drop sources:
+  //   1. Our internal Scryfall search panel (custom MIME)
+  //   2. External drag from scryfall.com — an image (text/uri-list)
+  //      pointing at cards.scryfall.io, or a link to a card page on
+  //      scryfall.com itself
+  //   3. Plain-text drop where the payload is a Scryfall URL
   const handleDragOver = (e) => {
-    if (Array.from(e.dataTransfer.types).includes(SCRYFALL_DRAG_MIME)) {
+    const types = Array.from(e.dataTransfer.types || []);
+    if (types.includes(SCRYFALL_DRAG_MIME)
+        || types.includes('text/uri-list')
+        || types.includes('text/plain')) {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'copy';
       setDragOver(true);
     }
   };
   const handleDragLeave = () => setDragOver(false);
-  const handleDrop = (e) => {
+  const handleDrop = async (e) => {
     e.preventDefault();
     setDragOver(false);
-    try {
-      const raw = e.dataTransfer.getData(SCRYFALL_DRAG_MIME);
-      if (!raw) return;
-      const payload = JSON.parse(raw);
-      if (payload?.kind === 'vault:card' && payload.card?.scryfall) {
-        onAddCard?.(payload.card.scryfall);
-      }
-    } catch {}
+    // 1. Internal drag from our search panel — fastest path.
+    const raw = e.dataTransfer.getData(SCRYFALL_DRAG_MIME);
+    if (raw) {
+      try {
+        const payload = JSON.parse(raw);
+        if (payload?.kind === 'vault:card' && payload.card?.scryfall) {
+          onAddCard?.(payload.card.scryfall);
+          return;
+        }
+      } catch {}
+    }
+    // 2. External URL from scryfall.com (image or card page).
+    const url = (e.dataTransfer.getData('text/uri-list') || '').split('\n').find((s) => s && !s.startsWith('#'))
+              || e.dataTransfer.getData('text/plain');
+    if (!url) return;
+    const card = await resolveScryfallUrl(url);
+    if (card) onAddCard?.(card);
   };
 
   return (
@@ -1023,8 +1041,8 @@ function VaultSection({ collection, onOpen, onSearch, onAddCard }) {
             {dragOver
               ? 'Drop to add this card to your Vault.'
               : (unique === 0
-                  ? 'Cards you actually own. Search Scryfall and drag a card here, scan with the webcam, or paste a list. The deck roller can then build only from cards you own.'
-                  : 'Cards you actually own. Drag in more from Scryfall or open Manage Vault to scan / paste / edit.')}
+                  ? 'Cards you actually own. Drag a card image straight from a scryfall.com tab onto this box, search via the panel, scan with the webcam, or paste a list. The deck roller can then build only from cards you own.'
+                  : 'Cards you actually own. Drag in cards from scryfall.com (just drop the image onto this box) or open Manage Vault to scan / paste / edit.')}
           </p>
           {recent.length > 0 && (
             <div className="font-mono text-[10px] mt-3 truncate" style={{ color: CREAM_DIM }}>
