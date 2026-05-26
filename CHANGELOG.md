@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.9.1 — Moxfield CSV import into the Vault
+
+- **Bulk paste** in the Manage Vault modal now auto-detects a Moxfield "haves" CSV export (matched on the `Count, Tradelist Count, Name, ...` header). Parses Count + Name + Foil + Edition + Collector Number and writes to the Vault.
+- Quantities are **set** (snapshot semantics) rather than added — a CSV represents your current inventory, not a delta.
+- Foil column maps to our internal styles: `foil` → Rainbow, `etched` → Etched, blank → none.
+- Batched in chunks of 100 rows via `supabase.upsert` so a 1k+ row import is a handful of round trips instead of 1k separate inserts.
+- The old line-list parser is still the fallback when the input isn't a CSV.
+- New tests cover Moxfield-header detection, quantity / foil mapping, commas in quoted names, and escaped doubled-quotes.
+
 ## v0.9.0 — Vault card affordances (corner radius, foil, art picker, "Vault-only" toggle)
 
 ### Vault thumbnails
