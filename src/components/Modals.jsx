@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { X, Loader2, Check, BookOpen, Copy, Download, Link as LinkIcon, GitCompare, Archive, FileText, Settings as SettingsIcon } from 'lucide-react';
+import { X, Loader2, Check, BookOpen, Copy, Download, Link as LinkIcon, GitCompare, Archive, FileText, Settings as SettingsIcon, Dices, Shuffle } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, parseDecklist, lc } from '../lib/utils.js';
-import { fetchCardsByName, fetchCardByExactName, refreshCachedCards, fetchPrintings, cardImageUrl } from '../lib/scryfall.js';
+import { fetchCardsByName, fetchCardByExactName, refreshCachedCards, fetchPrintings, fetchRandomCommander, cardImageUrl } from '../lib/scryfall.js';
+import { buildSeededDeck } from '../lib/autoseed.js';
 import { exportDecklist } from '../lib/deckops.js';
 import { buildShareUrl } from '../lib/share.js';
 import { deckTotalPrice, formatPrice, isConverted } from '../lib/pricing.js';
@@ -1533,6 +1534,230 @@ export function PrintingPickerModal({ card, onClose, onPick }) {
           <button onClick={onClose} className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
             Close
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Random commander → auto-seeded deck flow. User optionally constrains
+ * color identity, rolls a random legendary creature commander from
+ * Scryfall, then (when they hit Build) we synthesise a 99-card list
+ * via EDHREC's top recommendations and hand the populated deck back
+ * to App.handleImport so it lands in the archive + opens in the editor.
+ */
+const WUBRG_COLORS = ['W', 'U', 'B', 'R', 'G'];
+
+export function RandomDeckModal({ onClose, onBuild }) {
+  const [colors, setColors] = useState([]);
+  const [partner, setPartner] = useState(false);
+  const [commander, setCommander] = useState(null);
+  const [rolling, setRolling] = useState(false);
+  const [building, setBuilding] = useState(false);
+  const [progress, setProgress] = useState('');
+  const [error, setError] = useState(null);
+
+  const toggleColor = (c) => {
+    setColors((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
+  };
+
+  const roll = async () => {
+    setRolling(true);
+    setError(null);
+    setCommander(null);
+    try {
+      const c = await fetchRandomCommander({ colors, partner });
+      if (!c) {
+        setError('Scryfall returned no commander for that filter. Try widening the identity.');
+      } else {
+        setCommander(c);
+      }
+    } catch (e) {
+      setError(e.message || 'Roll failed.');
+    } finally {
+      setRolling(false);
+    }
+  };
+
+  const build = async () => {
+    if (!commander) return;
+    setBuilding(true);
+    setProgress('');
+    try {
+      const { cards, missing } = await buildSeededDeck(commander, setProgress);
+      onBuild({
+        name: commander.name,
+        commander,
+        cards,
+        notes: `Auto-seeded from EDHREC averages for ${commander.name}.${missing?.length ? ` ${missing.length} card(s) unresolved.` : ''}`,
+      });
+    } catch (e) {
+      setError(e.message || 'Build failed.');
+      setBuilding(false);
+    }
+  };
+
+  const colorLabel = colors.length === 0 ? 'Any identity' : colors.join('');
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(13,22,20,0.92)', backdropFilter: 'blur(6px)' }}
+      onClick={onClose}
+    >
+      <div
+        className="border w-full max-w-2xl max-h-[90vh] flex flex-col"
+        style={{ background: BG, borderColor: CREAM_FAINT }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-5 py-4 border-b flex items-baseline justify-between" style={{ borderColor: CREAM_FAINT }}>
+          <div>
+            <div className="font-serif text-[10px] tracking-[0.3em] uppercase font-bold flex items-center gap-2" style={{ color: CREAM_DIM }}>
+              <Dices className="w-3 h-3" /> Roll a deck
+            </div>
+            <div className="font-serif text-lg font-black uppercase mt-1" style={{ color: CREAM }}>
+              Random commander
+            </div>
+          </div>
+          <button onClick={onClose} style={{ color: CREAM_DIM }} disabled={building}>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-auto p-5 space-y-5">
+          <div>
+            <div className="font-serif text-[10px] tracking-[0.3em] uppercase font-bold mb-2" style={{ color: CREAM_DIM }}>
+              Color identity · <span style={{ color: CREAM }}>{colorLabel}</span>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {WUBRG_COLORS.map((c) => {
+                const active = colors.includes(c);
+                return (
+                  <button
+                    key={c}
+                    onClick={() => toggleColor(c)}
+                    className="w-9 h-9 border flex items-center justify-center transition"
+                    style={{
+                      borderColor: active ? CREAM : CREAM_FAINT,
+                      background: active ? 'rgba(243,231,201,0.08)' : 'transparent',
+                    }}
+                    title={c}
+                  >
+                    <ManaSymbol sym={c} size="1em" />
+                  </button>
+                );
+              })}
+              {colors.length > 0 && (
+                <button
+                  onClick={() => setColors([])}
+                  className="font-serif text-[10px] tracking-[0.3em] uppercase hover:opacity-100 ml-2"
+                  style={{ color: CREAM_DIM }}
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+            <div className="font-serif text-xs italic mt-2" style={{ color: CREAM_DIM }}>
+              {colors.length === 0
+                ? 'No colors selected → any commander. Pick colors to force the identity exactly.'
+                : `Will roll a commander with identity exactly ${colorLabel}.`}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setPartner((p) => !p)}
+              className="w-9 h-5 border flex items-center transition"
+              style={{
+                borderColor: CREAM_FAINT,
+                background: partner ? 'rgba(243,231,201,0.15)' : 'transparent',
+                justifyContent: partner ? 'flex-end' : 'flex-start',
+              }}
+              aria-pressed={partner}
+            >
+              <span className="block w-3 h-3 mx-0.5" style={{ background: partner ? CREAM : CREAM_DIM }} />
+            </button>
+            <span className="font-serif text-xs" style={{ color: CREAM_DIM }}>
+              Include partner / background commanders
+            </span>
+          </div>
+
+          {commander && (
+            <div className="border p-4 flex flex-col sm:flex-row gap-4" style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}>
+              <img
+                src={cardImageUrl(commander, 'normal')}
+                alt={commander.name}
+                className="w-32 sm:w-40 self-center sm:self-start shrink-0"
+                style={{ borderColor: CREAM_FAINT, borderWidth: 1 }}
+                onError={(e) => (e.currentTarget.style.display = 'none')}
+              />
+              <div className="flex-1 min-w-0">
+                <div className="font-serif text-[10px] tracking-[0.3em] uppercase font-bold" style={{ color: CREAM_DIM }}>
+                  Rolled
+                </div>
+                <div className="font-serif font-black uppercase mt-1 tracking-tight" style={{ color: CREAM, fontSize: 'clamp(1.25rem, 3vw, 1.75rem)' }}>
+                  {commander.name}
+                </div>
+                <div className="font-serif text-sm italic mt-1" style={{ color: CREAM_DIM }}>
+                  {commander.type_line}
+                </div>
+                {commander.color_identity?.length > 0 && (
+                  <div className="flex items-center gap-1 mt-2">
+                    {commander.color_identity.map((c) => (
+                      <ManaSymbol key={c} sym={c} size="1em" />
+                    ))}
+                  </div>
+                )}
+                {commander.oracle_text && (
+                  <div className="font-serif text-xs mt-3 leading-snug line-clamp-5" style={{ color: CREAM_DIM }}>
+                    {commander.oracle_text}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {building && (
+            <div className="flex items-center gap-2 font-mono text-xs" style={{ color: CREAM_DIM }}>
+              <Loader2 className="w-3.5 h-3.5 animate-spin" /> {progress || 'Building deck...'}
+            </div>
+          )}
+          {error && (
+            <div className="font-mono text-xs" style={{ color: ACCENT }}>{error}</div>
+          )}
+        </div>
+
+        <div className="px-5 py-3 border-t flex items-center justify-between gap-3 flex-wrap" style={{ borderColor: CREAM_FAINT }}>
+          <button
+            onClick={onClose}
+            disabled={building}
+            className="font-serif text-[10px] tracking-[0.3em] uppercase hover:opacity-100 disabled:opacity-30"
+            style={{ color: CREAM_DIM }}
+          >
+            Cancel
+          </button>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={roll}
+              disabled={rolling || building}
+              className="font-serif text-[10px] tracking-[0.3em] uppercase border px-4 py-2 hover:opacity-100 disabled:opacity-30 flex items-center gap-1.5"
+              style={{ borderColor: CREAM_FAINT, color: CREAM }}
+            >
+              {rolling ? <Loader2 className="w-3 h-3 animate-spin" /> : <Shuffle className="w-3 h-3" />}
+              {commander ? 'Reroll' : 'Roll commander'}
+            </button>
+            <button
+              onClick={build}
+              disabled={!commander || building}
+              className="font-serif text-[10px] tracking-[0.3em] uppercase border px-4 py-2 disabled:opacity-30"
+              style={{ borderColor: CREAM, color: CREAM, background: 'rgba(243,231,201,0.06)' }}
+            >
+              {building ? 'Building...' : 'Build deck →'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

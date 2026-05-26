@@ -462,6 +462,16 @@ export function CardsTab({ deck, onUpdate }) {
               onRemove={removeCard}
               onDemoteToWishlist={() => onUpdate(demoteToWishlist(deck, c.name))}
               onEditTags={setEditingTags}
+              onChangePrinting={(entry, printing) => {
+                // Per-deck art override — preserve the entry's count + tags
+                // + note, swap scryfall payload only.
+                onUpdate({
+                  ...deck,
+                  cards: deck.cards.map((card) =>
+                    card.name === entry.name ? { ...card, scryfall: printing } : card
+                  ),
+                });
+              }}
             />
           ))
         )}

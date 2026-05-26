@@ -148,12 +148,13 @@ export default function App() {
     setActiveId(copy.id);
   };
 
-  const handleImport = async ({ name, commander, cards }) => {
+  const handleImport = async ({ name, commander, cards, notes }) => {
     const base = {
       id: 'deck_' + Date.now(),
       name,
       commander: commander || null,
       cards: [],
+      notes: notes || undefined,
       created: Date.now(),
       updated: Date.now(),
     };
@@ -300,6 +301,7 @@ export default function App() {
               );
               selectDeck(viewerDeck.id);
             }}
+            onRandomBuild={handleImport}
           />
         )}
       </ErrorBoundary>

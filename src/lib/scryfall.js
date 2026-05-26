@@ -344,6 +344,35 @@ export async function fetchPrintings(card) {
 }
 
 /**
+ * Pull a random legendary creature commander from Scryfall. Optional
+ * `colors` is an array like ['W','U','B'] meaning "color identity is
+ * exactly these"; an empty array means any identity. `partner` includes
+ * partner / background commanders in the pool (off by default).
+ *
+ * Returns a normalized card or null on failure.
+ */
+export async function fetchRandomCommander({ colors = [], partner = false } = {}) {
+  const parts = ['is:commander'];
+  if (colors.length > 0) {
+    parts.push(`id=${colors.join('').toLowerCase()}`);
+  }
+  if (!partner) {
+    // Exclude oddballs that need a partner / friend / background to play
+    // — they aren't satisfying as a solo-roll result.
+    parts.push('-o:"partner with"', '-o:"choose a background"');
+  }
+  const q = parts.join(' ');
+  try {
+    const res = await fetch(`${SCRYFALL}/cards/random?q=${encodeURIComponent(q)}`);
+    if (!res.ok) return null;
+    const card = await res.json();
+    return cacheCard(card);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Build a card image URL. Uses Scryfall's hosted images, proxied through
  * weserv.nl to avoid hot-linking issues and provide some caching.
  */
