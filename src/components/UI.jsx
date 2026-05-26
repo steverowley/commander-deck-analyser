@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Loader2, Tag, Trash2, X, FileX, Bookmark, HelpCircle } from 'lucide-react';
+import { Search, Loader2, Tag, Trash2, X, FileX, Bookmark, HelpCircle, Images } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad } from '../lib/utils.js';
 import { cardImageUrl, searchCardAutocomplete, fetchCardByExactName } from '../lib/scryfall.js';
@@ -253,7 +253,7 @@ export function OracleText({ text }) {
  * devices (where the hover preview can't fire) or wants to inspect
  * the full oracle text.
  */
-export function CardPreview({ card, onClose }) {
+export function CardPreview({ card, onClose, onChangeArt }) {
   if (!card) return null;
   return (
     <div
@@ -277,9 +277,21 @@ export function CardPreview({ card, onClose }) {
             <h3 className="font-serif font-black uppercase tracking-tight" style={{ color: CREAM, fontSize: 'clamp(1.1rem, 3vw, 1.5rem)' }}>
               {card.name}
             </h3>
-            <button onClick={onClose} style={{ color: CREAM_DIM }}>
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-3 shrink-0">
+              {onChangeArt && (
+                <button
+                  onClick={onChangeArt}
+                  className="font-serif text-[10px] tracking-[0.3em] uppercase flex items-center gap-1.5 hover:opacity-100"
+                  style={{ color: CREAM_DIM }}
+                  title="Pick a different printing"
+                >
+                  <Images className="w-3 h-3" /> Art
+                </button>
+              )}
+              <button onClick={onClose} style={{ color: CREAM_DIM }}>
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
           <div className="font-serif text-sm italic mb-3" style={{ color: CREAM_DIM }}>
             {card.type_line}
@@ -423,11 +435,12 @@ export function RuleSection({ title, children }) {
 
 // ───────────────────────────────────────────────────────────────────────────────
 
-export function CardRow({ entry, idx, onChangeCount, onRemove, onEditTags, onDemoteToWishlist }) {
+export function CardRow({ entry, idx, onChangeCount, onRemove, onEditTags, onDemoteToWishlist, onChangePrinting }) {
   const c = entry.scryfall;
   const [hoverPos, setHoverPos] = useState(null);
   const [imgError, setImgError] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [showPrintings, setShowPrintings] = useState(false);
   const [expanded, setExpanded] = useState(false);
   if (!c) return null;
 
@@ -556,9 +569,42 @@ export function CardRow({ entry, idx, onChangeCount, onRemove, onEditTags, onDem
           />
         </div>
       )}
-      {showPreview && <CardPreview card={c} onClose={() => setShowPreview(false)} />}
+      {showPreview && (
+        <CardPreview
+          card={c}
+          onClose={() => setShowPreview(false)}
+          onChangeArt={onChangePrinting ? () => { setShowPreview(false); setShowPrintings(true); } : undefined}
+        />
+      )}
+      {showPrintings && (
+        <LazyPrintingPicker
+          card={c}
+          onClose={() => setShowPrintings(false)}
+          onPick={(p) => {
+            onChangePrinting?.(entry, p);
+            setShowPrintings(false);
+          }}
+        />
+      )}
     </div>
   );
+}
+
+// Lazy import to break the UI.jsx ↔ Modals.jsx circular dependency
+// that would arise from importing PrintingPickerModal directly.
+function LazyPrintingPicker(props) {
+  const [Modal, setModal] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    import('./Modals.jsx').then((m) => {
+      if (alive) setModal(() => m.PrintingPickerModal);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  if (!Modal) return null;
+  return <Modal {...props} />;
 }
 
 // ───────────────────────────────────────────────────────────────────────────────

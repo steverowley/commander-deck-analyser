@@ -25,3 +25,50 @@ body {
 input::placeholder, textarea::placeholder { color: rgba(243, 231, 201, 0.3); }
 
 ::selection { background: rgba(243, 231, 201, 0.2); color: #f3e7c9; }
+
+/* Foil overlay — soft rainbow sheen + an animated highlight stripe.
+   Used on the commander panel when deck.commander_foil is true. Pair
+   the wrapper with .foil-wrap and put .foil-shine inside it as a
+   pointer-events:none overlay so clicks still hit the underlying image. */
+.foil-wrap {
+  position: relative;
+  isolation: isolate;
+}
+.foil-shine,
+.foil-tint {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+}
+.foil-tint {
+  background: conic-gradient(
+    from 210deg,
+    rgba(255, 0, 170, 0.28),
+    rgba(0, 220, 255, 0.28),
+    rgba(255, 240, 0, 0.28),
+    rgba(0, 255, 140, 0.28),
+    rgba(255, 0, 170, 0.28)
+  );
+  mix-blend-mode: color-dodge;
+  opacity: 0.55;
+}
+.foil-shine {
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.65) 48%,
+    rgba(255, 255, 255, 0.85) 50%,
+    rgba(255, 255, 255, 0.65) 52%,
+    transparent 70%
+  );
+  background-size: 250% 250%;
+  background-position: 0% 50%;
+  mix-blend-mode: screen;
+  animation: foil-sweep 4.2s ease-in-out infinite;
+}
+@keyframes foil-sweep {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}

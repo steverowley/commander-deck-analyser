@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Trash2, Crown, Copy, Upload, Calculator } from 'lucide-react';
+import { Trash2, Crown, Copy, Upload, Calculator, Dices } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, ACCENT } from '../theme.js';
 import { pad } from '../lib/utils.js';
 import { cardImageUrl } from '../lib/scryfall.js';
@@ -10,13 +10,14 @@ import { loadSettings } from '../lib/settings.js';
 import { aggregateStats } from '../lib/stats.js';
 import { ManaSymbol } from './ManaCost.jsx';
 import { VersionChip } from './UI.jsx';
-import { ImportDeckModal } from './Modals.jsx';
+import { ImportDeckModal, RandomDeckModal } from './Modals.jsx';
 import { GalleryView } from './GalleryView.jsx';
 
-export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup, onSettings, user, cloudEnabled, onSignIn, onSignOut, onImportFromGallery, onViewGalleryDeck }) {
+export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup, onSettings, user, cloudEnabled, onSignIn, onSignOut, onImportFromGallery, onViewGalleryDeck, onRandomBuild }) {
   const [name, setName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showImport, setShowImport] = useState(false);
+  const [showRandom, setShowRandom] = useState(false);
   const [search, setSearch] = useState('');
   const [bracketFilter, setBracketFilter] = useState(null); // 1..5
   const [colorFilter, setColorFilter] = useState(null);     // 'W' | 'U' | 'B' | 'R' | 'G' | 'C'
@@ -195,9 +196,9 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
         </p>
       </div>
 
-      {/* Numbered create / import section */}
+      {/* Numbered create / import / roll section */}
       <div
-        className="grid grid-cols-1 md:grid-cols-2 border-t border-l fade-up"
+        className="grid grid-cols-1 md:grid-cols-3 border-t border-l fade-up"
         style={{ borderColor: CREAM_FAINT, animationDelay: '120ms' }}
       >
         <div className="border-r border-b p-6 md:p-8" style={{ borderColor: CREAM_FAINT }}>
@@ -257,6 +258,30 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
             <Upload className="w-4 h-4" style={{ color: CREAM_DIM }} />
             <span className="font-mono text-sm" style={{ color: CREAM_DIM }}>
               paste a Moxfield-format decklist...
+            </span>
+          </button>
+        </div>
+        <div className="border-r border-b p-6 md:p-8" style={{ borderColor: CREAM_FAINT }}>
+          <div className="flex items-baseline justify-between mb-4">
+            <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
+              <span style={{ color: CREAM_DIM }}>3.</span> Roll a deck
+            </div>
+            <button
+              onClick={() => setShowRandom(true)}
+              className="font-serif text-[10px] tracking-[0.35em] uppercase hover:opacity-100 transition"
+              style={{ color: CREAM_DIM }}
+            >
+              Roll →
+            </button>
+          </div>
+          <button
+            onClick={() => setShowRandom(true)}
+            className="w-full border px-4 py-3 text-left flex items-center gap-3"
+            style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.03)' }}
+          >
+            <Dices className="w-4 h-4" style={{ color: CREAM_DIM }} />
+            <span className="font-mono text-sm" style={{ color: CREAM_DIM }}>
+              random commander + auto-build...
             </span>
           </button>
         </div>
@@ -543,6 +568,15 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
           onImport={(payload) => {
             onImport(payload);
             setShowImport(false);
+          }}
+        />
+      )}
+      {showRandom && (
+        <RandomDeckModal
+          onClose={() => setShowRandom(false)}
+          onBuild={(payload) => {
+            onRandomBuild?.(payload);
+            setShowRandom(false);
           }}
         />
       )}

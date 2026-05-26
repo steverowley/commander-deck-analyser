@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, BookOpen, Loader2, Crown, Sparkles, Tag, BarChart3, Target, Clock, Calculator, Lightbulb, Pencil, Copy, Download, Link as LinkIcon, GitCompare, FileText, Globe, Images } from 'lucide-react';
+import { ChevronLeft, BookOpen, Loader2, Crown, Sparkles, Tag, BarChart3, Target, Clock, Calculator, Lightbulb, Pencil, Copy, Download, Link as LinkIcon, GitCompare, FileText, Globe, Images, Sparkle } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { lc, pad } from '../lib/utils.js';
 import { searchCardAutocomplete, fetchCardByExactName, cardImageUrl } from '../lib/scryfall.js';
@@ -12,13 +12,14 @@ import { ErrorBoundary } from './ErrorBoundary.jsx';
 
 // ───────────────────────────────────────────────────────────────────────────────
 
-function CommanderPicker({ deck, onSet }) {
+function CommanderPicker({ deck, onSet, onToggleFoil }) {
   const [q, setQ] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [highlight, setHighlight] = useState(0);
   const [showPrintings, setShowPrintings] = useState(false);
+  const foil = !!deck.commander_foil;
 
   useEffect(() => {
     if (!q || q.length < 2) {
@@ -79,20 +80,34 @@ function CommanderPicker({ deck, onSet }) {
           <button
             type="button"
             onClick={() => setShowPrintings(true)}
-            className="relative block"
+            className="relative block foil-wrap w-56 sm:w-64 md:w-56"
             title="Change art / printing"
+            style={{ borderRadius: '4.75% / 3.5%' }}
           >
             <img
-              src={cardImageUrl(deck.commander, 'normal')}
+              src={cardImageUrl(deck.commander, 'png')}
               alt={deck.commander.name}
-              className="w-56 sm:w-64 md:w-56"
-              style={{ borderColor: CREAM_FAINT, borderWidth: 1 }}
+              className="block w-full"
+              style={{ borderRadius: '4.75% / 3.5%' }}
               onError={(e) => {
-                e.target.style.display = 'none';
+                // Fall back to the JPG variant if the PNG fails (some
+                // older printings still 404 on the PNG endpoint).
+                if (!e.target.dataset.fallback) {
+                  e.target.dataset.fallback = '1';
+                  e.target.src = cardImageUrl(deck.commander, 'normal');
+                } else {
+                  e.target.style.display = 'none';
+                }
               }}
             />
+            {foil && (
+              <>
+                <span className="foil-tint" style={{ borderRadius: '4.75% / 3.5%' }} />
+                <span className="foil-shine" style={{ borderRadius: '4.75% / 3.5%' }} />
+              </>
+            )}
             <span
-              className="absolute bottom-2 right-2 flex items-center gap-1 px-2 py-1 text-[9px] tracking-[0.2em] uppercase font-serif border md:opacity-0 md:group-hover:opacity-100 transition"
+              className="absolute bottom-2 right-2 flex items-center gap-1 px-2 py-1 text-[9px] tracking-[0.2em] uppercase font-serif border md:opacity-0 md:group-hover:opacity-100 transition z-10"
               style={{ background: BG, borderColor: CREAM_FAINT, color: CREAM }}
             >
               <Images className="w-3 h-3" /> Art
@@ -105,7 +120,7 @@ function CommanderPicker({ deck, onSet }) {
               <Crown className="w-3 h-3 inline mr-2" style={{ verticalAlign: 'baseline' }} />
               Commander
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap justify-end">
               <button
                 onClick={() => setShowPrintings(true)}
                 className="font-serif text-[10px] tracking-[0.3em] uppercase hover:opacity-100 flex items-center gap-1.5"
@@ -113,6 +128,15 @@ function CommanderPicker({ deck, onSet }) {
                 title="Pick a different printing"
               >
                 <Images className="w-3 h-3" /> Art
+              </button>
+              <span style={{ opacity: 0.4, color: CREAM_DIM }}>·</span>
+              <button
+                onClick={onToggleFoil}
+                className="font-serif text-[10px] tracking-[0.3em] uppercase hover:opacity-100 flex items-center gap-1.5"
+                style={{ color: foil ? CREAM : CREAM_DIM }}
+                title={foil ? 'Foil overlay on — click to remove' : 'Click to add a foil sheen'}
+              >
+                <Sparkle className="w-3 h-3" /> Foil{foil ? ' ·' : ''}
               </button>
               <span style={{ opacity: 0.4, color: CREAM_DIM }}>·</span>
               <button
@@ -399,7 +423,11 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, otherDecks = [
       </div>
 
       <div className="my-8 fade-up">
-        <CommanderPicker deck={deck} onSet={setCommander} />
+        <CommanderPicker
+          deck={deck}
+          onSet={setCommander}
+          onToggleFoil={() => onUpdate({ ...deck, commander_foil: !deck.commander_foil })}
+        />
       </div>
 
       {/* Tab bar — horizontally scrolls on mobile so all 7 tabs are
