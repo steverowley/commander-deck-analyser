@@ -143,8 +143,12 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
   // Apply per-card budget cap. Cards with no listed price pass
   // through — better to include them than to skip silently, and the
   // total-price tile will flag them as 'unpriced' for the user.
+  // Owned-collection cards also bypass the cap: they're free for
+  // the user even if Scryfall lists them at $50, so excluding them
+  // would be a worse seed.
   if (Number.isFinite(maxPerCard)) {
     pool = pool.filter((c) => {
+      if (collection && collection[lc(c.name)]) return true;
       const p = cardPrice(c, currency);
       return p == null || p <= maxPerCard;
     });
