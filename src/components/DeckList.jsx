@@ -687,16 +687,22 @@ const HERO_ENTRIES = [
 function CyclingHero() {
   const [i, setI] = useState(0);
   const [paused, setPaused] = useState(false);
-  const reduce = useMemo(
-    () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
-    []
-  );
+  const [reduce, setReduce] = useState(false);
 
   useEffect(() => {
-    if (reduce || paused) return;
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setReduce(mq.matches);
+    const onChange = (e) => setReduce(e.matches);
+    mq.addEventListener?.('change', onChange);
+    return () => mq.removeEventListener?.('change', onChange);
+  }, []);
+
+  useEffect(() => {
+    if (paused) return;
     const t = setInterval(() => setI((x) => (x + 1) % HERO_ENTRIES.length), 7000);
     return () => clearInterval(t);
-  }, [reduce, paused]);
+  }, [paused]);
 
   return (
     <div
@@ -717,11 +723,12 @@ function CyclingHero() {
             <div
               key={idx}
               aria-hidden={!active}
-              className="col-start-1 row-start-1 transition-all duration-[600ms] ease-out"
+              className="col-start-1 row-start-1"
               style={{
                 opacity: active ? 1 : 0,
-                transform: active ? 'translateY(0)' : 'translateY(8px)',
+                transform: active || reduce ? 'translateY(0)' : 'translateY(8px)',
                 pointerEvents: active ? 'auto' : 'none',
+                transition: reduce ? 'opacity 0ms' : 'opacity 600ms ease-out, transform 600ms ease-out',
               }}
             >
               <h1
@@ -739,6 +746,26 @@ function CyclingHero() {
                 {entry.body}
               </p>
             </div>
+          );
+        })}
+      </div>
+      <div className="mt-10 flex items-center justify-center gap-2">
+        {HERO_ENTRIES.map((_, idx) => {
+          const active = idx === i;
+          return (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => setI(idx)}
+              aria-label={`Show hero ${idx + 1} of ${HERO_ENTRIES.length}`}
+              aria-current={active ? 'true' : 'false'}
+              className="rounded-full transition-all"
+              style={{
+                width: active ? 18 : 6,
+                height: 6,
+                background: active ? CREAM : CREAM_FAINT,
+              }}
+            />
           );
         })}
       </div>
