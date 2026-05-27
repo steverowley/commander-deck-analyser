@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.11.0 — Cycling hero copy
+
+The landing-page hero now cycles between four taglines, each leading with a different USP the previous single-headline didn't quite earn space for:
+
+- **From 200 maybes to 99 keepers.** — the original anchor.
+- **Roll a deck from your shelf.** — the random builder + Vault-only mode.
+- **Bracket-scored, before they ask.** — auto WotC bracket assessment from oracle text.
+- **1,000 opening hands, run before you sleeve.** — hypergeometric opener math.
+
+Each entry crossfades + slides 8px every 7 seconds with a 600ms transition. CSS grid stacking keeps the section the height of the tallest entry so the page below doesn't shift between cycles. Pauses on hover; respects `prefers-reduced-motion` (no cycle, first entry only).
+
 ## v0.10.2 — Homepage Vault layout + printing picker fix
 
 - **Search / Open Vault buttons now sit inline with the copy** instead of squeezed to the right of the recent-cards strip. Recently-added cards now span the full width of the container — up to 10 across at md, 12 across at lg, so all 12 thumbnails usually fit on a single row.

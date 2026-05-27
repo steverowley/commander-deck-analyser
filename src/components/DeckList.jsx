@@ -209,23 +209,8 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
         </div>
       </nav>
 
-      {/* Hero */}
-      <div className="text-center py-20 md:py-32 fade-up">
-        <div className="text-[10px] md:text-[11px] tracking-[0.45em] uppercase mb-8 font-serif" style={{ color: CREAM_DIM }}>
-          For Commander · Open Source
-        </div>
-        <h1
-          className="font-serif font-black uppercase leading-[0.92] tracking-tight"
-          style={{ color: CREAM, fontSize: 'clamp(2.5rem, 7vw, 5rem)' }}
-        >
-          From 200 maybes
-          <br />
-          to 99 keepers.
-        </h1>
-        <p className="max-w-xl mx-auto mt-10 font-serif text-base md:text-lg leading-relaxed" style={{ color: CREAM_DIM }}>
-          Every card auto-tagged. Every deck archetype-classified, bracket-scored, and playtested before you sleeve it. Recommends what to add, flags what to cut, simulates 1,000 openings so you know your odds.
-        </p>
-      </div>
+      {/* Hero — cycles through four taglines, each leading with a different USP. */}
+      <CyclingHero />
 
       {/* Numbered create / import / roll / search section */}
       <div
@@ -676,6 +661,87 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
           }}
         />
       )}
+    </div>
+  );
+}
+
+const HERO_ENTRIES = [
+  {
+    title: ['From 200 maybes', 'to 99 keepers.'],
+    body: 'Every card auto-tagged. Every deck archetype-classified, bracket-scored, and playtested before you sleeve it. Recommends what to add, flags what to cut, simulates 1,000 openings so you know your odds.',
+  },
+  {
+    title: ['Roll a deck', 'from your shelf.'],
+    body: 'Tell it colours, bracket, and budget. Vault builds 99 cards from the ones you actually own — basics, ramp, removal, curve, the lot.',
+  },
+  {
+    title: ['Bracket-scored,', 'before they ask.'],
+    body: "Game Changers, tutors, fast mana, MLD, and combo lines — all detected from oracle text and scored against WotC's framework.",
+  },
+  {
+    title: ['1,000 opening hands,', 'run before you sleeve.'],
+    body: 'Hypergeometric simulation tells you whether your ramp arrives on time and your wincons are actually castable.',
+  },
+];
+
+function CyclingHero() {
+  const [i, setI] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const reduce = useMemo(
+    () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
+    []
+  );
+
+  useEffect(() => {
+    if (reduce || paused) return;
+    const t = setInterval(() => setI((x) => (x + 1) % HERO_ENTRIES.length), 7000);
+    return () => clearInterval(t);
+  }, [reduce, paused]);
+
+  return (
+    <div
+      className="text-center py-20 md:py-32 fade-up"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+    >
+      <div
+        className="text-[10px] md:text-[11px] tracking-[0.45em] uppercase mb-8 font-serif"
+        style={{ color: CREAM_DIM }}
+      >
+        For Commander · Open Source
+      </div>
+      <div className="grid">
+        {HERO_ENTRIES.map((entry, idx) => {
+          const active = idx === i;
+          return (
+            <div
+              key={idx}
+              aria-hidden={!active}
+              className="col-start-1 row-start-1 transition-all duration-[600ms] ease-out"
+              style={{
+                opacity: active ? 1 : 0,
+                transform: active ? 'translateY(0)' : 'translateY(8px)',
+                pointerEvents: active ? 'auto' : 'none',
+              }}
+            >
+              <h1
+                className="font-serif font-black uppercase leading-[0.92] tracking-tight"
+                style={{ color: CREAM, fontSize: 'clamp(2.5rem, 7vw, 5rem)' }}
+              >
+                {entry.title[0]}
+                <br />
+                {entry.title[1]}
+              </h1>
+              <p
+                className="max-w-xl mx-auto mt-10 font-serif text-base md:text-lg leading-relaxed"
+                style={{ color: CREAM_DIM }}
+              >
+                {entry.body}
+              </p>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
