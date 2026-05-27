@@ -1,7 +1,8 @@
 import {
   TAG_PATTERNS, TYPE_TAGS, GAME_CHANGERS, MLD_CARDS,
-  EXTRA_TURN_CARDS, KNOWN_COMBOS,
+  EXTRA_TURN_CARDS,
 } from './constants.js';
+import { COMBO_INDEX } from './combos.js';
 import { lc } from './utils.js';
 
 /**
@@ -42,8 +43,14 @@ export function detectTags(card, deckCardNames = new Set()) {
   if (MLD_CARDS.has(name)) tags.add('Mass Land Destruction');
   if (EXTRA_TURN_CARDS.has(name)) tags.add('Extra Turn');
 
-  for (const [a, b] of KNOWN_COMBOS) {
-    if ((name === a && deckCardNames.has(b)) || (name === b && deckCardNames.has(a))) {
+  for (const combo of COMBO_INDEX) {
+    const lcCards = combo.cards.map((n) => lc(n));
+    const idx = lcCards.indexOf(name);
+    if (idx === -1) continue;
+    // All *other* required cards from the combo must be in the deck for
+    // this card to be tagged as a combo piece.
+    const partnersPresent = lcCards.every((n, i) => i === idx || deckCardNames.has(n));
+    if (partnersPresent) {
       tags.add('Combo piece');
       break;
     }

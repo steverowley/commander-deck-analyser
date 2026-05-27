@@ -3,6 +3,7 @@ import { Upload, BookOpen, Search } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, hypergeom } from '../lib/utils.js';
 import { assessBracket } from '../lib/analyzers.js';
+import { detectCombos } from '../lib/combos.js';
 import { computeHealth } from '../lib/health.js';
 import { buildStagePlans, synergyHubs, packageWeight, classifyArchetype } from '../lib/strategy.js';
 import { BRACKETS } from '../lib/constants.js';
@@ -1044,6 +1045,56 @@ function LandBaseSection({ deck }) {
 // BRACKET TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
+function CombosPanel({ deck }) {
+  const { assembled } = useMemo(() => detectCombos(deck), [deck.cards, deck.commander]);
+  if (assembled.length === 0) return null;
+  return (
+    <div className="border" style={{ borderColor: CREAM_FAINT }}>
+      <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
+        <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold flex items-center gap-2" style={{ color: CREAM }}>
+          Detected Combos · {pad(assembled.length)}
+          <HelpTip>
+            Card combinations found in the 99 (commander included). Each entry is a line that wins, draws the deck, or generates infinite resources — these floor the bracket at 4.
+          </HelpTip>
+        </div>
+        <div className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>
+          source · Commander Spellbook
+        </div>
+      </div>
+      <div className="divide-y" style={{ borderColor: CREAM_FAINT }}>
+        {assembled.map((combo) => (
+          <div key={combo.id} className="p-5 space-y-2" style={{ borderColor: CREAM_FAINT }}>
+            <div className="flex flex-wrap gap-1.5">
+              {combo.cards.map((name) => (
+                <span
+                  key={name}
+                  className="font-mono text-[11px] px-2 py-0.5 border tracking-wide"
+                  style={{ borderColor: CREAM_FAINT, color: CREAM }}
+                >
+                  {name}
+                </span>
+              ))}
+            </div>
+            <ul className="font-serif text-sm space-y-0.5" style={{ color: CREAM }}>
+              {combo.results.map((r, i) => (
+                <li key={i} className="flex gap-2">
+                  <span style={{ color: CREAM_DIM }}>·</span>
+                  <span>{r}</span>
+                </li>
+              ))}
+            </ul>
+            {combo.prerequisites && (
+              <p className="font-serif text-xs italic" style={{ color: CREAM_DIM }}>
+                {combo.prerequisites}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function BracketTab({ deck, onUpdate }) {
   const assessment = useMemo(() => assessBracket(deck), [deck]);
   const health = useMemo(() => computeHealth(deck), [deck.cards, deck.commander]);
@@ -1110,6 +1161,8 @@ export function BracketTab({ deck, onUpdate }) {
         <FlagBox title="Fast Mana" items={assessment.flags.fastMana} desc="Beyond Sol Ring & Arcane Signet — Bracket 4." />
         <FlagBox title="Infinite Combos" items={assessment.flags.combos} desc="Early uninteractive combos push to Bracket 4." />
       </div>
+
+      <CombosPanel deck={deck} />
 
       <div className="border" style={{ borderColor: CREAM_FAINT }}>
         <div
@@ -1770,6 +1823,11 @@ export function RecommendationsTab({ deck, onUpdate }) {
     [deck, recs]
   );
 
+  const nearMissCombos = useMemo(
+    () => detectCombos(deck).nearMiss,
+    [deck.cards, deck.commander]
+  );
+
   const addRec = async (rec) => {
     setAdding((a) => ({ ...a, [rec.name]: true }));
     try {
@@ -1858,6 +1916,55 @@ export function RecommendationsTab({ deck, onUpdate }) {
           ))}
         </div>
       </div>
+
+      {nearMissCombos.length > 0 && (
+        <div className="border" style={{ borderColor: CREAM_FAINT }}>
+          <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
+            <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold flex items-center gap-2" style={{ color: CREAM }}>
+              Near-miss Combos · {pad(nearMissCombos.length)}
+              <HelpTip>
+                Combos where this deck has every required card except one. Adding the missing piece completes the line. The card index is sourced from Commander Spellbook.
+              </HelpTip>
+            </div>
+          </div>
+          <div className="divide-y" style={{ borderColor: CREAM_FAINT }}>
+            {nearMissCombos.map(({ combo, missing }) => (
+              <div key={combo.id} className="p-4 flex flex-col gap-2 md:flex-row md:items-center">
+                <div className="flex-1 min-w-0 space-y-1.5">
+                  <div className="flex flex-wrap gap-1.5">
+                    {combo.cards.map((name) => {
+                      const isMissing = missing.includes(name);
+                      return (
+                        <span
+                          key={name}
+                          className="font-mono text-[11px] px-2 py-0.5 border tracking-wide"
+                          style={{
+                            borderColor: isMissing ? ACCENT : CREAM_FAINT,
+                            color: isMissing ? ACCENT : CREAM,
+                          }}
+                        >
+                          {isMissing ? `${name} (missing)` : name}
+                        </span>
+                      );
+                    })}
+                  </div>
+                  <div className="font-serif text-xs italic" style={{ color: CREAM_DIM }}>
+                    {combo.results.join(' · ')}
+                  </div>
+                </div>
+                <button
+                  onClick={() => addRec({ name: missing[0] })}
+                  disabled={!!adding[missing[0]]}
+                  className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-2 shrink-0 disabled:opacity-40 whitespace-nowrap"
+                  style={{ borderColor: CREAM_FAINT, color: CREAM }}
+                >
+                  {adding[missing[0]] ? 'Adding…' : 'Add missing card →'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {recs && deck.cards.length < 50 && (
         <div className="border p-4 flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-5" style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.025)' }}>
