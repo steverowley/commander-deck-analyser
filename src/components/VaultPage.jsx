@@ -435,7 +435,7 @@ function StatsDashboard({ stats, currency, approx, priceSourceTip }) {
               const h = n > 0 ? Math.max((n / maxCmc) * 90, 4) : 0;
               return (
                 <div key={i} className="flex-1 flex flex-col items-center justify-end h-full">
-                  <span className="font-mono text-[10px] mb-1" style={{ color: CREAM_DIM }}>{n}</span>
+                  <span className="font-mono text-[10px] mb-1" style={{ color: CREAM_DIM, opacity: n === 0 ? 0.4 : 1 }}>{n}</span>
                   <div className="w-full" style={{ background: CREAM, opacity: 0.7, height: `${h}px` }} />
                   <span className="font-mono text-[10px] mt-1.5" style={{ color: CREAM_DIM }}>{i === 7 ? '7+' : i}</span>
                 </div>

@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.19.1 — Dim zero labels on bar charts
+
+- Bar-chart labels with a value of zero now render at ~40% opacity instead of full CREAM_DIM, so empty buckets recede and the eye lands on the buckets that actually have data. Applied to the archive bracket distribution, Vault mana curve, deck-editor Stats mana curve, and Probability-tab land distribution.
+
 ## v0.19.0 — Engagement-gated tip-jar CTA
 
 The tip jar now nudges itself once, on its own. After the user does something meaningful in a session (creates a deck, rolls one, saves a roll, imports a shared deck) and five minutes have passed, the tip modal opens automatically with a "Maybe later" affordance. Closing it sets a localStorage flag that suppresses the prompt forever on that device; "Maybe later" defers it ~30 days. Supporters and builds with no tip jar configured never see it.

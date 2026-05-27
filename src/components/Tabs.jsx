@@ -863,7 +863,7 @@ export function CurveTab({ deck }) {
               const barHeight = n > 0 ? Math.max((n / maxCurve) * 150, 3) : 0;
               return (
                 <div key={i} className="flex-1 flex flex-col items-center justify-end h-full">
-                  <div className="font-serif font-bold mb-2" style={{ color: CREAM, fontSize: '0.875rem' }}>
+                  <div className="font-serif font-bold mb-2" style={{ color: CREAM, fontSize: '0.875rem', opacity: n === 0 ? 0.35 : 1 }}>
                     {pad(n)}
                   </div>
                   <div className="w-full transition-all" style={{ background: CREAM, height: `${barHeight}px`, opacity: 0.85 }}></div>
@@ -1479,7 +1479,7 @@ function OpenersResult({ sim }) {
             const sweet = i >= 2 && i <= 5;
             return (
               <div key={i} className="flex-1 flex flex-col items-center justify-end h-full">
-                <div className="font-mono text-[9px] mb-1" style={{ color: CREAM_DIM }}>
+                <div className="font-mono text-[9px] mb-1" style={{ color: CREAM_DIM, opacity: n === 0 ? 0.4 : 1 }}>
                   {pct}%
                 </div>
                 <div className="w-full" style={{ background: sweet ? CREAM : ACCENT, opacity: 0.8, height: `${barHeight}px` }}></div>
