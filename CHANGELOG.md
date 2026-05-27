@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.17.1 — PayPal webhook operator README
+
+- `supabase/functions/paypal-webhook/README.md` — step-by-step setup for the PayPal Business app, hosted Donate button, webhook subscription, Supabase secrets, sandbox test, and flip-to-live. Plus a quick "how it works" + debugging crib for the three most common failure modes (every webhook 400s, badge doesn't flip, CSP blocks the SDK).
+
 ## v0.17.0 — Auto-supporter badge (PayPal Donate SDK + webhook)
 
 Tips now flip the supporter badge automatically. The TipModal renders PayPal's in-page Donate button when the build is configured for it AND the user is signed in (so the tip can be attributed to a Supabase user_id). PayPal posts to a new edge function on completion; the function verifies the signature, checks idempotency, and flips `supporter=true` for the right user.
