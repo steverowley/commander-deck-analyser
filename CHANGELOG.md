@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.25.0 — Decklist import: text paste + Moxfield / Archidekt URLs
+
+The Import Deck modal now accepts a public Moxfield or Archidekt URL directly — paste the link, hit **Fetch →**, and the cards drop into the paste box for review. The text parser is broken out into its own module with explicit sections, and unresolved card names get a "did you mean" picker backed by Scryfall autocomplete.
+
+### Library
+- **New `src/lib/deckImport.js`** with `parseTextDecklist(text)` returning `[{ name, count, section }]` where section ∈ `commander | mainboard | maybeboard`. Section tracking walks `Commander` / `Deck` / `Maybeboard` headers (plain or `//`-prefixed), routes `SB:` prefixed lines into the maybeboard, skips `Sideboard` / `Tokens`, and strips MTGA-style `(SET) 123` / `*F*` printing tags. Default section is `mainboard` so a header-less 100-line paste still imports cleanly.
+- **URL helpers** `parseMoxfieldUrl`, `parseArchidektUrl`, `detectDeckUrl` extract deck IDs from public URLs. `fetchDeckFromUrl(url)` dispatches to `api2.moxfield.com/v3/decks/all/<id>` or `archidekt.com/api/decks/<id>/`, normalises both response shapes via `shapeMoxfieldDeck` / `shapeArchidektDeck`, and throws a single readable error on network/HTTP failure so the modal can fall back to "paste the list instead".
+
+### UI
+- **`ImportDeckModal` overhaul** in `src/components/Modals.jsx`:
+  - New "Import from URL" field with a `Fetch →` button. Fetched cards render into the paste box so the user reviews before committing; the deck name auto-fills from the upstream payload when blank.
+  - Live preview chip showing `cmdr · main · maybe` counts as the user types or fetches.
+  - Unresolved card names show inline "did you mean …" buttons populated by `searchCardAutocomplete`; clicking a suggestion queues a replacement and a second `Import →` press re-resolves with the override applied.
+  - The old `parseBlocks` / `parseDecklist` split is replaced by `parseTextDecklist`. `parseDecklist` in `utils.js` stays put — `BulkAddModal` still calls it for the lighter single-section case.
+
+### Tests
+- **New `deckImport.test.js`** (23 cases) — every format variant (`1 Card`, `1x Card`, bare names), section headers (`Commander`, `Deck`, `// Commander`, `Maybeboard`, `SB:`), Sideboard / Tokens skipped, MTGA printing tags stripped, alias table applied, empty/non-string input safe, count clamping. Plus URL extraction for both sources, dispatch via mocked `fetch`, and the upstream-error path.
+- All 301 tests green (up from 278).
+
 ## v0.24.0 — Combo detection (Commander Spellbook)
 
 The Bracket tab now lists every combo the deck has fully assembled — cards, what the combo produces, and the prerequisites to fire it. The Recs tab gains a "Near-miss combos" section that shows lines where the deck has every card but one, with a one-click "Add missing card" button.

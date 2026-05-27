@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { X, Loader2, Check, BookOpen, Copy, Download, Link as LinkIcon, GitCompare, Archive, FileText, Settings as SettingsIcon, Dices, Shuffle, Bug, ExternalLink } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, parseDecklist, lc } from '../lib/utils.js';
-import { fetchCardsByName, fetchCardByExactName, refreshCachedCards, fetchPrintings, fetchRandomCommander, pickRandomCommanderFromCollection, cardImageUrl } from '../lib/scryfall.js';
+import { parseTextDecklist, fetchDeckFromUrl, detectDeckUrl } from '../lib/deckImport.js';
+import { fetchCardsByName, fetchCardByExactName, refreshCachedCards, fetchPrintings, fetchRandomCommander, pickRandomCommanderFromCollection, cardImageUrl, searchCardAutocomplete } from '../lib/scryfall.js';
 import { buildSeededDeck } from '../lib/autoseed.js';
 import { ARCHETYPES } from '../lib/archetypes.js';
 import { loadCollection, uniqueCount } from '../lib/collection.js';
@@ -804,58 +805,113 @@ export function ShareModal({ deck, onClose }) {
 export function ImportDeckModal({ onClose, onImport, suggestedName = '' }) {
   const [name, setName] = useState(suggestedName);
   const [text, setText] = useState('');
+  const [url, setUrl] = useState('');
+  const [urlLoading, setUrlLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState('');
   const [error, setError] = useState(null);
   const [notFound, setNotFound] = useState([]);
+  const [suggestions, setSuggestions] = useState({}); // { unresolved_name: [topSuggestions] }
+  const [resolvedOverrides, setResolvedOverrides] = useState({}); // { original_name: chosen_name }
+
+  // Live preview of parsed entries (no Scryfall fetch — just the text parse).
+  const parsedEntries = useMemo(() => parseTextDecklist(text), [text]);
+  const parseCounts = useMemo(() => {
+    const counts = { commander: 0, mainboard: 0, maybeboard: 0 };
+    for (const e of parsedEntries) counts[e.section] = (counts[e.section] || 0) + e.count;
+    return counts;
+  }, [parsedEntries]);
+
+  const handleFetchUrl = async () => {
+    setError(null);
+    setNotFound([]);
+    if (!url.trim()) {
+      setError('Paste a Moxfield or Archidekt deck URL first.');
+      return;
+    }
+    setUrlLoading(true);
+    try {
+      const { entries, name: remoteName } = await fetchDeckFromUrl(url.trim());
+      // Render the fetched entries back into the textarea so the user
+      // can review/edit before importing.
+      const lines = [];
+      const cmdrs = entries.filter((e) => e.section === 'commander');
+      const main  = entries.filter((e) => e.section === 'mainboard');
+      const maybe = entries.filter((e) => e.section === 'maybeboard');
+      if (cmdrs.length) {
+        lines.push('Commander');
+        for (const e of cmdrs) lines.push(`${e.count} ${e.name}`);
+        lines.push('');
+      }
+      if (main.length) {
+        lines.push('Deck');
+        for (const e of main) lines.push(`${e.count} ${e.name}`);
+      }
+      if (maybe.length) {
+        lines.push('');
+        lines.push('Maybeboard');
+        for (const e of maybe) lines.push(`${e.count} ${e.name}`);
+      }
+      setText(lines.join('\n'));
+      if (!name.trim() && remoteName) setName(remoteName);
+    } catch (e) {
+      setError(`URL import failed: ${e.message}. Try pasting the decklist instead.`);
+    } finally {
+      setUrlLoading(false);
+    }
+  };
 
   const handleImport = async () => {
     setError(null);
     setNotFound([]);
+    setSuggestions({});
     if (!name.trim()) {
       setError('Give the deck a name.');
       return;
     }
-    if (!text.trim()) {
-      setError('Paste a decklist first.');
+    if (parsedEntries.length === 0) {
+      setError('Paste a decklist or fetch one from a URL first.');
       return;
     }
 
-    // Split into Commander / Deck blocks if "Commander" header is present.
-    const blocks = parseBlocks(text);
-    const cmdrEntries = parseDecklist(blocks.commander || '');
-    const deckEntries = parseDecklist(blocks.deck || text);
-
     setLoading(true);
     try {
-      // Fetch all unique names in one call.
-      const allNames = [
-        ...cmdrEntries.map((e) => e.name),
-        ...deckEntries.map((e) => e.name),
-      ];
-      const uniqNames = [...new Set(allNames)];
-      const { results, notFound: nf } = await fetchCardsByName(uniqNames, setProgress);
+      const resolveFor = (entry) => resolvedOverrides[entry.name] || entry.name;
+      const allNames = [...new Set(parsedEntries.map(resolveFor))];
+      const { results, notFound: nf } = await fetchCardsByName(allNames, setProgress);
 
-      // Build commander (first commander entry that resolved).
+      // First commander entry that resolved becomes the deck's commander.
       let commander = null;
-      for (const e of cmdrEntries) {
-        const c = results[lc(e.name)];
-        if (c) {
-          commander = c;
-          break;
-        }
+      for (const e of parsedEntries) {
+        if (e.section !== 'commander') continue;
+        const c = results[lc(resolveFor(e))];
+        if (c) { commander = c; break; }
       }
 
-      const cards = deckEntries
-        .map((e) => {
-          const c = results[lc(e.name)];
-          return c ? { name: c.name, count: e.count, scryfall: c } : null;
-        })
-        .filter(Boolean);
+      const cards = [];
+      for (const e of parsedEntries) {
+        if (e.section !== 'mainboard') continue;
+        const c = results[lc(resolveFor(e))];
+        if (c) cards.push({ name: c.name, count: e.count, scryfall: c });
+      }
 
       setLoading(false);
       setProgress('');
       setNotFound(nf);
+
+      // Kick off autocomplete queries for the unresolved names so the
+      // "did you mean" picker can offer alternatives.
+      if (nf.length > 0) {
+        for (const miss of nf) {
+          searchCardAutocomplete(miss).then((sugs) => {
+            if (sugs && sugs.length > 0) {
+              setSuggestions((s) => ({ ...s, [miss]: sugs.slice(0, 5) }));
+            }
+          });
+        }
+        return; // Don't auto-close — let user pick replacements.
+      }
+
       if (cards.length === 0 && !commander) {
         setError('No cards resolved.');
         return;
@@ -867,6 +923,18 @@ export function ImportDeckModal({ onClose, onImport, suggestedName = '' }) {
       setError(e.message);
     }
   };
+
+  const pickReplacement = (originalName, chosenName) => {
+    setResolvedOverrides((o) => ({ ...o, [originalName]: chosenName }));
+    setSuggestions((s) => {
+      const next = { ...s };
+      delete next[originalName];
+      return next;
+    });
+    setNotFound((nf) => nf.filter((n) => n !== originalName));
+  };
+
+  const urlSource = useMemo(() => detectDeckUrl(url), [url]);
 
   return (
     <div
@@ -896,6 +964,35 @@ export function ImportDeckModal({ onClose, onImport, suggestedName = '' }) {
               style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(var(--ink-rgb),0.02)' }}
             />
           </div>
+
+          <div>
+            <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-2" style={{ color: CREAM_DIM }}>
+              Import from URL <span className="italic normal-case tracking-normal" style={{ color: CREAM_DIM }}>(optional)</span>
+            </div>
+            <div className="flex gap-2">
+              <input
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="https://www.moxfield.com/decks/… or https://archidekt.com/decks/…"
+                disabled={urlLoading || loading}
+                className="flex-1 border px-4 py-2.5 bg-transparent focus:outline-none font-mono text-xs"
+                style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(var(--ink-rgb),0.02)' }}
+              />
+              <button
+                onClick={handleFetchUrl}
+                disabled={urlLoading || loading || !urlSource}
+                className="font-serif text-[10px] tracking-[0.3em] uppercase border px-4 py-2 shrink-0 disabled:opacity-30 whitespace-nowrap"
+                style={{ borderColor: CREAM_FAINT, color: CREAM }}
+                title={urlSource ? `Fetch from ${urlSource}` : 'Paste a Moxfield or Archidekt deck URL'}
+              >
+                {urlLoading ? 'Fetching…' : 'Fetch →'}
+              </button>
+            </div>
+            <p className="font-serif text-xs italic mt-1.5" style={{ color: CREAM_DIM }}>
+              Moxfield and Archidekt public decks supported. Fetched cards drop into the paste box below for review.
+            </p>
+          </div>
+
           <div>
             <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-2" style={{ color: CREAM_DIM }}>
               Decklist
@@ -912,6 +1009,23 @@ export function ImportDeckModal({ onClose, onImport, suggestedName = '' }) {
               style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(var(--ink-rgb),0.02)' }}
             />
           </div>
+
+          {parsedEntries.length > 0 && (
+            <div className="px-4 py-3 border" style={{ borderColor: CREAM_FAINT }}>
+              <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-2" style={{ color: CREAM_DIM }}>
+                Preview
+              </div>
+              <div className="flex flex-wrap gap-4 font-mono text-xs" style={{ color: CREAM }}>
+                <span><span style={{ color: CREAM_DIM }}>cmdr</span> · {parseCounts.commander}</span>
+                <span><span style={{ color: CREAM_DIM }}>main</span> · {parseCounts.mainboard}</span>
+                {parseCounts.maybeboard > 0 && (
+                  <span><span style={{ color: CREAM_DIM }}>maybe</span> · {parseCounts.maybeboard}</span>
+                )}
+                <span style={{ color: CREAM_DIM }}>· {parsedEntries.length} unique lines</span>
+              </div>
+            </div>
+          )}
+
           {progress && (
             <div className="px-4 py-3 border font-mono text-[11px] flex items-center gap-2" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
               <Loader2 className="w-3 h-3 animate-spin" /> {progress}
@@ -932,11 +1046,33 @@ export function ImportDeckModal({ onClose, onImport, suggestedName = '' }) {
               <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-2" style={{ color: CREAM_DIM }}>
                 Unresolved · {pad(notFound.length)}
               </div>
-              <ul className="font-mono text-xs space-y-0.5 max-h-32 overflow-auto" style={{ color: CREAM_DIM }}>
+              <ul className="font-mono text-xs space-y-1.5 max-h-48 overflow-auto" style={{ color: CREAM_DIM }}>
                 {notFound.map((n, i) => (
-                  <li key={i}>· {n}</li>
+                  <li key={i} className="space-y-0.5">
+                    <div>· {n}</div>
+                    {suggestions[n] && suggestions[n].length > 0 && (
+                      <div className="ml-3 flex flex-wrap gap-1.5" style={{ color: CREAM_DIM }}>
+                        <span className="italic">did you mean</span>
+                        {suggestions[n].map((s) => (
+                          <button
+                            key={s}
+                            onClick={() => pickReplacement(n, s)}
+                            className="font-mono text-[11px] px-1.5 py-0.5 border tracking-wide"
+                            style={{ borderColor: CREAM_FAINT, color: CREAM }}
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </li>
                 ))}
               </ul>
+              {Object.keys(resolvedOverrides).length > 0 && (
+                <p className="font-serif text-xs italic mt-2" style={{ color: CREAM_DIM }}>
+                  {Object.keys(resolvedOverrides).length} replacement(s) queued — click <span className="not-italic font-bold">Import</span> to re-resolve.
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -946,7 +1082,7 @@ export function ImportDeckModal({ onClose, onImport, suggestedName = '' }) {
           </button>
           <button
             onClick={handleImport}
-            disabled={loading || !text.trim() || !name.trim()}
+            disabled={loading || parsedEntries.length === 0 || !name.trim()}
             className="font-serif text-[10px] tracking-[0.3em] uppercase disabled:opacity-30"
             style={{ color: CREAM }}
           >
@@ -956,26 +1092,6 @@ export function ImportDeckModal({ onClose, onImport, suggestedName = '' }) {
       </div>
     </div>
   );
-}
-
-/**
- * Split a pasted decklist into "commander" and "deck" sections by detecting
- * the Moxfield-style section headers. Lines outside any known section land
- * in `deck` so a header-less paste still works.
- */
-function parseBlocks(text) {
-  const lines = text.split('\n');
-  const out = { commander: '', deck: '' };
-  let cur = 'deck';
-  for (const raw of lines) {
-    const line = raw.trim();
-    if (/^commander\b/i.test(line)) { cur = 'commander'; continue; }
-    if (/^(deck|main(deck|board)?|library)\b/i.test(line)) { cur = 'deck'; continue; }
-    if (/^(sideboard|maybeboard|tokens?)\b/i.test(line)) { cur = 'skip'; continue; }
-    if (cur === 'skip') continue;
-    out[cur] += raw + '\n';
-  }
-  return out;
 }
 
 // ───────────────────────────────────────────────────────────────────────────────
