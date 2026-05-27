@@ -7,9 +7,11 @@
 //   GITHUB_TOKEN — fine-grained PAT with Issues: Read and write on
 //                  steverowley/commander-deck-analyser.
 //
-// The function trusts Supabase's edge-runtime JWT verification (the
-// browser sends the public anon key), so it's reachable from any
-// build of the Vault client without further config.
+// All error paths return HTTP 200 with `{ ok: false, error: "..." }`
+// so the supabase-js client doesn't bury the reason inside a generic
+// FunctionsHttpError. Only the success path returns the issue number
+// + URL. Honeypot hits return `{ ok: true, skipped: true }` so bots
+// don't retry but no issue is filed.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
@@ -39,14 +41,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return new Response(null, { status: 204, headers: CORS_HEADERS });
   }
   if (req.method !== "POST") {
-    return jsonResponse({ error: "method not allowed" }, 405);
+    return jsonResponse({ ok: false, error: "method not allowed" }, 405);
   }
 
   let payload: Record<string, unknown>;
   try {
     payload = await req.json();
   } catch {
-    return jsonResponse({ error: "invalid json" }, 400);
+    return jsonResponse({ ok: false, error: "invalid json" }, 400);
   }
 
   // Honeypot — bots fill hidden inputs, humans don't. Fake-success so
@@ -60,45 +62,68 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const email = String(payload.email ?? "").trim().slice(0, MAX_EMAIL);
 
   if (!title || !body) {
-    return jsonResponse({ error: "title and body required" }, 400);
+    return jsonResponse({ ok: false, error: "title and body required" }, 400);
   }
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return jsonResponse({ error: "invalid email" }, 400);
+    return jsonResponse({ ok: false, error: "invalid email" }, 400);
   }
 
   const githubToken = Deno.env.get("GITHUB_TOKEN");
   if (!githubToken) {
     console.error("GITHUB_TOKEN not configured");
-    return jsonResponse({ error: "server misconfigured" }, 500);
+    return jsonResponse({ ok: false, error: "GITHUB_TOKEN secret not set in Supabase" }, 200);
   }
 
   const issueBody = email
     ? `${body}\n\n---\n*Reporter contact: ${email}*`
     : body;
 
-  const ghRes = await fetch(
-    `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/issues`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${githubToken}`,
-        Accept: "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-        "User-Agent": "vault-bug-report-fn",
-        "Content-Type": "application/json",
+  let ghRes: Response;
+  try {
+    ghRes = await fetch(
+      `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/issues`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${githubToken}`,
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+          "User-Agent": "vault-bug-report-fn",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title,
+          body: issueBody,
+          labels: ["bug", "from-app"],
+        }),
       },
-      body: JSON.stringify({
-        title,
-        body: issueBody,
-        labels: ["bug", "from-app"],
-      }),
-    },
-  );
+    );
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("fetch threw", msg);
+    return jsonResponse({ ok: false, error: `network: ${msg}` }, 200);
+  }
 
   if (!ghRes.ok) {
     const text = await ghRes.text();
     console.error("GitHub API error", ghRes.status, text);
-    return jsonResponse({ error: "github api error", status: ghRes.status }, 502);
+    // Best-effort: parse GitHub's JSON error so we can surface the
+    // 'Bad credentials' / 'Resource not accessible by personal access
+    // token' message back to the client.
+    let ghMessage = text.slice(0, 300);
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed && typeof parsed.message === "string") {
+        ghMessage = parsed.message;
+      }
+    } catch {
+      // not JSON, keep snippet
+    }
+    return jsonResponse({
+      ok: false,
+      error: `GitHub ${ghRes.status}: ${ghMessage}`,
+      github_status: ghRes.status,
+    }, 200);
   }
 
   const issue = await ghRes.json();
