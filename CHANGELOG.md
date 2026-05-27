@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.23.1 — Bug-report function surfaces the actual GitHub error
+
+The v0.23.0 path failed silently with "Edge Function returned a non-2xx status code" whenever GitHub rejected the call — leaving no way to tell from the UI whether the token was missing, expired, or scoped wrong. The function now returns HTTP 200 with `{ ok: false, error: "GitHub 401: Bad credentials" }` (or similar) on every failure mode, so the modal can render the actual reason instead of the generic supabase-js wrapper. GitHub's error message is parsed out of its JSON response and passed through verbatim.
+
 ## v0.23.0 — Bug reports go straight to GitHub, no account required
 
 The v0.14.0 release shipped a Cloudflare-Worker-backed bug submission path, but the deploy step never happened — so prod has been falling back to "Open on GitHub" the whole time, defeating the purpose. This release moves the backend onto Supabase (which Vault already uses) so the path is wired up by default and no third-party account is in the loop.
