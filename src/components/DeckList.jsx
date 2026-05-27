@@ -373,7 +373,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
       <div className="mt-12 fade-up" style={{ animationDelay: '240ms' }}>
         <div className="flex items-baseline gap-4 mb-3">
           <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
-            <span style={{ color: CREAM_DIM }}>3.</span> Archive
+            Archive
           </div>
           <div className="flex-1 border-t" style={{ borderColor: CREAM_FAINT }}></div>
           <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
@@ -1051,8 +1051,8 @@ function VaultSection({ collection, onOpen, onSearch, onAddCard, onChanged }) {
             {dragOver
               ? 'Drop to add this card to your Vault.'
               : (unique === 0
-                  ? 'Cards you actually own. Drag a card image straight from a scryfall.com tab onto this box, search via the panel, scan with the webcam, or paste a list. The deck roller can then build only from cards you own.'
-                  : 'Cards you actually own. Drag in cards from scryfall.com (just drop the image onto this box) or open the Vault page for stats, filters, and deck coverage.')}
+                  ? 'Cards you actually own. Drag a card image straight from Scryfall onto this box, search via the panel, scan with the webcam, or paste a list. The deck roller can then build only from cards you own.'
+                  : 'Cards you actually own. Drag in cards from Scryfall (just drop the image onto this box) or open the Vault page for stats, filters, and deck coverage.')}
           </p>
           {recent.length > 0 && (
             <div className="mt-4">

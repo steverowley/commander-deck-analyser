@@ -857,7 +857,7 @@ function EmptyVault({ onScan, onPaste }) {
         Your Vault is empty
       </div>
       <p className="font-serif text-sm italic mt-2 max-w-lg mx-auto" style={{ color: CREAM_DIM }}>
-        Scan paper cards with your webcam, paste a Moxfield CSV export, drag any card image from scryfall.com onto this page, or search by name above.
+        Scan paper cards with your webcam, paste a Moxfield CSV export, drag any card image from Scryfall onto this page, or search by name above.
       </p>
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         <button onClick={onScan} className="font-serif text-[10px] tracking-[0.3em] uppercase border px-4 py-2 flex items-center gap-1.5" style={{ borderColor: CREAM_FAINT, color: CREAM }}>
