@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.14.0 — Bug reports submit directly (no GitHub account needed)
+
+The in-app bug reporter previously dumped users on GitHub's "Sign in to file an issue" wall — most users don't have an account, so reports dried up. The form now POSTs straight to a tiny Cloudflare Worker that files the issue on the user's behalf and returns the issue URL. No reporter account required; reports land in the same GitHub tracker as before.
+
+- **New submit flow.** When `VITE_BUG_REPORT_URL` is configured at build time, **Submit bug** sends the report to the Worker and shows a success state inline with a link to the filed issue. If the env var isn't set, the modal silently falls back to the old prefilled-GitHub-URL behaviour.
+- **Optional email field.** Reporter can leave an address if they want a reply; appended as an issue footer. Empty = anonymous.
+- **`File on GitHub →` secondary link** kept in the modal footer for users who'd rather track the issue under their own account.
+- **Honeypot field** (hidden `website` input) drops bot submissions before they reach GitHub.
+- **Worker source** lives under `worker/` with its own `wrangler.toml` and README. Holds a fine-grained PAT (Issues: write, single repo) as a secret — the token never ships to the browser. CORS allowlist + CSP `connect-src` are configurable via env so prod can lock to a specific origin.
+- **`buildBugReportBody`** extracted to `src/lib/bugReport.js` with seven unit tests covering section toggling, env block contents, and whitespace handling.
+
 ## v0.13.0 — Affiliate buy links
 
 A small cart icon now sits next to the price on every card row. Click it to open the card on your chosen retailer in a new tab — Card Kingdom by default, with TCGplayer and Cardmarket selectable in **Settings → Buy links**.
