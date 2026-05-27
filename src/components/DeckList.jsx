@@ -18,7 +18,7 @@ import { RandomRollsView } from './RandomRollsView.jsx';
 import { loadCollection, addToCollection } from '../lib/collection.js';
 import { ScryfallSearchPanel, SCRYFALL_DRAG_MIME } from './ScryfallSearchPanel.jsx';
 
-export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup, onSettings, onProfile, onCollection, onReportBug, onTipJar, collectionRev = 0, user, profile, cloudEnabled, onSignIn, onSignOut, onImportFromGallery, onViewGalleryDeck, onRandomBuild }) {
+export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup, onSettings, onProfile, onCollection, onPods, onReportBug, onTipJar, collectionRev = 0, user, profile, cloudEnabled, onSignIn, onSignOut, onImportFromGallery, onViewGalleryDeck, onRandomBuild }) {
   const [name, setName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showImport, setShowImport] = useState(false);
@@ -640,6 +640,14 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
               <span className="hidden md:inline" style={{ opacity: 0.4 }}>·</span>
               <button onClick={onCollection} className="hover:opacity-100 transition" style={{ color: CREAM_DIM }}>
                 Vault
+              </button>
+            </>
+          )}
+          {onPods && user && (
+            <>
+              <span className="hidden md:inline" style={{ opacity: 0.4 }}>·</span>
+              <button onClick={onPods} className="hover:opacity-100 transition" style={{ color: CREAM_DIM }}>
+                Pods
               </button>
             </>
           )}

@@ -912,6 +912,82 @@ export function CurveTab({ deck }) {
       </div>
 
       <LandBaseSection deck={deck} />
+      <MatchupSection deck={deck} />
+    </div>
+  );
+}
+
+function MatchupSection({ deck }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  // Only saved decks (cloud uuid) can have a matchup history.
+  const isCloudDeck = typeof deck.id === 'string' && /^[0-9a-f-]{36}$/i.test(deck.id);
+
+  useEffect(() => {
+    if (!isCloudDeck) {
+      setData({ games: 0, byOpponent: [] });
+      return;
+    }
+    setLoading(true);
+    let cancelled = false;
+    import('../lib/pods.js').then(({ matchupForDeck }) => {
+      matchupForDeck(deck.id).then((res) => {
+        if (!cancelled) setData(res);
+      }).finally(() => !cancelled && setLoading(false));
+    });
+    return () => { cancelled = true; };
+  }, [deck.id, isCloudDeck]);
+
+  if (!isCloudDeck) return null;
+  if (loading || !data) {
+    return (
+      <div className="border" style={{ borderColor: CREAM_FAINT }}>
+        <div className="px-5 py-3 border-b font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ borderColor: CREAM_FAINT, color: CREAM }}>
+          Matchup history
+        </div>
+        <div className="p-5 font-mono text-[11px]" style={{ color: CREAM_DIM }}>
+          Loading…
+        </div>
+      </div>
+    );
+  }
+  if (data.games === 0) {
+    return (
+      <div className="border" style={{ borderColor: CREAM_FAINT }}>
+        <div className="px-5 py-3 border-b font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ borderColor: CREAM_FAINT, color: CREAM }}>
+          Matchup history
+        </div>
+        <div className="p-5 font-serif text-xs italic" style={{ color: CREAM_DIM }}>
+          No games logged with this deck yet. Visit <span className="font-mono not-italic">Pods</span> on the homepage and log a game with this deck selected to start tracking matchups.
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="border" style={{ borderColor: CREAM_FAINT }}>
+      <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
+        <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
+          Matchup history
+        </div>
+        <div className="font-mono text-[10px] tracking-wider" style={{ color: CREAM_DIM }}>
+          {pad(data.games)} game{data.games === 1 ? '' : 's'} logged
+        </div>
+      </div>
+      <ul className="divide-y" style={{ borderColor: CREAM_FAINT }}>
+        {data.byOpponent.map((row) => {
+          const winRate = row.games > 0 ? Math.round((row.wins / row.games) * 100) : 0;
+          return (
+            <li key={row.opponentName} className="px-5 py-3 flex items-baseline justify-between gap-3" style={{ borderColor: CREAM_FAINT }}>
+              <span className="font-serif font-bold truncate" style={{ color: CREAM }}>
+                vs {row.opponentName}
+              </span>
+              <span className="font-mono text-[11px] shrink-0" style={{ color: CREAM_DIM }}>
+                {row.wins}-{row.losses} · {pad(winRate)}%
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
