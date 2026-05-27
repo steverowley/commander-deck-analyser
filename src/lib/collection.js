@@ -21,6 +21,12 @@ async function isSignedIn() {
   return !!user;
 }
 
+// Returns the user id, or null if not signed in. Cloud-path callers
+// MUST guard on null after this: passing it straight into
+// .eq('user_id', userId) issues a query against user_id = null,
+// which silently returns an empty set for reads and is rejected by
+// RLS for writes — both look indistinguishable from "nothing in
+// your vault" to the user.
 async function currentUserId() {
   if (!supabase) return null;
   const { data: { user } } = await supabase.auth.getUser();
@@ -33,6 +39,7 @@ async function currentUserId() {
 export async function loadCollection() {
   if (await isSignedIn()) {
     const userId = await currentUserId();
+    if (!userId) return {};
     const { data, error } = await supabase
       .from('collection')
       .select('card_name, quantity, added_at, meta')
@@ -77,6 +84,7 @@ export async function addToCollection(cardName, qty = 1) {
   if (!cardName || qty <= 0) return null;
   if (await isSignedIn()) {
     const userId = await currentUserId();
+    if (!userId) return null;
     // Read current quantity (if any) then upsert. PostgREST doesn't
     // support "increment" so a read-modify-write is needed.
     const { data: existing } = await supabase
@@ -114,6 +122,7 @@ export async function setCardQuantity(cardName, qty) {
   if (!cardName) return;
   if (await isSignedIn()) {
     const userId = await currentUserId();
+    if (!userId) return;
     if (qty <= 0) {
       const { error } = await supabase
         .from('collection')
@@ -147,13 +156,73 @@ export async function removeFromCollection(cardName) {
 }
 
 /**
- * Bulk-add many cards in one go.
+ * Bulk-add many cards in one go. Quantities accumulate onto any
+ * existing entry — matches addToCollection's per-card semantic, not
+ * bulkImportVault's snapshot-replace one.
+ *
+ * Cloud path issues one read + one upsert covering all rows instead
+ * of an addToCollection round-trip per card (was N×2 round-trips
+ * for N cards on the bulk-paste flow).
  */
 export async function bulkAddToCollection(entries) {
-  // entries: [{ name, quantity }]
-  for (const e of entries) {
-    if (e?.name) await addToCollection(e.name, e.quantity || 1);
+  const rows = (entries || []).filter((e) => e?.name);
+  if (rows.length === 0) return;
+  if (await isSignedIn()) {
+    const userId = await currentUserId();
+    if (!userId) return;
+    // Collapse duplicate names within the batch so the upsert payload
+    // has unique primary keys (user_id, card_name).
+    const wanted = new Map();
+    for (const e of rows) {
+      const key = lc(e.name);
+      const add = Math.max(1, (e.quantity | 0) || 1);
+      const prev = wanted.get(key);
+      if (prev) prev.quantity += add;
+      else wanted.set(key, { name: e.name, quantity: add });
+    }
+    const names = Array.from(wanted.values()).map((v) => v.name);
+    const { data: existing, error: readErr } = await supabase
+      .from('collection')
+      .select('card_name, quantity, meta')
+      .eq('user_id', userId)
+      .in('card_name', names);
+    if (readErr) {
+      console.warn('Supabase bulkAddToCollection read failed', readErr);
+      return;
+    }
+    const existingByKey = new Map();
+    for (const row of existing || []) existingByKey.set(lc(row.card_name), row);
+    const nowIso = new Date().toISOString();
+    const payload = Array.from(wanted.entries()).map(([key, v]) => {
+      const prev = existingByKey.get(key);
+      return {
+        user_id: userId,
+        card_name: v.name,
+        quantity: (prev?.quantity || 0) + v.quantity,
+        added_at: nowIso,
+        ...(prev?.meta ? { meta: prev.meta } : {}),
+      };
+    });
+    const { error } = await supabase
+      .from('collection')
+      .upsert(payload, { onConflict: 'user_id,card_name' });
+    if (error) console.warn('Supabase bulkAddToCollection upsert failed', error);
+    return;
   }
+  // Local fallback — read-modify-write the whole collection once.
+  const cur = await loadCollection();
+  for (const e of rows) {
+    const key = lc(e.name);
+    const add = Math.max(1, (e.quantity | 0) || 1);
+    const prev = cur[key];
+    cur[key] = {
+      name: e.name,
+      quantity: (prev?.quantity || 0) + add,
+      added_at: Date.now(),
+      meta: prev?.meta || {},
+    };
+  }
+  saveLocal(cur);
 }
 
 /**
@@ -168,6 +237,7 @@ export async function bulkImportVault(rows, onProgress) {
   if (!rows?.length) return { added: 0, failed: 0, error: null };
   if (await isSignedIn()) {
     const userId = await currentUserId();
+    if (!userId) return { added: 0, failed: rows.length, error: 'session expired' };
     let added = 0;
     let failed = 0;
     let firstError = null;
@@ -203,12 +273,15 @@ export async function bulkImportVault(rows, onProgress) {
     }
     return { added, failed, error: firstError };
   }
-  // Local fallback.
+  // Local fallback. Mirror the cloud path's quantity clamp so a
+  // corrupted CSV (count 0, negative, NaN) can't store nonsense
+  // quantities in localStorage that downstream stats / autoseed
+  // would then treat as real ownership.
   const cur = await loadCollection();
   for (const r of rows) {
     cur[lc(r.name)] = {
       name: r.name,
-      quantity: r.count,
+      quantity: Math.max(1, r.count | 0),
       added_at: Date.now(),
       meta: r.foil ? { foil: r.foil } : {},
     };
@@ -224,6 +297,7 @@ export async function bulkImportVault(rows, onProgress) {
 export async function clearCollection() {
   if (await isSignedIn()) {
     const userId = await currentUserId();
+    if (!userId) return;
     const { error } = await supabase
       .from('collection')
       .delete()
@@ -267,6 +341,7 @@ export async function setCardMeta(cardName, meta) {
   const next = meta || null;
   if (await isSignedIn()) {
     const userId = await currentUserId();
+    if (!userId) return next;
     const { error } = await supabase
       .from('collection')
       .update({ meta: next })

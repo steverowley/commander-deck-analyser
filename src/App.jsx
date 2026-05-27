@@ -262,14 +262,17 @@ export default function App() {
   const handleRestore = async (importedDecks, mode) => {
     let next;
     if (mode === 'replace') {
-      for (const d of decks) await deleteDeck(d.id);
+      // Parallel — deletes are independent. On Supabase this collapses
+      // N round-trips into ~1; locally it's a no-op cost but keeps
+      // both backends on the same path.
+      await Promise.all(decks.map((d) => deleteDeck(d.id)));
       next = importedDecks;
     } else {
       const existingIds = new Set(decks.map((d) => d.id));
       const additions = importedDecks.filter((d) => !existingIds.has(d.id));
       next = [...additions, ...decks];
     }
-    for (const d of importedDecks) await saveDeck(d);
+    await Promise.all(importedDecks.map((d) => saveDeck(d)));
     setDecks(next.slice().sort((a, b) => (b.updated || 0) - (a.updated || 0)));
     setShowBackup(false);
   };
@@ -418,9 +421,13 @@ export default function App() {
       <GlobalDropOverlay
         activeDeckName={activeDeck?.name}
         onAddToVault={async (card) => {
-          await addToCollection(card.name, 1);
-          // Bump the rev so DeckList's VaultSection refreshes its
-          // collection state and the new thumbnail appears immediately.
+          // addToCollection returns null on Supabase / quota failure.
+          // Surface that as a thrown error so GlobalDropOverlay's
+          // try/catch puts the failure in front of the user instead
+          // of bumping collectionRev and showing a "card added" toast
+          // for a write that never landed.
+          const added = await addToCollection(card.name, 1);
+          if (!added) throw new Error(`Couldn't add ${card.name} to your Vault — check your connection or sign-in.`);
           setCollectionRev((r) => r + 1);
         }}
         onAddToDeck={activeDeck ? (card) => {
