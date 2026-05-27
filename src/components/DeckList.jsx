@@ -1036,7 +1036,7 @@ function VaultSection({ collection, onOpen, onSearch, onAddCard, onChanged }) {
         </div>
       </div>
       <div
-        className="border p-5 flex flex-col md:flex-row gap-4 md:items-center transition-all"
+        className="border p-5 transition-all"
         style={{
           borderColor: dragOver ? CREAM : CREAM_FAINT,
           background: dragOver ? 'rgba(243,231,201,0.08)' : 'rgba(243,231,201,0.02)',
@@ -1046,55 +1046,55 @@ function VaultSection({ collection, onOpen, onSearch, onAddCard, onChanged }) {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <div className="flex-1 min-w-0">
-          <p className="font-serif text-sm italic" style={{ color: CREAM_DIM }}>
+        <div className="flex flex-col md:flex-row gap-4 md:items-center">
+          <p className="font-serif text-sm italic flex-1 min-w-0" style={{ color: CREAM_DIM }}>
             {dragOver
               ? 'Drop to add this card to your Vault.'
               : (unique === 0
                   ? 'Cards you actually own. Drag a card image straight from Scryfall onto this box, search via the panel, scan with the webcam, or paste a list. The deck roller can then build only from cards you own.'
                   : 'Cards you actually own. Drag in cards from Scryfall (just drop the image onto this box) or open the Vault page for stats, filters, and deck coverage.')}
           </p>
-          {recent.length > 0 && (
-            <div className="mt-4">
-              <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-2" style={{ color: CREAM_DIM }}>
-                Recently added
-              </div>
-              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
-                {recent.map((e) => {
-                  const card = cardData[e.name.toLowerCase()];
-                  return (
-                    <VaultCard
-                      key={e.name}
-                      entry={e}
-                      card={card}
-                      onChanged={onChanged}
-                      showArtFoil={false}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="flex gap-2 shrink-0 self-start md:self-auto">
-          {onSearch && (
+          <div className="flex gap-2 shrink-0 self-start md:self-auto">
+            {onSearch && (
+              <button
+                onClick={onSearch}
+                className="font-serif text-[10px] tracking-[0.3em] uppercase border px-4 py-2"
+                style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
+                title="Search Scryfall — drag results to add"
+              >
+                Search →
+              </button>
+            )}
             <button
-              onClick={onSearch}
+              onClick={onOpen}
               className="font-serif text-[10px] tracking-[0.3em] uppercase border px-4 py-2"
-              style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
-              title="Search Scryfall — drag results to add"
+              style={{ borderColor: CREAM, color: CREAM, background: 'rgba(243,231,201,0.06)' }}
             >
-              Search →
+              Open Vault →
             </button>
-          )}
-          <button
-            onClick={onOpen}
-            className="font-serif text-[10px] tracking-[0.3em] uppercase border px-4 py-2"
-            style={{ borderColor: CREAM, color: CREAM, background: 'rgba(243,231,201,0.06)' }}
-          >
-            Open Vault →
-          </button>
+          </div>
         </div>
+        {recent.length > 0 && (
+          <div className="mt-5">
+            <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-2" style={{ color: CREAM_DIM }}>
+              Recently added
+            </div>
+            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-10 lg:grid-cols-12 gap-2">
+              {recent.map((e) => {
+                const card = cardData[e.name.toLowerCase()];
+                return (
+                  <VaultCard
+                    key={e.name}
+                    entry={e}
+                    card={card}
+                    onChanged={onChanged}
+                    showArtFoil={false}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

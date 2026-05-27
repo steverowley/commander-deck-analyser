@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Loader2, Check, BookOpen, Copy, Download, Link as LinkIcon, GitCompare, Archive, FileText, Settings as SettingsIcon, Dices, Shuffle } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, parseDecklist, lc } from '../lib/utils.js';
@@ -1454,7 +1455,7 @@ export function PrintingPickerModal({ card, onClose, onPick }) {
     };
   }, [card?.name, card?.oracle_id]);
 
-  return (
+  return createPortal((
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(13,22,20,0.92)', backdropFilter: 'blur(6px)' }}
@@ -1540,7 +1541,7 @@ export function PrintingPickerModal({ card, onClose, onPick }) {
         </div>
       </div>
     </div>
-  );
+  ), document.body);
 }
 
 // ───────────────────────────────────────────────────────────────────────────────
