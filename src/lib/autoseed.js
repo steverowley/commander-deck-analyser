@@ -73,6 +73,23 @@ function isBasicLandName(name) {
   return /^(Snow-Covered )?(Plains|Island|Swamp|Mountain|Forest)$|^Wastes$/.test(name || '');
 }
 
+// Check whether the user's collection contains a card. Falls back to
+// the front-face name for split / adventure / DFC cards — Scryfall's
+// canonical name is "Front // Back" but Moxfield CSV imports and
+// hand-typed Vault entries often store just the front face, so a
+// strict canonical-name match would wrongly mark owned cards as
+// missing. Returns the collection key that matched, or null.
+function ownedKey(collection, cardName) {
+  if (!collection || !cardName) return null;
+  const key = lc(cardName);
+  if (collection[key]) return key;
+  if (key.includes(' // ')) {
+    const front = key.split(' // ')[0].trim();
+    if (front && collection[front]) return front;
+  }
+  return null;
+}
+
 function avgCmcOf(cards) {
   const nonLand = cards.filter((c) => !isLand(c));
   if (nonLand.length === 0) return 3.0;
@@ -156,7 +173,7 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
   // would be a worse seed.
   if (Number.isFinite(maxPerCard)) {
     pool = pool.filter((c) => {
-      if (collection && collection[lc(c.name)]) return true;
+      if (ownedKey(collection, c.name)) return true;
       const p = cardPrice(c, currency);
       return p == null || p <= maxPerCard;
     });
@@ -172,7 +189,7 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
     const before = pool.length;
     pool = pool.filter((c) => {
       if (/^Basic Land/i.test(c.type_line || '')) return true;
-      return !!(collection && collection[lc(c.name)]);
+      return !!ownedKey(collection, c.name);
     });
     console.log(`[autoseed] ownedOnly filter: ${before} → ${pool.length} cards (${Object.keys(collection || {}).length} in Vault).`);
   }
@@ -333,7 +350,7 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
       for (let i = 0; i < entries.length; i++) {
         const e = entries[i];
         if (isBasicLandName(e.name)) continue;
-        if (collection && collection[lc(e.name)]) continue;
+        if (ownedKey(collection, e.name)) continue;
         const p = cardPrice(e.scryfall, currency) || 0;
         if (p > worstPrice) {
           worstPrice = p;

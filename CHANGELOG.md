@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.14.1 — Vault-only roll respects front-face names
+
+- **DFC / adventure / split cards now match the Vault correctly when "Only use cards from my Vault" is on.** Scryfall returns these with the canonical `"Front // Back"` name (e.g. `Bonecrusher Giant // Stomp`), but Moxfield CSV imports and hand-typed Vault entries usually store only the front face (`Bonecrusher Giant`). The strict-equality filter was dropping every owned DFC from the pool, leaving the deck to short-fall into basics and look like the toggle wasn't working. The ownership check now falls back to the front-face name when the canonical name has a `//` in it, so Vaults populated from CSV imports work the same as ones drag-loaded from Scryfall. Same fix applied to the per-card-budget bypass and the budget-swap-skip checks so owned DFCs stay free of those gates too.
+
 ## v0.14.0 — Bug reports submit directly (no GitHub account needed)
 
 The in-app bug reporter previously dumped users on GitHub's "Sign in to file an issue" wall — most users don't have an account, so reports dried up. The form now POSTs straight to a tiny Cloudflare Worker that files the issue on the user's behalf and returns the issue URL. No reporter account required; reports land in the same GitHub tracker as before.

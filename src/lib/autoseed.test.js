@@ -262,6 +262,44 @@ describe('buildSeededDeck', () => {
     expect(totalCount(cards)).toBe(99);
   });
 
+  it('ownedOnly matches DFC / adventure / split cards by front-face name', async () => {
+    // Real-world failure: pool cards from Scryfall have the canonical
+    // "Front // Back" name, but Moxfield CSV imports (and a fair share
+    // of hand-typed Vault entries) store only the front-face name.
+    // Without a fallback the filter says the user doesn't own the card.
+    const adventure = { name: 'Bonecrusher Giant // Stomp', type_line: 'Creature — Giant', cmc: 3, oracle_text: 'When this creature becomes the target of a spell, deal 2 damage to that spell\'s controller.' };
+    const dfc = { name: 'Brightclimb Pathway // Grimclimb Pathway', type_line: 'Land', cmc: 0, oracle_text: '{T}: Add {W} or {B}.' };
+    const split = { name: 'Fire // Ice', type_line: 'Instant', cmc: 2, oracle_text: 'Deal 2 damage divided as you choose.' };
+    const fullNameMatch = { name: 'Murderous Rider // Swift End', type_line: 'Creature — Zombie Knight', cmc: 3, oracle_text: 'Destroy target creature.' };
+    const pool = [
+      adventure,
+      dfc,
+      split,
+      fullNameMatch,
+      ...Array.from({ length: 60 }, (_, i) => makeRamp(i)),
+      ...Array.from({ length: 60 }, (_, i) => makeCreature(i)),
+    ];
+    // Vault holds:
+    //   - three by front-face only (Moxfield CSV style)
+    //   - one by the full Scryfall name (drag-from-Scryfall style)
+    const collection = {
+      'bonecrusher giant': { name: 'Bonecrusher Giant', quantity: 1 },
+      'brightclimb pathway': { name: 'Brightclimb Pathway', quantity: 1 },
+      'fire // ice': { name: 'Fire // Ice', quantity: 1 },
+      'murderous rider // swift end': { name: 'Murderous Rider // Swift End', quantity: 1 },
+    };
+    fetchRecommendations.mockResolvedValue(pool.map((c) => ({ name: c.name })));
+    fetchCardsByName.mockResolvedValue({ results: buildResults(pool), notFound: [], errors: [] });
+
+    const commander = { name: 'DFC Cmdr', color_identity: ['R'] };
+    const { cards } = await buildSeededDeck(commander, { ownedOnly: true, collection });
+
+    expect(cards.some((c) => c.name === 'Bonecrusher Giant // Stomp')).toBe(true);
+    expect(cards.some((c) => c.name === 'Brightclimb Pathway // Grimclimb Pathway')).toBe(true);
+    expect(cards.some((c) => c.name === 'Fire // Ice')).toBe(true);
+    expect(cards.some((c) => c.name === 'Murderous Rider // Swift End')).toBe(true);
+  });
+
   it('caps non-basic lands at the colour-identity utility reserve and pads the rest with basics', async () => {
     // EDHREC pool packed with 40 utility lands — without the cap the
     // builder would dump all 40 into the deck and never reach for a
