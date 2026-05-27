@@ -11,6 +11,7 @@ const KEY = 'vault:settings-v1';
 const DEFAULTS = {
   strictIdentityDefault: false, // turn strict mode on automatically for new decks
   currency: 'usd',              // 'usd' | 'eur' — affects price display
+  prefRetailer: 'cardkingdom',  // 'cardkingdom' | 'tcgplayer' | 'cardmarket' — affiliate buy links
 };
 
 let cache = null;
