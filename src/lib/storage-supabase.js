@@ -18,6 +18,8 @@
  */
 
 import { supabase } from './supabase.js';
+import { assessBracket } from './analyzers.js';
+import { computeHealth } from './health.js';
 
 /**
  * Deck IDs in the local app are 'deck_<ts>' strings. Supabase uses uuids.
@@ -44,14 +46,59 @@ function rowToDeck(row) {
   };
 }
 
+// Slim mapper for the public gallery. The SELECT pulls only the
+// denormalised columns + commander sub-extract — no `data` blob — so the
+// resulting deck has commander/badges/timestamps but no `cards` array.
+// View / Copy actions in the gallery lazy-load the full deck via
+// loadDeckById() before handing it to the editor.
+function rowToSlimDeck(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    commander: row.commander || null,
+    is_public: row.is_public,
+    card_count: row.card_count ?? 0,
+    bracket: row.bracket ?? null,
+    health_score: row.health_score ?? null,
+    updated: new Date(row.updated_at).getTime(),
+  };
+}
+
+function safeCardCount(cards) {
+  if (!Array.isArray(cards)) return 0;
+  return cards.reduce((s, c) => s + (Number(c?.count) || 0), 0);
+}
+
+// Compute the denormalised gallery columns from a deck. Wrapped in a
+// try/catch because the analyzers expect a fully-shaped deck — a
+// half-populated one (e.g. mid-edit, no commander yet) should still
+// save, just with NULL bracket/health for that snapshot.
+function denormStats(deck) {
+  const card_count = safeCardCount(deck.cards);
+  let bracket = null;
+  let health_score = null;
+  if (deck.commander && Array.isArray(deck.cards) && deck.cards.length > 0) {
+    try { bracket = assessBracket(deck).bracket ?? null; } catch { bracket = null; }
+    try {
+      const h = computeHealth(deck);
+      health_score = h && !h.empty ? h.score : null;
+    } catch { health_score = null; }
+  }
+  return { card_count, bracket, health_score };
+}
+
 function deckToRow(deck, userId) {
   const targetId = isUuid(deck.id) ? deck.id : undefined; // let Postgres mint a new uuid
+  const { card_count, bracket, health_score } = denormStats(deck);
   return {
     ...(targetId ? { id: targetId } : {}),
     owner_id: userId,
     name: deck.name || 'Untitled',
     commander_name: deck.commander?.name || null,
     is_public: !!deck.is_public,
+    card_count,
+    bracket,
+    health_score,
     // Snapshot the whole deck except for fields stored in columns.
     data: { ...deck, id: undefined, created: undefined, updated: undefined, is_public: undefined },
   };
@@ -130,9 +177,13 @@ export async function deleteDeck(id) {
  */
 export async function loadPublicDecks(limit = 24) {
   if (!supabase) return [];
+  // Slim SELECT — denorm columns + commander sub-extract only. The
+  // full `data` blob is fetched on demand by loadDeckById() when the
+  // user clicks View or Copy → mine on a gallery tile. Saves
+  // significant egress on every homepage load.
   const { data: decks, error } = await supabase
     .from('decks')
-    .select('id, name, commander_name, is_public, data, updated_at, owner_id')
+    .select('id, name, commander_name, is_public, updated_at, owner_id, card_count, bracket, health_score, commander:data->commander')
     .eq('is_public', true)
     // New rolls live in random_rolls, but legacy rolled decks from
     // earlier flows still sit in `decks` with is_public=true and
@@ -160,11 +211,32 @@ export async function loadPublicDecks(limit = 24) {
   return decks.map((row) => {
     const p = profileByOwner.get(row.owner_id);
     return {
-      ...rowToDeck(row),
+      ...rowToSlimDeck(row),
       ownerUsername: p?.username || 'someone',
       ownerSupporter: !!p?.supporter,
     };
   });
+}
+
+/**
+ * Fetch the full deck (including the `data` jsonb blob with cards) by
+ * id. Used by the public gallery to lazy-load the heavy payload only
+ * when the user clicks View or Copy → mine. RLS already permits
+ * "anyone can read public decks" on this table.
+ */
+export async function loadDeckById(id) {
+  if (!supabase || !id) return null;
+  const { data, error } = await supabase
+    .from('decks')
+    .select('id, name, commander_name, is_public, data, created_at, updated_at')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) {
+    console.warn('Supabase loadDeckById failed', error);
+    return null;
+  }
+  if (!data) return null;
+  return rowToDeck(data);
 }
 
 /**
@@ -185,6 +257,7 @@ export async function saveRandomRoll({ commander, cards, seedMeta }) {
     commander_name: commander.name || null,
     commander_data: commander,
     cards_data: cards || [],
+    card_count: safeCardCount(cards),
     seed_meta: seedMeta || null,
   });
   if (error) {
@@ -201,9 +274,12 @@ export async function saveRandomRoll({ commander, cards, seedMeta }) {
  */
 export async function loadRandomRolls(limit = 12) {
   if (!supabase) return [];
+  // Slim SELECT — drops cards_data so the homepage gallery doesn't pull
+  // every roll's 99-card payload. View / Copy lazy-load via
+  // loadRandomRollById().
   const { data: rolls, error } = await supabase
     .from('random_rolls')
-    .select('id, owner_id, commander_name, commander_data, cards_data, seed_meta, created_at')
+    .select('id, owner_id, commander_name, commander_data, card_count, seed_meta, created_at')
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error) {
@@ -222,16 +298,16 @@ export async function loadRandomRolls(limit = 12) {
     for (const p of profiles || []) profileByOwner.set(p.user_id, p);
   }
 
-  // Adapt to the same shape gallery cards expect: a `deck` object with
-  // commander, cards, ownerUsername, created, seedMeta. The id is the
-  // roll's own uuid so React keys stay stable.
+  // Adapt to the slim gallery shape — same fields as before minus the
+  // `cards` array (now lazy-fetched). card_count carries the total so
+  // the tile can still show "99 cards" without the blob.
   return rolls.map((r) => {
     const p = r.owner_id ? profileByOwner.get(r.owner_id) : null;
     return {
       id: `roll:${r.id}`,
       name: r.commander_name || 'Random roll',
       commander: r.commander_data,
-      cards: r.cards_data || [],
+      card_count: r.card_count ?? 0,
       seedMeta: r.seed_meta || null,
       created: new Date(r.created_at).getTime(),
       updated: new Date(r.created_at).getTime(),
@@ -240,6 +316,38 @@ export async function loadRandomRolls(limit = 12) {
       __fromRandomRolls: true,
     };
   });
+}
+
+/**
+ * Fetch a single random roll (including cards_data) by id. Accepts
+ * either the bare uuid or the 'roll:<uuid>' form the gallery uses for
+ * React keys. RLS allows anyone-read on this table.
+ */
+export async function loadRandomRollById(rollId) {
+  if (!supabase || !rollId) return null;
+  const cleanId = typeof rollId === 'string' && rollId.startsWith('roll:')
+    ? rollId.slice(5)
+    : rollId;
+  const { data: r, error } = await supabase
+    .from('random_rolls')
+    .select('id, owner_id, commander_name, commander_data, cards_data, seed_meta, created_at')
+    .eq('id', cleanId)
+    .maybeSingle();
+  if (error) {
+    console.warn('Supabase loadRandomRollById failed', error);
+    return null;
+  }
+  if (!r) return null;
+  return {
+    id: `roll:${r.id}`,
+    name: r.commander_name || 'Random roll',
+    commander: r.commander_data,
+    cards: r.cards_data || [],
+    seedMeta: r.seed_meta || null,
+    created: new Date(r.created_at).getTime(),
+    updated: new Date(r.created_at).getTime(),
+    __fromRandomRolls: true,
+  };
 }
 
 /**
