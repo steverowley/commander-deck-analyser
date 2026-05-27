@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.23.3 — Settings modal QA pass
+
+- **`SettingsRow` now stacks on mobile.** Was a rigid 7/5 grid that wedged controls into a 5-column sliver; long buttons ("Card Kingdom", "Cardmarket (Trend)") overflowed into the description text on desktop and were unreadable on mobile. Below the `sm` breakpoint the label/description and the controls now stack vertically; at `sm+` the same 7/5 grid layout remains.
+- **Control rows wrap instead of overflow.** Added `flex-wrap` to the Currency / Buy links / Price source segmented controls and to the Card cache Refresh/Clear pair so they reflow onto a second line rather than crashing into adjacent text. Each button also has `whitespace-nowrap` so individual labels stay on one line.
+- **Shortened "Price source" labels.** Was "TCGplayer (Mid)" / "Cardmarket (Trend)"; now just "TCGplayer" / "Cardmarket" with the variant kept in the row description and the tooltip. New `shortVendorLabel(vendor)` helper in `src/lib/pricing.js`.
+- **Settings modal scrolls.** Added `max-h-[90vh]` + an internal `overflow-y-auto` wrapper so the modal can't outgrow the viewport on small screens (was getting clipped on phone-height displays); header + footer remain pinned via `shrink-0`.
+
 ## v0.23.2 — Nav button now reads "Profile · @handle"
 
 - **`src/components/DeckList.jsx`** — the signed-in nav button (mobile + desktop) that opens the Profile modal now reads "Profile · @handle" instead of "Cloud · @handle". The button has always had `onClick={onProfile}` and `title="View profile"`, so the label now matches the action. No behaviour change.

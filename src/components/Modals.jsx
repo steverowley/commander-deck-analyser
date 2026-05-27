@@ -10,7 +10,7 @@ import { loadCollection, uniqueCount } from '../lib/collection.js';
 import { saveRandomRoll } from '../lib/storage-supabase.js';
 import { exportDecklist } from '../lib/deckops.js';
 import { buildShareUrl } from '../lib/share.js';
-import { deckTotalPrice, formatPrice, isConverted, deckPriceTooltip, PRICE_VENDORS, vendorLabel } from '../lib/pricing.js';
+import { deckTotalPrice, formatPrice, isConverted, deckPriceTooltip, PRICE_VENDORS, vendorLabel, shortVendorLabel } from '../lib/pricing.js';
 import { compareDecks } from '../lib/compare.js';
 import { buildBackup, parseBackup, backupFilename } from '../lib/backup.js';
 import { loadSettings, updateSetting } from '../lib/settings.js';
@@ -1525,7 +1525,7 @@ export function SettingsBody() {
             label="Price currency"
             description="The unit prices are displayed in. USD / EUR come straight from the vendor's Scryfall feed; GBP is converted from USD at an approximate rate (shown with a ~ prefix). Crossing currencies (e.g. EUR vendor → USD display) is also approximate."
           >
-            <div className="flex border" style={{ borderColor: CREAM_FAINT }}>
+            <div className="flex flex-wrap border" style={{ borderColor: CREAM_FAINT }}>
               {['usd', 'eur', 'gbp'].map((c) => (
                 <button
                   key={c}
@@ -1550,12 +1550,12 @@ export function SettingsBody() {
               </>
             }
           >
-            <div className="flex border" style={{ borderColor: CREAM_FAINT }}>
+            <div className="flex flex-wrap border" style={{ borderColor: CREAM_FAINT }}>
               {RETAILERS.map((r) => (
                 <button
                   key={r}
                   onClick={() => update('prefRetailer', r)}
-                  className="font-mono text-[10px] px-3 py-1.5 uppercase tracking-wider"
+                  className="font-mono text-[10px] px-3 py-1.5 uppercase tracking-wider whitespace-nowrap"
                   style={{
                     color: settings.prefRetailer === r ? CREAM : CREAM_DIM,
                     background: settings.prefRetailer === r ? 'rgba(var(--ink-rgb),0.08)' : 'transparent',
@@ -1576,19 +1576,19 @@ export function SettingsBody() {
               </>
             }
           >
-            <div className="flex border" style={{ borderColor: CREAM_FAINT }}>
+            <div className="flex flex-wrap border" style={{ borderColor: CREAM_FAINT }}>
               {PRICE_VENDORS.map((v) => (
                 <button
                   key={v}
                   onClick={() => update('prefPriceSource', v)}
-                  className="font-mono text-[10px] px-3 py-1.5 uppercase tracking-wider"
+                  className="font-mono text-[10px] px-3 py-1.5 uppercase tracking-wider whitespace-nowrap"
                   style={{
                     color: settings.prefPriceSource === v ? CREAM : CREAM_DIM,
                     background: settings.prefPriceSource === v ? 'rgba(var(--ink-rgb),0.08)' : 'transparent',
                   }}
                   title={vendorLabel(v)}
                 >
-                  {vendorLabel(v)}
+                  {shortVendorLabel(v)}
                 </button>
               ))}
             </div>
@@ -1597,12 +1597,12 @@ export function SettingsBody() {
             label="Card cache"
             description={cacheCount === null ? 'Querying IndexedDB...' : `${cacheCount} cards cached.`}
           >
-            <div className="flex flex-col items-end gap-1.5">
-              <div className="flex gap-2">
+            <div className="flex flex-col items-start sm:items-end gap-1.5 w-full">
+              <div className="flex flex-wrap gap-2 justify-start sm:justify-end">
                 <button
                   onClick={refresh}
                   disabled={refreshing || clearing || !cacheCount}
-                  className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-1.5 disabled:opacity-40"
+                  className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-1.5 disabled:opacity-40 whitespace-nowrap"
                   style={{ borderColor: CREAM_FAINT, color: CREAM }}
                   title="Re-download every cached card from Scryfall — refreshes prices + oracle text"
                 >
@@ -1611,7 +1611,7 @@ export function SettingsBody() {
                 <button
                   onClick={clear}
                   disabled={clearing || refreshing || cacheCount === 0}
-                  className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-1.5 disabled:opacity-40"
+                  className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-1.5 disabled:opacity-40 whitespace-nowrap"
                   style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
                 >
                   {clearing ? 'Clearing...' : 'Clear'}
@@ -1636,17 +1636,19 @@ export function SettingsModal({ onClose }) {
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
       style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
-      <div className="w-full max-w-xl flex flex-col border" style={{ background: BG, borderColor: CREAM_FAINT }}>
-        <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
+      <div className="w-full max-w-xl max-h-[90vh] flex flex-col border" style={{ background: BG, borderColor: CREAM_FAINT }}>
+        <div className="px-5 py-4 border-b flex items-center justify-between shrink-0" style={{ borderColor: CREAM_FAINT }}>
           <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold flex items-center gap-2" style={{ color: CREAM }}>
             <SettingsIcon className="w-3.5 h-3.5" /> Settings
           </div>
-          <button onClick={onClose} style={{ color: CREAM_DIM }}>
+          <button onClick={onClose} style={{ color: CREAM_DIM }} className="shrink-0 ml-3">
             <X className="w-4 h-4" />
           </button>
         </div>
-        <SettingsBody />
-        <div className="px-5 py-4 border-t flex justify-end" style={{ borderColor: CREAM_FAINT }}>
+        <div className="overflow-y-auto flex-1 min-h-0">
+          <SettingsBody />
+        </div>
+        <div className="px-5 py-4 border-t flex justify-end shrink-0" style={{ borderColor: CREAM_FAINT }}>
           <button onClick={onClose} className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM }}>
             Done →
           </button>
@@ -1658,8 +1660,8 @@ export function SettingsModal({ onClose }) {
 
 function SettingsRow({ label, description, children }) {
   return (
-    <div className="grid grid-cols-12 gap-4 items-start">
-      <div className="col-span-7">
+    <div className="flex flex-col gap-3 sm:grid sm:grid-cols-12 sm:gap-4 sm:items-start">
+      <div className="sm:col-span-7 min-w-0">
         <div className="font-serif text-sm tracking-wide" style={{ color: CREAM }}>
           {label}
         </div>
@@ -1667,7 +1669,7 @@ function SettingsRow({ label, description, children }) {
           {description}
         </div>
       </div>
-      <div className="col-span-5 flex justify-end">
+      <div className="sm:col-span-5 flex flex-wrap justify-start sm:justify-end gap-2 min-w-0">
         {children}
       </div>
     </div>
