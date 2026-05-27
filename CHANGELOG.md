@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.18.0 — Vendor-aware pricing
+
+Prices shown across Vault now come from the same retailer you've chosen for buy links — pick TCGplayer and you see TCGplayer Mid; pick Cardmarket and you see Cardmarket Trend in EUR. Card Kingdom doesn't publish per-card prices on Scryfall, so its prices are estimated from TCGplayer Mid and flagged with a `~` prefix everywhere they appear. Every price now has a hover tooltip that explains its source, any FX conversion, and any unpriced cards in the total.
+
+### Pricing
+- **Vendor → Scryfall field mapping** in `src/lib/pricing.js`. TCGplayer reads `prices.usd` (foil `usd_foil`, etched `usd_etched`); Cardmarket reads `prices.eur` (foil `eur_foil`); Card Kingdom proxies TCGplayer USD because no Scryfall feed exists. `cardPrice()` and `deckTotalPrice()` accept an explicit `vendor` arg; when omitted they read `prefRetailer` from settings so existing callers stay working.
+- **`cardPriceDetails()` + `deckPriceTooltip()`** return rich descriptors with notes the UI joins into multiline `title` tooltips — source vendor, FX conversion direction, foil/non-foil fallback, unpriced-card counts, "change in Settings → Buy links" hint.
+- **Scryfall normalize keeps every price field we know how to consume.** Previously `usd_foil`, `usd_etched`, `eur_foil`, `tix` were dropped at cache time to save bytes; vendor switching needs them so they're kept now.
+- **Currency × vendor cross-conversion.** Display in any of USD/EUR/GBP regardless of source — €/Cardmarket → $ converts at the bundled FX rate, exact-vendor + matching currency shows the price unmodified.
+
+### Tooltips surfaced
+- Card-row prices in `ScryfallSearchPanel` / `CardRowCompact`.
+- Deck-editor header cost chip.
+- Archive-dashboard "Total value" and per-deck row prices on the landing page.
+- Copy-decklist modal price line (now also names the source vendor inline).
+- Vault page "Total value", "Foils", "Most valuable", and "Cards on the shelf" stats.
+
+### Settings copy
+- "Price currency" description clarifies that crossing source and display currencies is approximate.
+- "Buy links" row renamed to **"Buy links & price source"** and explains that Card Kingdom prices are estimated from TCGplayer Mid (no Scryfall feed).
+
+### Out of scope (yet)
+- Cheapest-printing lookup per vendor (would need a Scryfall sort-by-price walk on demand). For now we use the printing already on the card; the tooltip notes vendor mapping but doesn't yet hunt for the lowest variant.
+- Card Kingdom direct pricing — no public per-card price API; would need scraping.
+
 ## v0.17.1 — PayPal webhook operator README
 
 - `supabase/functions/paypal-webhook/README.md` — step-by-step setup for the PayPal Business app, hosted Donate button, webhook subscription, Supabase secrets, sandbox test, and flip-to-live. Plus a quick "how it works" + debugging crib for the three most common failure modes (every webhook 400s, badge doesn't flip, CSP blocks the SDK).

@@ -44,9 +44,18 @@ function normalize(card) {
     power: card.power,
     toughness: card.toughness,
     loyalty: card.loyalty,
-    // Keep USD + EUR pricing for the deck-total feature. Foil/tix dropped
-    // to stay light. Scryfall returns these as string-encoded decimals.
-    prices: card.prices ? { usd: card.prices.usd, eur: card.prices.eur } : undefined,
+    // Keep every Scryfall price field we know how to consume — vendor-
+    // aware pricing reads `usd*` (TCGplayer) or `eur*` (Cardmarket)
+    // depending on Settings → Buy links. Null fields stay null so the
+    // tooltip can say "no price available" accurately.
+    prices: card.prices ? {
+      usd: card.prices.usd,
+      usd_foil: card.prices.usd_foil,
+      usd_etched: card.prices.usd_etched,
+      eur: card.prices.eur,
+      eur_foil: card.prices.eur_foil,
+      tix: card.prices.tix,
+    } : undefined,
     image_uris: card.image_uris
       ? {
           small: card.image_uris.small,

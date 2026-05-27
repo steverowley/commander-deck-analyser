@@ -10,7 +10,7 @@ import { loadCollection, uniqueCount } from '../lib/collection.js';
 import { saveRandomRoll } from '../lib/storage-supabase.js';
 import { exportDecklist } from '../lib/deckops.js';
 import { buildShareUrl } from '../lib/share.js';
-import { deckTotalPrice, formatPrice, isConverted } from '../lib/pricing.js';
+import { deckTotalPrice, formatPrice, isConverted, deckPriceTooltip } from '../lib/pricing.js';
 import { compareDecks } from '../lib/compare.js';
 import { buildBackup, parseBackup, backupFilename } from '../lib/backup.js';
 import { loadSettings, updateSetting } from '../lib/settings.js';
@@ -384,10 +384,14 @@ export function ExportModal({ deck, onClose }) {
             const currency = loadSettings().currency || 'usd';
             const price = deckTotalPrice(deck, currency);
             if (price.priced === 0) return null;
-            const approx = price.unpriced > 0 || isConverted(currency) ? '~' : '';
+            const approx = price.approximate ? '~' : '';
             return (
-              <div className="flex items-center gap-3 mb-3 font-mono text-[11px]" style={{ color: CREAM_DIM }}>
-                <span>Deck price ·</span>
+              <div
+                className="flex items-center gap-3 mb-3 font-mono text-[11px]"
+                style={{ color: CREAM_DIM }}
+                title={deckPriceTooltip(price)}
+              >
+                <span>Deck price ({price.vendorLabel}) ·</span>
                 <span style={{ color: CREAM, fontSize: '1.1rem', fontFamily: 'inherit' }}>
                   {approx}{formatPrice(price.total, currency)} {currency.toUpperCase()}
                 </span>
@@ -1514,7 +1518,7 @@ export function SettingsModal({ onClose }) {
           </SettingsRow>
           <SettingsRow
             label="Price currency"
-            description="USD / EUR come straight from Scryfall. GBP is converted from USD at an approximate rate (shown with a ~ prefix)."
+            description="The unit prices are displayed in. USD / EUR come straight from the vendor's Scryfall feed; GBP is converted from USD at an approximate rate (shown with a ~ prefix). Crossing currencies (e.g. EUR vendor → USD display) is also approximate."
           >
             <div className="flex border" style={{ borderColor: CREAM_FAINT }}>
               {['usd', 'eur', 'gbp'].map((c) => (
@@ -1533,8 +1537,15 @@ export function SettingsModal({ onClose }) {
             </div>
           </SettingsRow>
           <SettingsRow
-            label="Buy links"
-            description="The cart icon next to each card opens the chosen retailer. Card Kingdom + TCGplayer links are affiliate (we earn a small commission). Cardmarket links are plain — no affiliate."
+            label="Buy links & price source"
+            description={
+              <>
+                Drives both the cart icon (opens this retailer in a new tab) and the prices shown across Vault.
+                TCGplayer reads Scryfall&rsquo;s USD &ldquo;Mid&rdquo; price; Cardmarket reads the EUR &ldquo;Trend&rdquo; price.
+                Card Kingdom doesn&rsquo;t publish per-card prices on Scryfall &mdash; its prices are estimated from TCGplayer Mid and shown with a ~ prefix.
+                Card Kingdom + TCGplayer buy links are affiliate (small commission, no extra cost to you); Cardmarket links are plain.
+              </>
+            }
           >
             <div className="flex border" style={{ borderColor: CREAM_FAINT }}>
               {RETAILERS.map((r) => (

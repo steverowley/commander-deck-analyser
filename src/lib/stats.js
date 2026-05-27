@@ -16,7 +16,7 @@
 import { assessBracket } from './analyzers.js';
 import { computeHealth } from './health.js';
 import { classifyArchetype } from './strategy.js';
-import { deckTotalPrice } from './pricing.js';
+import { deckTotalPrice, deckPriceTooltip, activeVendor, vendorMeta } from './pricing.js';
 
 export function aggregateStats(decks, currency = 'usd', collection = null) {
   const result = {
@@ -26,6 +26,8 @@ export function aggregateStats(decks, currency = 'usd', collection = null) {
     totalPriceUnpriced: 0,
     totalOwned: 0,
     totalToBuy: 0,
+    priceApproximate: false,
+    priceTooltip: '',
     bracketHistogram: [0, 0, 0, 0, 0],
     colorHistogram: { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 },
     identityHistogram: [], // [{ key: 'WBR', name: 'Mardu', colors: ['W','B','R'], count }]
@@ -99,6 +101,22 @@ export function aggregateStats(decks, currency = 'usd', collection = null) {
   result.identityHistogram = Array.from(identityCounts.values())
     .sort((a, b) => b.count - a.count);
   result.mostRecent = recent;
+
+  // Single price tooltip across the whole archive — same vendor for
+  // every deck, so render it once at the dashboard level.
+  const vendor = activeVendor();
+  const meta = vendorMeta(vendor);
+  result.priceApproximate = !meta?.exact || meta?.currency !== currency || result.totalPriceUnpriced > 0;
+  result.priceTooltip = deckPriceTooltip({
+    vendorLabel: meta?.label || 'Unknown',
+    sourceCurrency: meta?.currency || 'usd',
+    displayCurrency: currency,
+    exact: !!meta?.exact,
+    converted: meta && meta.currency !== currency,
+    unpriced: result.totalPriceUnpriced,
+    ownedTotal: result.totalOwned,
+    ownedCount: 0,
+  });
 
   return result;
 }
