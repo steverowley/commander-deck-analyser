@@ -32,7 +32,7 @@ import {
 import { detectMoxfieldCsv, parseMoxfieldCsv } from '../lib/csvImport.js';
 import { CardScanner } from './CardScanner.jsx';
 import { computeVaultStats } from '../lib/vaultStats.js';
-import { cardPrice, formatPrice, activeVendor, vendorLabel, vendorMeta } from '../lib/pricing.js';
+import { cardPrice, formatPrice, activePriceSource, vendorLabel, vendorMeta } from '../lib/pricing.js';
 import { loadSettings } from '../lib/settings.js';
 
 const COLOR_LABELS = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green', M: 'Multicolor', C: 'Colorless' };
@@ -53,7 +53,9 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
   const [view, setView] = useState('grid');
   const [cardData, setCardData] = useState({});
 
-  const currency = loadSettings().currency || 'usd';
+  const settings = loadSettings();
+  const currency = settings.currency || 'usd';
+  const vendor = activePriceSource();
 
   useEffect(() => { loadCollection().then(setCollection); }, []);
 
@@ -76,8 +78,8 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
   };
 
   const stats = useMemo(
-    () => collection ? computeVaultStats(collection, cardData, decks, currency) : null,
-    [collection, cardData, decks, currency]
+    () => collection ? computeVaultStats(collection, cardData, decks, currency, vendor) : null,
+    [collection, cardData, decks, currency, vendor]
   );
 
   // Names already in a deck (set form for the unused filter).
@@ -124,15 +126,15 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
       out = out.slice().sort((a, b) => {
         const ca = cardData[lc(a.name)];
         const cb = cardData[lc(b.name)];
-        const pa = cardPrice(ca, currency) || 0;
-        const pb = cardPrice(cb, currency) || 0;
+        const pa = cardPrice(ca, currency, vendor) || 0;
+        const pb = cardPrice(cb, currency, vendor) || 0;
         return pb - pa;
       });
     } else {
       out = out.slice().sort((a, b) => (b.added_at || 0) - (a.added_at || 0));
     }
     return out;
-  }, [collection, cardData, filter, typeFilter, colorFilter, showOnlyUnused, usedNames, sort]);
+  }, [collection, cardData, filter, typeFilter, colorFilter, showOnlyUnused, usedNames, sort, currency, vendor]);
 
   const hasFilter = !!(filter.trim() || typeFilter || colorFilter || showOnlyUnused);
 
@@ -196,16 +198,14 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
     setBusy(false);
   };
 
-  const vendor = activeVendor();
   const vMeta = vendorMeta(vendor);
-  const vendorApprox = !!(vMeta && (!vMeta.exact || vMeta.currency !== currency));
+  const vendorApprox = !!(vMeta && vMeta.currency !== currency);
   const approx = (n) => (stats && (vendorApprox || stats.knownCount < stats.unique) ? '~' : '') + formatPrice(n, currency);
   const priceSourceTip = (() => {
     const lines = [`Source: ${vendorLabel(vendor)}.`];
-    if (vMeta && !vMeta.exact) lines.push(`Card Kingdom prices aren't on Scryfall — showing TCGplayer Mid as an estimate.`);
     if (vMeta && vMeta.currency !== currency) lines.push(`Converted ${vMeta.currency.toUpperCase()} → ${currency.toUpperCase()} at an approximate FX rate.`);
     if (stats && stats.knownCount < stats.unique) lines.push(`${stats.unique - stats.knownCount} card(s) have no ${vendorLabel(vendor)} price.`);
-    lines.push('Change the vendor under Settings → Buy links.');
+    lines.push('Change the source under Settings → Price source.');
     return lines.join('\n');
   })();
 

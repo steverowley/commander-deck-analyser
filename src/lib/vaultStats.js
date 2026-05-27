@@ -10,7 +10,7 @@
  * breakdowns but still counts toward the unique/total totals.
  */
 
-import { cardPrice } from './pricing.js';
+import { cardPrice, activePriceSource } from './pricing.js';
 import { identityName } from './stats.js';
 import { lc } from './utils.js';
 
@@ -64,7 +64,8 @@ function colorBucket(card) {
   return colors[0];
 }
 
-export function computeVaultStats(collection, cardData, decks = [], currency = 'usd') {
+export function computeVaultStats(collection, cardData, decks = [], currency = 'usd', vendor = null) {
+  const priceVendor = vendor || activePriceSource();
   const entries = Object.values(collection || {});
   const out = {
     unique: entries.length,
@@ -146,7 +147,7 @@ export function computeVaultStats(collection, cardData, decks = [], currency = '
       }
     }
 
-    const price = cardPrice(card, currency);
+    const price = cardPrice(card, currency, priceVendor);
     if (price != null) {
       const qty = entry.quantity || 0;
       const value = price * qty;
@@ -231,7 +232,7 @@ export function computeVaultStats(collection, cardData, decks = [], currency = '
     const card = cardData?.[key];
     if (card && /Basic Land/i.test(card.type_line || '')) continue;
     out.unusedCount += entry.quantity || 0;
-    const price = card ? cardPrice(card, currency) : null;
+    const price = card ? cardPrice(card, currency, priceVendor) : null;
     if (price != null) out.unusedValue += price * (entry.quantity || 0);
     out.unusedCards.push({
       name: entry.name,

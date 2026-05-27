@@ -16,7 +16,7 @@ import { fetchRecommendations, topRecommendations } from './edhrec.js';
 import { fetchCardsByName } from './scryfall.js';
 import { detectTags } from './tags.js';
 import { recommendByCurve } from './health.js';
-import { cardPrice } from './pricing.js';
+import { cardPrice, activePriceSource } from './pricing.js';
 import { archetypeById, tagsMatchArchetype } from './archetypes.js';
 import { BANNED_CARDS } from './constants.js';
 import { utilityReserve } from './landbase.js';
@@ -125,6 +125,11 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
   // chase pieces (signets, dual lands) slip in without one card
   // eating the whole budget.
   const currency = opts.currency || 'usd';
+  // Snapshot the price source at build start. Budget math has to stay
+  // consistent across the whole pipeline (pool prune → swap loop → final
+  // sweep) — if the user opened Settings mid-build and flipped the source,
+  // a re-read on each cardPrice call would mix TCG and Cardmarket numbers.
+  const priceVendor = opts.priceVendor || activePriceSource();
   const maxPerCard = opts.budget != null
     ? Math.max(1, opts.budget * 0.12)
     : Infinity;
@@ -174,7 +179,7 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
   if (Number.isFinite(maxPerCard)) {
     pool = pool.filter((c) => {
       if (ownedKey(collection, c.name)) return true;
-      const p = cardPrice(c, currency);
+      const p = cardPrice(c, currency, priceVendor);
       return p == null || p <= maxPerCard;
     });
   }
@@ -332,7 +337,7 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
   // cards for basic lands until the total fits the budget.
   if (Number.isFinite(opts.budget) && opts.budget > 0) {
     const computeTotal = () => entries.reduce((s, e) => {
-      const p = cardPrice(e.scryfall, currency) || 0;
+      const p = cardPrice(e.scryfall, currency, priceVendor) || 0;
       return s + p * e.count;
     }, 0);
     const identity = (commander.color_identity || []).filter((c) => 'WUBRG'.includes(c));
@@ -351,7 +356,7 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
         const e = entries[i];
         if (isBasicLandName(e.name)) continue;
         if (ownedKey(collection, e.name)) continue;
-        const p = cardPrice(e.scryfall, currency) || 0;
+        const p = cardPrice(e.scryfall, currency, priceVendor) || 0;
         if (p > worstPrice) {
           worstPrice = p;
           worstIdx = i;

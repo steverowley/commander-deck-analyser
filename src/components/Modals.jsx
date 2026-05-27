@@ -10,7 +10,7 @@ import { loadCollection, uniqueCount } from '../lib/collection.js';
 import { saveRandomRoll } from '../lib/storage-supabase.js';
 import { exportDecklist } from '../lib/deckops.js';
 import { buildShareUrl } from '../lib/share.js';
-import { deckTotalPrice, formatPrice, isConverted, deckPriceTooltip } from '../lib/pricing.js';
+import { deckTotalPrice, formatPrice, isConverted, deckPriceTooltip, PRICE_VENDORS, vendorLabel } from '../lib/pricing.js';
 import { compareDecks } from '../lib/compare.js';
 import { buildBackup, parseBackup, backupFilename } from '../lib/backup.js';
 import { loadSettings, updateSetting } from '../lib/settings.js';
@@ -1537,12 +1537,10 @@ export function SettingsModal({ onClose }) {
             </div>
           </SettingsRow>
           <SettingsRow
-            label="Buy links & price source"
+            label="Buy links"
             description={
               <>
-                Drives both the cart icon (opens this retailer in a new tab) and the prices shown across Vault.
-                TCGplayer reads Scryfall&rsquo;s USD &ldquo;Mid&rdquo; price; Cardmarket reads the EUR &ldquo;Trend&rdquo; price.
-                Card Kingdom doesn&rsquo;t publish per-card prices on Scryfall &mdash; its prices are estimated from TCGplayer Mid and shown with a ~ prefix.
+                Drives the cart icon next to each card &mdash; opens the chosen retailer in a new tab.
                 Card Kingdom + TCGplayer buy links are affiliate (small commission, no extra cost to you); Cardmarket links are plain.
               </>
             }
@@ -1560,6 +1558,32 @@ export function SettingsModal({ onClose }) {
                   title={RETAILER_LABEL[r]}
                 >
                   {RETAILER_LABEL[r]}
+                </button>
+              ))}
+            </div>
+          </SettingsRow>
+          <SettingsRow
+            label="Price source"
+            description={
+              <>
+                Where the displayed prices come from. TCGplayer reads Scryfall&rsquo;s USD &ldquo;Mid&rdquo; price; Cardmarket reads the EUR &ldquo;Trend&rdquo; price.
+                Card Kingdom doesn&rsquo;t publish per-card prices on Scryfall, so it isn&rsquo;t available here &mdash; the cart icon can still link to CK independently.
+              </>
+            }
+          >
+            <div className="flex border" style={{ borderColor: CREAM_FAINT }}>
+              {PRICE_VENDORS.map((v) => (
+                <button
+                  key={v}
+                  onClick={() => update('prefPriceSource', v)}
+                  className="font-mono text-[10px] px-3 py-1.5 uppercase tracking-wider"
+                  style={{
+                    color: settings.prefPriceSource === v ? CREAM : CREAM_DIM,
+                    background: settings.prefPriceSource === v ? 'rgba(243,231,201,0.08)' : 'transparent',
+                  }}
+                  title={vendorLabel(v)}
+                >
+                  {vendorLabel(v)}
                 </button>
               ))}
             </div>
