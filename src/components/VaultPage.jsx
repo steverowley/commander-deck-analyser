@@ -32,7 +32,7 @@ import {
 import { detectMoxfieldCsv, parseMoxfieldCsv } from '../lib/csvImport.js';
 import { CardScanner } from './CardScanner.jsx';
 import { computeVaultStats } from '../lib/vaultStats.js';
-import { formatPrice, isConverted } from '../lib/pricing.js';
+import { cardPrice, formatPrice, activeVendor, vendorLabel, vendorMeta } from '../lib/pricing.js';
 import { loadSettings } from '../lib/settings.js';
 
 const COLOR_LABELS = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green', M: 'Multicolor', C: 'Colorless' };
@@ -124,8 +124,8 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
       out = out.slice().sort((a, b) => {
         const ca = cardData[lc(a.name)];
         const cb = cardData[lc(b.name)];
-        const pa = ca?.prices?.usd ? parseFloat(ca.prices.usd) : 0;
-        const pb = cb?.prices?.usd ? parseFloat(cb.prices.usd) : 0;
+        const pa = cardPrice(ca, currency) || 0;
+        const pb = cardPrice(cb, currency) || 0;
         return pb - pa;
       });
     } else {
@@ -196,7 +196,18 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
     setBusy(false);
   };
 
-  const approx = (n) => (stats && (isConverted(currency) || stats.knownCount < stats.unique) ? '~' : '') + formatPrice(n, currency);
+  const vendor = activeVendor();
+  const vMeta = vendorMeta(vendor);
+  const vendorApprox = !!(vMeta && (!vMeta.exact || vMeta.currency !== currency));
+  const approx = (n) => (stats && (vendorApprox || stats.knownCount < stats.unique) ? '~' : '') + formatPrice(n, currency);
+  const priceSourceTip = (() => {
+    const lines = [`Source: ${vendorLabel(vendor)}.`];
+    if (vMeta && !vMeta.exact) lines.push(`Card Kingdom prices aren't on Scryfall — showing TCGplayer Mid as an estimate.`);
+    if (vMeta && vMeta.currency !== currency) lines.push(`Converted ${vMeta.currency.toUpperCase()} → ${currency.toUpperCase()} at an approximate FX rate.`);
+    if (stats && stats.knownCount < stats.unique) lines.push(`${stats.unique - stats.knownCount} card(s) have no ${vendorLabel(vendor)} price.`);
+    lines.push('Change the vendor under Settings → Buy links.');
+    return lines.join('\n');
+  })();
 
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-8 pb-20">
@@ -292,10 +303,10 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
         <EmptyVault onScan={() => setShowScanner(true)} onPaste={() => setShowBulk(true)} />
       ) : (
         <>
-          <StatsDashboard stats={stats} currency={currency} approx={approx} />
-          <ValuablesAndCoverage stats={stats} currency={currency} approx={approx} onSelectDeck={onSelectDeck} />
+          <StatsDashboard stats={stats} currency={currency} approx={approx} priceSourceTip={priceSourceTip} />
+          <ValuablesAndCoverage stats={stats} currency={currency} approx={approx} onSelectDeck={onSelectDeck} priceSourceTip={priceSourceTip} />
           <BuildableSection stats={stats} />
-          <UnusedSection stats={stats} approx={approx} onShowUnused={() => setShowOnlyUnused(true)} />
+          <UnusedSection stats={stats} approx={approx} onShowUnused={() => setShowOnlyUnused(true)} priceSourceTip={priceSourceTip} />
           <InventorySection
             entries={filteredEntries}
             cardData={cardData}
@@ -331,7 +342,7 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
 
 // ───────────────────────────────────────────────────────────────────────────────
 
-function StatsDashboard({ stats, currency, approx }) {
+function StatsDashboard({ stats, currency, approx, priceSourceTip }) {
   if (!stats) return null;
   const maxColor = Math.max(...Object.values(stats.colorHistogram), 1);
   const maxType = Math.max(...stats.typeHistogram.map((t) => t.count), 1);
@@ -355,11 +366,12 @@ function StatsDashboard({ stats, currency, approx }) {
       <div className="grid grid-cols-2 md:grid-cols-4 border-t border-l" style={{ borderColor: CREAM_FAINT }}>
         <DashStat label="Unique cards" value={stats.unique} />
         <DashStat label="Total cards" value={stats.total} />
-        <DashStat label="Total value" value={approx(stats.totalValue)} sub={stats.knownCount < stats.unique ? `${stats.unique - stats.knownCount} unpriced` : null} />
+        <DashStat label="Total value" value={approx(stats.totalValue)} sub={stats.knownCount < stats.unique ? `${stats.unique - stats.knownCount} unpriced` : null} tip={priceSourceTip} />
         <DashStat
           label="Foils"
           value={stats.foilUnique > 0 ? `${stats.foilUnique}` : '—'}
           sub={stats.foilValue > 0 ? `${approx(stats.foilValue)} foil value` : 'tag foils via the chip'}
+          tip={priceSourceTip}
         />
       </div>
 
@@ -476,7 +488,7 @@ function StatsDashboard({ stats, currency, approx }) {
   );
 }
 
-function ValuablesAndCoverage({ stats, currency, approx, onSelectDeck }) {
+function ValuablesAndCoverage({ stats, currency, approx, onSelectDeck, priceSourceTip }) {
   if (!stats) return null;
   const showValuables = stats.topValuable.length > 0;
   const showCoverage = stats.deckCoverage.length > 0;
@@ -485,7 +497,7 @@ function ValuablesAndCoverage({ stats, currency, approx, onSelectDeck }) {
   return (
     <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-3 fade-up">
       {showValuables && (
-        <div className="border" style={{ borderColor: CREAM_FAINT }}>
+        <div className="border" style={{ borderColor: CREAM_FAINT }} title={priceSourceTip}>
           <div className="px-4 py-2 border-b flex items-center gap-2 font-serif text-[10px] tracking-[0.3em] uppercase" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
             <Coins className="w-3 h-3" /> Most valuable
           </div>
@@ -593,7 +605,7 @@ function BuildableSection({ stats }) {
   );
 }
 
-function UnusedSection({ stats, approx, onShowUnused }) {
+function UnusedSection({ stats, approx, onShowUnused, priceSourceTip }) {
   if (!stats || stats.unusedCards.length === 0) return null;
   return (
     <div className="mt-10 border p-5 fade-up" style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}>
@@ -604,7 +616,7 @@ function UnusedSection({ stats, approx, onShowUnused }) {
           </div>
           <p className="font-serif text-xs italic mt-1" style={{ color: CREAM_DIM }}>
             {stats.unusedCards.length} unique cards in your Vault aren't in any saved deck
-            {stats.unusedValue > 0 && <> — {approx(stats.unusedValue)} of unplayed value</>}.
+            {stats.unusedValue > 0 && <> — <span title={priceSourceTip}>{approx(stats.unusedValue)}</span> of unplayed value</>}.
             {' '}Filter the inventory grid below to see them.
           </p>
         </div>
@@ -872,9 +884,9 @@ function EmptyVault({ onScan, onPaste }) {
   );
 }
 
-function DashStat({ label, value, sub }) {
+function DashStat({ label, value, sub, tip }) {
   return (
-    <div className="border-r border-b p-4" style={{ borderColor: CREAM_FAINT }}>
+    <div className="border-r border-b p-4" style={{ borderColor: CREAM_FAINT }} title={tip || undefined}>
       <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>{label}</div>
       <div className="font-serif font-black mt-1" style={{ color: CREAM, fontSize: '1.6rem' }}>{value}</div>
       {sub && <div className="font-mono text-[10px] mt-1" style={{ color: CREAM_DIM }}>{sub}</div>}

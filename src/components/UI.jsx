@@ -3,7 +3,7 @@ import { Search, Loader2, Tag, Trash2, X, FileX, Bookmark, HelpCircle, Images, S
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad } from '../lib/utils.js';
 import { cardImageUrl, searchCardAutocomplete, fetchCardByExactName } from '../lib/scryfall.js';
-import { cardPrice, formatPrice, isConverted } from '../lib/pricing.js';
+import { cardPriceDetails, formatPrice, priceTooltip, activeVendor } from '../lib/pricing.js';
 import { loadSettings } from '../lib/settings.js';
 import { buyUrlFor, openExternal, defaultRetailer, RETAILER_LABEL } from '../lib/affiliate.js';
 import { ManaCost, ManaSymbol } from './ManaCost.jsx';
@@ -548,13 +548,23 @@ export function CardRow({ entry, idx, onChangeCount, onRemove, onEditTags, onDem
           <span>cmc · {c.cmc ?? 0}</span>
           {(() => {
             const cur = loadSettings().currency || 'usd';
-            const p = cardPrice(c, cur);
-            if (p == null) return null;
+            const v = activeVendor();
+            const details = cardPriceDetails(c, cur, v);
+            if (details.amount == null) {
+              return (
+                <>
+                  <span className="opacity-50">·</span>
+                  <span style={{ color: CREAM_DIM }} title={priceTooltip(details)}>
+                    {formatPrice(null, cur)}
+                  </span>
+                </>
+              );
+            }
             return (
               <>
                 <span className="opacity-50">·</span>
-                <span style={{ color: CREAM }}>
-                  {isConverted(cur) ? '~' : ''}{formatPrice(p, cur)}
+                <span style={{ color: CREAM }} title={priceTooltip(details)}>
+                  {details.approximate ? '~' : ''}{formatPrice(details.amount, cur)}
                 </span>
               </>
             );

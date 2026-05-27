@@ -5,7 +5,7 @@ import { lc, pad } from '../lib/utils.js';
 import { searchCardAutocomplete, fetchCardByExactName, cardImageUrl } from '../lib/scryfall.js';
 import { renameDeck, setDeckNotes, setDeckPublic } from '../lib/deckops.js';
 import { CardsTab, PackagesTab, CurveTab, BracketTab, StagesTab, ProbabilitiesTab, RecommendationsTab } from './Tabs.jsx';
-import { deckTotalPrice, formatPrice, isConverted } from '../lib/pricing.js';
+import { deckTotalPrice, formatPrice, deckPriceTooltip } from '../lib/pricing.js';
 import { loadSettings } from '../lib/settings.js';
 import { RulesModal, ExportModal, ShareModal, CompareModal, NotesModal, PrintingPickerModal } from './Modals.jsx';
 import { ScryfallSearchPanel } from './ScryfallSearchPanel.jsx';
@@ -366,10 +366,11 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, onSaveTransien
   const totalCards = deck.cards.reduce((s, c) => s + c.count, 0);
   const currency = loadSettings().currency || 'usd';
   const priceInfo = deckTotalPrice(deck, currency);
-  const priceApprox = priceInfo.unpriced > 0 || isConverted(currency) ? '~' : '';
+  const priceApprox = priceInfo.approximate ? '~' : '';
   const priceLabel = priceInfo.priced > 0
     ? `${priceApprox}${formatPrice(priceInfo.total, currency)}`
     : '—';
+  const priceTip = deckPriceTooltip(priceInfo);
 
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-8">
@@ -445,7 +446,7 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, onSaveTransien
           <div
             className="flex items-center px-4 md:px-5 py-3 md:py-0 border-t md:border-t-0 font-serif text-[11px] tracking-[0.3em] uppercase"
             style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
-            title={priceInfo.unpriced > 0 ? `${priceInfo.unpriced} card(s) without a listed price — total is approximate.` : 'Total deck cost at current Scryfall prices.'}
+            title={priceTip}
           >
             Cost ·{' '}
             <span className="ml-1" style={{ color: CREAM }}>

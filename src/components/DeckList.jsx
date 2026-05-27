@@ -6,7 +6,7 @@ import { cardImageUrl, resolveScryfallUrl, extractDroppedScryfallUrl, fetchCards
 import { VaultCard } from './VaultCard.jsx';
 import { assessBracket } from '../lib/analyzers.js';
 import { computeHealth } from '../lib/health.js';
-import { deckTotalPrice, formatPrice, isConverted } from '../lib/pricing.js';
+import { deckTotalPrice, formatPrice, deckPriceTooltip } from '../lib/pricing.js';
 import { loadSettings } from '../lib/settings.js';
 import { aggregateStats } from '../lib/stats.js';
 import { ManaSymbol } from './ManaCost.jsx';
@@ -803,12 +803,13 @@ function ArchiveDashboard({ decks, collection }) {
   const stats = useMemo(() => aggregateStats(decks, currency, collection), [decks, currency, collection]);
   const maxBracket = Math.max(...stats.bracketHistogram, 1);
   const maxIdentity = Math.max(...stats.identityHistogram.map((x) => x.count), 1);
-  const approx = stats.totalPriceUnpriced > 0 || isConverted(currency) ? '~' : '';
+  const approx = stats.priceApproximate ? '~' : '';
   const priceLabel = `${approx}${formatPrice(stats.totalPrice, currency)}`;
   const hasOwned = stats.totalOwned > 0;
   const priceSubParts = [];
   if (stats.totalPriceUnpriced > 0) priceSubParts.push(`${stats.totalPriceUnpriced} unpriced`);
   if (hasOwned) priceSubParts.push(`${approx}${formatPrice(stats.totalToBuy, currency)} to buy`);
+  const priceTip = stats.priceTooltip || '';
 
   return (
     <div className="mt-12 fade-up" style={{ animationDelay: '180ms' }}>
@@ -825,7 +826,7 @@ function ArchiveDashboard({ decks, collection }) {
       <div className="grid grid-cols-2 md:grid-cols-4 border-t border-l" style={{ borderColor: CREAM_FAINT }}>
         <DashStat label="Decks" value={stats.deckCount} />
         <DashStat label="Cards" value={stats.cardCount} />
-        <DashStat label="Total value" value={priceLabel} sub={priceSubParts.length > 0 ? priceSubParts.join(' · ') : null} />
+        <DashStat label="Total value" value={priceLabel} sub={priceSubParts.length > 0 ? priceSubParts.join(' · ') : null} tip={priceTip} />
         <DashStat label="Avg health" value={stats.avgHealth || '—'} />
       </div>
 
@@ -907,9 +908,9 @@ function ArchiveDashboard({ decks, collection }) {
   );
 }
 
-function DashStat({ label, value, sub }) {
+function DashStat({ label, value, sub, tip }) {
   return (
-    <div className="border-r border-b p-4" style={{ borderColor: CREAM_FAINT }}>
+    <div className="border-r border-b p-4" style={{ borderColor: CREAM_FAINT }} title={tip || undefined}>
       <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
         {label}
       </div>
@@ -970,14 +971,15 @@ function DeckCardMeta({ deck, searchMatch, collection }) {
         const currency = loadSettings().currency || 'usd';
         const price = deckTotalPrice(deck, currency, collection);
         if (price.priced === 0) return null;
-        // ~ means either some cards are unpriced OR the currency is
-        // client-side converted (GBP from USD).
-        const approx = price.unpriced > 0 || isConverted(currency) ? '~' : '';
+        // ~ when the price is approximate — converted FX, Card Kingdom
+        // proxy, or some cards have no vendor price.
+        const approx = price.approximate ? '~' : '';
         const showOwnedSplit = price.ownedTotal > 0;
+        const tip = deckPriceTooltip(price);
         return (
           <>
             <span>·</span>
-            <span title={price.unpriced > 0 ? `${price.unpriced} card(s) unpriced` : 'All cards priced'}>
+            <span title={tip}>
               {approx}{formatPrice(price.total, currency)}
               {showOwnedSplit && (
                 <span style={{ color: '#a3c98a' }} title={`${price.ownedCount} card(s) already in your collection`}>
