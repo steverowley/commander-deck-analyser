@@ -396,6 +396,54 @@ export async function fetchRandomCommander({ colors = [], partner = false } = {}
 }
 
 /**
+ * Pick a random commander from the user's vault. Uses the same
+ * "Legendary Creature" rule the Vault page applies (vaultStats.js)
+ * so the candidate pool matches what users see listed as buildable
+ * commanders. Returns null when nothing in the vault matches.
+ *
+ * `collection` is the map returned by `loadCollection()` —
+ * keyed by lowercased card name, values include `.name`.
+ *
+ * `colors` matches `fetchRandomCommander`'s semantic: an empty
+ * array means any identity; a non-empty array means the card's
+ * color identity must be exactly those colors.
+ */
+export async function pickRandomCommanderFromCollection({ collection, colors = [], partner = false } = {}) {
+  const entries = Object.values(collection || {});
+  if (entries.length === 0) return null;
+
+  const names = entries.map((e) => e.name).filter(Boolean);
+  if (names.length === 0) return null;
+  const { results } = await fetchCardsByName(names);
+
+  const wantIdentity = colors.length > 0 ? [...colors].sort().join('') : null;
+
+  const candidates = [];
+  for (const entry of entries) {
+    const card = results[lc(entry.name)];
+    const typeLine = card?.type_line || '';
+    if (!/Legendary/i.test(typeLine)) continue;
+    if (!/Creature/i.test(typeLine)) continue;
+
+    if (wantIdentity !== null) {
+      const ci = [...(card.color_identity || [])].sort().join('');
+      if (ci !== wantIdentity) continue;
+    }
+
+    if (!partner) {
+      const oracle = (card.oracle_text || '').toLowerCase();
+      if (oracle.includes('partner with')) continue;
+      if (oracle.includes('choose a background')) continue;
+    }
+
+    candidates.push(card);
+  }
+
+  if (candidates.length === 0) return null;
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
+/**
  * Build a card image URL. Uses Scryfall's hosted images, proxied through
  * weserv.nl to avoid hot-linking issues and provide some caching.
  */

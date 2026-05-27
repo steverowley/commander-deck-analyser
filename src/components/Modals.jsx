@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, Loader2, Check, BookOpen, Copy, Download, Link as LinkIcon, GitCompare, Archive, FileText, Settings as SettingsIcon, Dices, Shuffle, Bug, ExternalLink } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, parseDecklist, lc } from '../lib/utils.js';
-import { fetchCardsByName, fetchCardByExactName, refreshCachedCards, fetchPrintings, fetchRandomCommander, cardImageUrl } from '../lib/scryfall.js';
+import { fetchCardsByName, fetchCardByExactName, refreshCachedCards, fetchPrintings, fetchRandomCommander, pickRandomCommanderFromCollection, cardImageUrl } from '../lib/scryfall.js';
 import { buildSeededDeck } from '../lib/autoseed.js';
 import { ARCHETYPES } from '../lib/archetypes.js';
 import { loadCollection, uniqueCount } from '../lib/collection.js';
@@ -1912,9 +1912,16 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
     setError(null);
     setCommander(null);
     try {
-      const c = await fetchRandomCommander({ colors, partner });
+      const useVault = ownedOnly && collection && Object.keys(collection).length > 0;
+      const c = useVault
+        ? await pickRandomCommanderFromCollection({ collection, colors, partner })
+        : await fetchRandomCommander({ colors, partner });
       if (!c) {
-        setError('Scryfall returned no commander for that filter. Try widening the identity.');
+        setError(
+          useVault
+            ? 'No legendary creatures in your Vault match that identity. Widen the colors, toggle off "from my Vault", or add a commander to your Vault.'
+            : 'Scryfall returned no commander for that filter. Try widening the identity.'
+        );
       } else {
         setCommander(c);
       }
