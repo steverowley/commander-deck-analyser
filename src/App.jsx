@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import { CREAM, CREAM_DIM, BG } from './theme.js';
 import { loadDecks, saveDeck, deleteDeck, readLocalDecks, clearLocalDecks } from './lib/storage.js';
@@ -20,6 +20,14 @@ import { GlobalDropOverlay } from './components/GlobalDropOverlay.jsx';
 import { TipModal } from './components/TipModal.jsx';
 import { addToCollection } from './lib/collection.js';
 import { loadProfile } from './lib/profile.js';
+import { hasTipJar } from './lib/billing.js';
+import {
+  isPromptEligible,
+  dismissTipPrompt,
+  remindLater,
+  markPromptShown,
+  DEFAULT_ENGAGEMENT_DELAY_MS,
+} from './lib/tipPrompt.js';
 
 export default function App() {
   const [decks, setDecks] = useState([]);
@@ -36,9 +44,23 @@ export default function App() {
   const [showBackup, setShowBackup] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showBugReport, setShowBugReport] = useState(false);
-  // 'closed' | 'open' | 'thanks' — `thanks` is set when the user lands
-  // back at the app with `?tip=thanks` after completing a PayPal tip.
+  // 'closed' | 'open' | 'open-auto' | 'thanks'
+  //   open       — user clicked the tip-jar link in the footer
+  //   open-auto  — engagement-gated CTA fired the prompt automatically
+  //   thanks     — user landed back with `?tip=thanks` after a PayPal tip
   const [tipState, setTipState] = useState('closed');
+  // Timestamp of the user's first meaningful engagement this session
+  // (deck create / roll / save-from-roll / import). Drives the
+  // engagement-gated tip-jar CTA — set once, never reset within a
+  // session, so a flurry of activity doesn't keep pushing the prompt.
+  const [engagementAt, setEngagementAt] = useState(null);
+  const markEngagement = () => {
+    setEngagementAt((prev) => prev || Date.now());
+  };
+  // Once the tip modal has opened for any reason this session, we
+  // don't auto-prompt again — even if the user closes it and engages
+  // further. Using a ref keeps this out of the effect's dep list.
+  const autoPromptHandled = useRef(false);
   const [showAuth, setShowAuth] = useState(false);
   // 'landing' | 'vault'. activeId (deck editor) takes precedence over both.
   const [view, setView] = useState('landing');
@@ -165,6 +187,41 @@ export default function App() {
     })();
   }, [auth.user?.id, auth.loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Engagement-gated tip-jar CTA. Once the user has done something
+  // meaningful, wait DEFAULT_ENGAGEMENT_DELAY_MS, then auto-open the
+  // tip modal — but only if tipping is configured, they're not already
+  // a supporter, and they haven't dismissed / deferred the prompt
+  // before. Manually opening the tip jar (or seeing the ?tip=thanks
+  // banner) suppresses the auto-prompt for the rest of the session.
+  useEffect(() => {
+    if (autoPromptHandled.current) return;
+    if (!engagementAt) return;
+    // Modal opened by any other path this session — count it as handled.
+    if (tipState !== 'closed') {
+      autoPromptHandled.current = true;
+      return;
+    }
+    if (!isPromptEligible({
+      supporter: !!profile?.supporter,
+      tipsConfigured: hasTipJar(),
+    })) return;
+
+    const elapsed = Date.now() - engagementAt;
+    const remaining = Math.max(0, DEFAULT_ENGAGEMENT_DELAY_MS - elapsed);
+    const id = setTimeout(() => {
+      // Re-check eligibility at fire time — supporter status may have
+      // landed via the realtime profile refresh in between.
+      if (!isPromptEligible({
+        supporter: !!profile?.supporter,
+        tipsConfigured: hasTipJar(),
+      })) return;
+      autoPromptHandled.current = true;
+      markPromptShown();
+      setTipState('open-auto');
+    }, remaining);
+    return () => clearTimeout(id);
+  }, [engagementAt, tipState, profile?.supporter]);
+
   const activeDeck = decks.find((d) => d.id === activeId)
     || (viewingDeck && viewingDeck.id === activeId ? viewingDeck : null);
 
@@ -182,6 +239,7 @@ export default function App() {
     await saveDeck(deck);
     setDecks([deck, ...decks]);
     setActiveId(deck.id);
+    markEngagement();
   };
 
   const handleUpdate = async (updated) => {
@@ -218,6 +276,7 @@ export default function App() {
     setDecks((current) => [fresh, ...current]);
     setViewingDeck(null);
     setActiveId(fresh.id);
+    markEngagement();
     return fresh;
   };
 
@@ -253,6 +312,7 @@ export default function App() {
     await saveDeck(populated);
     setDecks([populated, ...decks]);
     setActiveId(populated.id);
+    markEngagement();
   };
 
   const acceptShare = async () => {
@@ -426,6 +486,7 @@ export default function App() {
               const populated = addCardsToDeck(transientDeck, payload.cards || []);
               setViewingDeck(populated);
               selectDeck(populated.id);
+              markEngagement();
             }}
           />
         )}
@@ -440,7 +501,21 @@ export default function App() {
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       {showBugReport && <BugReportModal onClose={() => setShowBugReport(false)} />}
       {tipState !== 'closed' && (
-        <TipModal onClose={() => setTipState('closed')} justTipped={tipState === 'thanks'} user={auth.user} />
+        <TipModal
+          onClose={() => {
+            // Closing the auto-prompt means "don't bug me again on this
+            // device". The manual open path is a normal modal close.
+            if (tipState === 'open-auto') dismissTipPrompt();
+            setTipState('closed');
+          }}
+          justTipped={tipState === 'thanks'}
+          user={auth.user}
+          autoPrompted={tipState === 'open-auto'}
+          onRemindLater={tipState === 'open-auto' ? () => {
+            remindLater();
+            setTipState('closed');
+          } : null}
+        />
       )}
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       {profileMode && auth.user && (
