@@ -15,6 +15,12 @@
 
 import { supabase } from './supabase.js';
 
+// Pure aggregators live in ./podsAgg.js so the unit tests can drive
+// the math without pulling in the Supabase client at module load
+// (Realtime needs native WebSocket which Node < 22 doesn't have).
+export { aggregateMatchups, aggregatePodStats } from './podsAgg.js';
+import { aggregateMatchups as _aggregateMatchups } from './podsAgg.js';
+
 function client() {
   if (!supabase) throw new Error('Sign in to track pods.');
   return supabase;
@@ -235,74 +241,11 @@ export async function matchupForDeck(deckId) {
       .in('id', memberIds);
     memberNames = new Map((members || []).map((m) => [m.id, m.display_name]));
   }
-  return aggregateMatchups({
+  return _aggregateMatchups({
     deckId,
     mySeats,
     games: games || [],
     allSeats: allSeats || [],
     memberNames,
   });
-}
-
-/**
- * Pure aggregator — split out so unit tests can drive it without
- * touching Supabase. Public so callers that already have the raw data
- * can reuse the math.
- */
-export function aggregateMatchups({ deckId, mySeats, games, allSeats, memberNames }) {
-  const winnerByGame = new Map(games.map((g) => [g.id, g.winner_member_id]));
-  const mySeatsByGame = new Map(mySeats.map((s) => [s.game_id, s]));
-
-  // For each game, every non-self seat is an opponent. Group by an
-  // opponent key — the seat's commander_name if present, else the
-  // member display name.
-  const buckets = new Map();
-  let totalGames = 0;
-  for (const game of games) {
-    const mine = mySeatsByGame.get(game.id);
-    if (!mine) continue;
-    totalGames += 1;
-    const won = !!game.winner_member_id && game.winner_member_id === mine.member_id;
-    const oppSeats = allSeats.filter((s) => s.game_id === game.id && s.id !== mine.id);
-    for (const opp of oppSeats) {
-      const key =
-        (opp.commander_name && opp.commander_name.trim()) ||
-        memberNames.get(opp.member_id) ||
-        '(unknown opponent)';
-      if (!buckets.has(key)) buckets.set(key, { opponentName: key, wins: 0, losses: 0, games: 0 });
-      const b = buckets.get(key);
-      b.games += 1;
-      if (won) b.wins += 1;
-      else b.losses += 1;
-    }
-  }
-
-  const byOpponent = Array.from(buckets.values()).sort(
-    (a, b) => b.games - a.games || b.wins - a.wins
-  );
-  return { games: totalGames, byOpponent };
-}
-
-/**
- * Pod-level summary: total games, winner counts per member, recent
- * game count over the last 30 days.
- */
-export function aggregatePodStats({ games, allSeats, members }) {
-  const winsByMember = new Map();
-  for (const g of games) {
-    if (!g.winner_member_id) continue;
-    winsByMember.set(g.winner_member_id, (winsByMember.get(g.winner_member_id) || 0) + 1);
-  }
-  const last30 = Date.now() - 30 * 24 * 60 * 60 * 1000;
-  const recent = games.filter((g) => new Date(g.played_at).getTime() >= last30).length;
-  const memberSummary = (members || []).map((m) => ({
-    id: m.id,
-    displayName: m.display_name,
-    wins: winsByMember.get(m.id) || 0,
-  })).sort((a, b) => b.wins - a.wins);
-  return {
-    games: games.length,
-    recent30Days: recent,
-    memberSummary,
-  };
 }

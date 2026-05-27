@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { aggregateMatchups, aggregatePodStats } from './pods.js';
+import { aggregateMatchups, aggregatePodStats } from './podsAgg.js';
 
 const DECK = 'deck-uuid-1';
 const M_ME   = 'm-me';
