@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.21.3 — Copy tweaks: "Save settings" + "camera"
+
+- **`src/components/ProfileModal.jsx`** — the Save button outside onboarding now reads "Save settings →" instead of "Save username →". The modal embeds the Preferences body alongside the username field, so "settings" is the more accurate label for what the button is associated with.
+- **`src/components/CardScanner.jsx`**, **`src/components/VaultPage.jsx`**, **`src/components/DeckList.jsx`** — user-facing copy and the scanner modal title swap "webcam" for "camera" (matches what mobile users actually have, and reads more naturally on desktop too).
+
 ## v0.21.2
 
 - **Landing footer now wraps cleanly on mobile.** The `Backup · Settings · Profile · Vault · Report bug · Tip jar` row was a single non-wrapping flex with `tracking-[0.4em]` letter-spacing — on a phone it overflowed the viewport and pushed the page into horizontal scroll. The button row now uses `flex-wrap` with vertical `gap-y` so links flow onto multiple rows, the separator dots are hidden on mobile (`hidden md:inline`) so wrapped lines don't start with a stray `·`, mobile tracking eases off to `0.3em`, and the affiliate disclaimer is constrained to `max-w-xs` so it wraps mid-sentence rather than running to the edge. Desktop layout is unchanged. (`src/components/DeckList.jsx`)

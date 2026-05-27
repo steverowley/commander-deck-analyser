@@ -1,5 +1,5 @@
 /**
- * Webcam card scanner.
+ * Camera card scanner.
  *
  * Opens the user's camera, draws a card-outline overlay so they can
  * frame the card correctly, then captures a frame, crops to the card-
@@ -287,7 +287,7 @@ export function CardScanner({ onClose, onAdded }) {
               <Camera className="w-3 h-3" /> Scan a card
             </div>
             <div className="font-serif text-lg font-black uppercase mt-1" style={{ color: CREAM }}>
-              Webcam → Collection
+              Camera → Collection
             </div>
           </div>
           <button onClick={onClose} style={{ color: CREAM_DIM }}>

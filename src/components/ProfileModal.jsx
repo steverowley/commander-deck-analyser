@@ -187,7 +187,7 @@ export function ProfileModal({ user, onClose, onboarding = false, onSaved }) {
             className="font-serif text-[10px] tracking-[0.3em] uppercase border px-4 py-2 disabled:opacity-30"
             style={{ borderColor: CREAM, color: CREAM, background: 'rgba(var(--ink-rgb),0.06)' }}
           >
-            {busy ? 'Saving...' : onboarding ? 'Save →' : 'Save username →'}
+            {busy ? 'Saving...' : onboarding ? 'Save →' : 'Save settings →'}
           </button>
         </div>
       </div>

@@ -1173,7 +1173,7 @@ function VaultSection({ collection, onOpen, onSearch, onAddCard, onChanged }) {
             {dragOver
               ? 'Drop to add this card to your Vault.'
               : (unique === 0
-                  ? 'Cards you actually own. Drag a card image straight from Scryfall onto this box, search via the panel, scan with the webcam, or paste a list. The deck roller can then build only from cards you own.'
+                  ? 'Cards you actually own. Drag a card image straight from Scryfall onto this box, search via the panel, scan with the camera, or paste a list. The deck roller can then build only from cards you own.'
                   : 'Cards you actually own. Drag in cards from Scryfall (just drop the image onto this box) or open the Vault page for stats, filters, and deck coverage.')}
           </p>
           <div className="flex gap-2 shrink-0 self-start md:self-auto">
