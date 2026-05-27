@@ -1,8 +1,9 @@
 # Changelog
 
-## v0.10.2 — Homepage Vault layout
+## v0.10.2 — Homepage Vault layout + printing picker fix
 
 - **Search / Open Vault buttons now sit inline with the copy** instead of squeezed to the right of the recent-cards strip. Recently-added cards now span the full width of the container — up to 10 across at md, 12 across at lg, so all 12 thumbnails usually fit on a single row.
+- **Change Art modal now sits above other cards.** The printing picker was rendered inside the VaultCard wrapper, which has `isolation: isolate` (for the foil overlay) — that created a stacking context the modal couldn't escape, so neighbouring cards in the inventory grid bled on top of it. Now rendered via a React portal on `document.body`.
 
 ## v0.10.1 — Homepage QA polish
 
