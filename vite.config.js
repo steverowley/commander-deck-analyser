@@ -17,15 +17,6 @@ const SUPABASE_ANON_DEFAULT = 'sb_publishable_YyvhYAknrT5aDdzszs1E_Q_M-72jAbR';
 // Google Fonts (display fonts loaded from src/index.css). Injected via
 // <meta http-equiv> only in the build output so Vite dev-mode HMR (which
 // needs inline scripts + eval) keeps working.
-const BUG_REPORT_URL = process.env.VITE_BUG_REPORT_URL || '';
-const BUG_REPORT_ORIGIN = (() => {
-  try {
-    return BUG_REPORT_URL ? new URL(BUG_REPORT_URL).origin : '';
-  } catch {
-    return '';
-  }
-})();
-
 const connectSrc = [
   "'self'",
   'https://*.supabase.co',
@@ -36,8 +27,7 @@ const connectSrc = [
   'https://www.paypal.com',
   'https://www.sandbox.paypal.com',
   'https://www.paypalobjects.com',
-  BUG_REPORT_ORIGIN,
-].filter(Boolean).join(' ');
+].join(' ');
 
 const CSP = [
   "default-src 'self'",
