@@ -13,7 +13,7 @@ A Magic: The Gathering Commander deck builder. Built as a Vite + React + Tailwin
 - **Random-deck roller** — pick colors / bracket / budget / archetype, optional "Only use cards from my Vault". Builds 99 cards via EDHREC then enforces curve-aware land target, ramp/draw/removal minimums, basics for non-utility land slots, total-budget swap loop. Rolled decks open transient (id `roll:<ts>`) — only saved to archive via a "Save to my archive" banner button. Snapshots written to `public.random_rolls` for the Latest Random Rolls homepage section.
 - **Scryfall search + drag/drop** — internal search panel reachable from a homepage tile + editor action. `GlobalDropOverlay` mounted at app root catches external drags from `scryfall.com` tabs and from local `.csv` files, lights up full-window drop zones (Add to Vault / Add to active deck). Card URLs resolved via `lib/scryfall.js#resolveScryfallUrl`; CSVs routed to `lib/csvImport.js#parseMoxfieldCsv` → `lib/collection.js#bulkImportVault`.
 - **Public Gallery** + **Latest Random Rolls** — landing-page sections fed by `loadPublicDecks` and `loadRandomRolls`. Cards styled identically (commander thumb, badges, `@user · 5m ago`, View / Copy → mine).
-- **Profile** — first-sign-in onboarding for username; editor reachable from the `Cloud · <handle>` button. Username uniqueness at DB level via `public.profiles`.
+- **Profile** — first-sign-in onboarding for username; editor reachable from the `Profile · <handle>` button. Username uniqueness at DB level via `public.profiles`.
 
 Current version: **v0.9.3**. Bump per the rules below.
 

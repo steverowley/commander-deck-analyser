@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.23.2 — Nav button now reads "Profile · @handle"
+
+- **`src/components/DeckList.jsx`** — the signed-in nav button (mobile + desktop) that opens the Profile modal now reads "Profile · @handle" instead of "Cloud · @handle". The button has always had `onClick={onProfile}` and `title="View profile"`, so the label now matches the action. No behaviour change.
+
 ## v0.23.1 — Bug-report function surfaces the actual GitHub error
 
 The v0.23.0 path failed silently with "Edge Function returned a non-2xx status code" whenever GitHub rejected the call — leaving no way to tell from the UI whether the token was missing, expired, or scoped wrong. The function now returns HTTP 200 with `{ ok: false, error: "GitHub 401: Bad credentials" }` (or similar) on every failure mode, so the modal can render the actual reason instead of the generic supabase-js wrapper. GitHub's error message is parsed out of its JSON response and passed through verbatim.
