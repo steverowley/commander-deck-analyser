@@ -10,14 +10,14 @@ import { deckTotalPrice, formatPrice, isConverted } from '../lib/pricing.js';
 import { loadSettings } from '../lib/settings.js';
 import { aggregateStats } from '../lib/stats.js';
 import { ManaSymbol } from './ManaCost.jsx';
-import { VersionChip } from './UI.jsx';
+import { VersionChip, SupporterBadge } from './UI.jsx';
 import { ImportDeckModal, RandomDeckModal } from './Modals.jsx';
 import { GalleryView } from './GalleryView.jsx';
 import { RandomRollsView } from './RandomRollsView.jsx';
 import { loadCollection, addToCollection } from '../lib/collection.js';
 import { ScryfallSearchPanel, SCRYFALL_DRAG_MIME } from './ScryfallSearchPanel.jsx';
 
-export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup, onSettings, onProfile, onCollection, onReportBug, collectionRev = 0, user, cloudEnabled, onSignIn, onSignOut, onImportFromGallery, onViewGalleryDeck, onRandomBuild }) {
+export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup, onSettings, onProfile, onCollection, onReportBug, collectionRev = 0, user, profile, cloudEnabled, onSignIn, onSignOut, onImportFromGallery, onViewGalleryDeck, onRandomBuild }) {
   const [name, setName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showImport, setShowImport] = useState(false);
@@ -123,11 +123,12 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
               <>
                 <button
                   onClick={onProfile}
-                  className="truncate min-w-0 hover:opacity-100 text-left"
+                  className="truncate min-w-0 hover:opacity-100 text-left flex items-center gap-1.5"
                   style={{ color: CREAM_DIM }}
                   title="View profile"
                 >
-                  Cloud · <span style={{ color: CREAM }}>{user.email?.split('@')[0]}</span>
+                  <span className="truncate">Cloud · <span style={{ color: CREAM }}>{user.email?.split('@')[0]}</span></span>
+                  {profile?.supporter && <SupporterBadge />}
                 </button>
                 <button onClick={onSignOut} className="hover:opacity-100 shrink-0 ml-3" style={{ color: CREAM_DIM }}>
                   Sign out
@@ -178,11 +179,12 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
             {user ? (
               <button
                 onClick={onProfile}
-                className="truncate hover:opacity-100 text-left"
+                className="truncate hover:opacity-100 text-left flex items-center gap-1.5 min-w-0"
                 style={{ color: CREAM_DIM }}
                 title="View profile"
               >
-                Cloud · <span style={{ color: CREAM }}>{user.email?.split('@')[0]}</span>
+                <span className="truncate">Cloud · <span style={{ color: CREAM }}>{user.email?.split('@')[0]}</span></span>
+                {profile?.supporter && <SupporterBadge />}
               </button>
             ) : cloudEnabled ? (
               <button onClick={onSignIn} className="hover:opacity-100" style={{ color: CREAM_DIM }}>
