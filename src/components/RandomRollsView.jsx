@@ -17,6 +17,7 @@ import { loadRandomRolls } from '../lib/storage-supabase.js';
 import { formatPrice, isConverted } from '../lib/pricing.js';
 import { archetypeById } from '../lib/archetypes.js';
 import { ManaSymbol } from './ManaCost.jsx';
+import { SupporterBadge } from './UI.jsx';
 
 function relativeTime(ms) {
   const diff = Date.now() - ms;
@@ -132,8 +133,10 @@ function RollCard({ deck, onImport, onView }) {
           )}
           {archetype.id !== 'any' && <Badge>{archetype.label}</Badge>}
         </div>
-        <div className="font-mono text-[10px] tracking-wider mt-auto" style={{ color: CREAM_DIM }}>
-          {pad(total)} cards · @{deck.ownerUsername} · {relativeTime(rolledAt)}
+        <div className="font-mono text-[10px] tracking-wider mt-auto flex items-center gap-1 flex-wrap" style={{ color: CREAM_DIM }}>
+          <span>{pad(total)} cards · @{deck.ownerUsername}</span>
+          {deck.ownerSupporter && <SupporterBadge />}
+          <span>· {relativeTime(rolledAt)}</span>
         </div>
         <div className="flex flex-wrap gap-2 mt-1">
           {onView && (

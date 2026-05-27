@@ -70,14 +70,17 @@ export default function App() {
   // row yet, open the Profile modal in onboarding mode so they can
   // pick one before doing anything else.
   const [profileMode, setProfileMode] = useState(null); // null | 'onboarding' | 'edit'
+  const [profile, setProfile] = useState(null);
   useEffect(() => {
     if (!auth.user?.id) {
       setProfileMode(null);
+      setProfile(null);
       return;
     }
     let alive = true;
     loadProfile(auth.user.id).then((p) => {
       if (!alive) return;
+      setProfile(p);
       if (!p?.username) setProfileMode('onboarding');
     });
     return () => { alive = false; };
@@ -354,6 +357,7 @@ export default function App() {
             onReportBug={() => setShowBugReport(true)}
             collectionRev={collectionRev}
             user={auth.user}
+            profile={profile}
             cloudEnabled={isCloudEnabled()}
             onSignIn={() => setShowAuth(true)}
             onSignOut={handleSignOut}

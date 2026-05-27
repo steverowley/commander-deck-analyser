@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Loader2, Tag, Trash2, X, FileX, Bookmark, HelpCircle, Images, ShoppingCart } from 'lucide-react';
+import { Search, Loader2, Tag, Trash2, X, FileX, Bookmark, HelpCircle, Images, ShoppingCart, Heart } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad } from '../lib/utils.js';
 import { cardImageUrl, searchCardAutocomplete, fetchCardByExactName } from '../lib/scryfall.js';
@@ -344,6 +344,27 @@ export function TagPill({ tag, onRemove }) {
           <X className="w-2.5 h-2.5" />
         </button>
       )}
+    </span>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Tiny chip rendered next to a username to mark them as a Vault supporter.
+ * Driven by `profiles.supporter`, which is flipped exclusively by the PayPal
+ * webhook edge function — a database trigger blocks client-side writes.
+ */
+export function SupporterBadge({ size = 'sm' }) {
+  const dims = size === 'lg' ? 'w-3 h-3' : 'w-2.5 h-2.5';
+  return (
+    <span
+      className="inline-flex items-center"
+      title="Supporter — thanks for keeping Vault running"
+      aria-label="Supporter"
+      style={{ color: ACCENT }}
+    >
+      <Heart className={`${dims} fill-current`} />
     </span>
   );
 }

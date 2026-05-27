@@ -25,12 +25,16 @@ export function validateUsername(username) {
 /**
  * Read the current user's profile row. Returns null on failure or
  * when the user has no row yet.
+ *
+ * `supporter`, `supporter_since`, `supporter_total_cents` are written
+ * exclusively by the PayPal webhook edge function — a database trigger
+ * blocks any client-side update. `pref_retailer` is owner-writable.
  */
 export async function loadProfile(userId) {
   if (!supabase || !userId) return null;
   const { data, error } = await supabase
     .from('profiles')
-    .select('user_id, username, created_at')
+    .select('user_id, username, created_at, supporter, supporter_since, supporter_total_cents, pref_retailer')
     .eq('user_id', userId)
     .maybeSingle();
   if (error) {

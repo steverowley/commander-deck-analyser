@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.15.0 — Supporter badge foundation
+
+The plumbing for a "supporter" badge that will eventually be flipped automatically when someone tips via PayPal. **No tip jar yet** — that lands in the next slice. This release adds the data shape, the badge component, and renders it next to handles in the Public Gallery, Latest Random Rolls, and the Cloud · @handle button in the nav.
+
+### Schema
+- **`profiles`** gains four columns: `supporter` (boolean, default `false`), `supporter_since` (timestamptz, nullable), `supporter_total_cents` (integer, default `0`), `pref_retailer` (text, default `'cardkingdom'`, constrained to `cardkingdom|tcgplayer|cardmarket`).
+- **`paypal_events`** new table with one row per processed PayPal webhook — primary-key idempotency so redeliveries can't double-count tips. RLS on with no policies → only the service role (the future webhook edge function) can touch it.
+- **Trigger guards the supporter columns.** A `BEFORE INSERT OR UPDATE` trigger on `profiles` blocks the authenticated/anon roles from writing `supporter`, `supporter_since`, or `supporter_total_cents`; the service role (used by the PayPal webhook) is exempted. Verified end-to-end: a self-promotion attempt from the JS client gets `42501 supporter columns are read-only from the client`; legitimate `pref_retailer` updates pass through.
+
+### UI
+- **`<SupporterBadge />`** new component in `UI.jsx` — small filled heart in the accent colour next to a handle, with a "Supporter — thanks for keeping Vault running" tooltip.
+- **Public Gallery + Latest Random Rolls** show the badge next to the owner handle when `ownerSupporter === true`. The two `loadPublicDecks` / `loadRandomRolls` queries now select `profiles.supporter` alongside `username`.
+- **Cloud · @handle nav button** (mobile + desktop) renders the badge next to your own handle when your profile has `supporter = true`. App-level state now holds the loaded profile so any component down the tree can read it.
+
+### Not in this release
+- No way to actually become a supporter yet — the PayPal Donate button lands in the next slice. For now, flipping `supporter = true` on a row in Supabase Studio is the only way to make the badge appear.
+- `pref_retailer` exists in the cloud profile but isn't yet synced to local Settings. Retailer preference still lives in localStorage. Sync lands when there's a reason to (e.g. a second device).
+
 ## v0.14.1 — Vault-only roll respects front-face names
 
 - **DFC / adventure / split cards now match the Vault correctly when "Only use cards from my Vault" is on.** Scryfall returns these with the canonical `"Front // Back"` name (e.g. `Bonecrusher Giant // Stomp`), but Moxfield CSV imports and hand-typed Vault entries usually store only the front face (`Bonecrusher Giant`). The strict-equality filter was dropping every owned DFC from the pool, leaving the deck to short-fall into basics and look like the toggle wasn't working. The ownership check now falls back to the front-face name when the canonical name has a `//` in it, so Vaults populated from CSV imports work the same as ones drag-loaded from Scryfall. Same fix applied to the per-card-budget bypass and the budget-swap-skip checks so owned DFCs stay free of those gates too.

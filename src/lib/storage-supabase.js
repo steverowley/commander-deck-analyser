@@ -151,16 +151,20 @@ export async function loadPublicDecks(limit = 24) {
   const ownerIds = [...new Set(decks.map((d) => d.owner_id))];
   const { data: profiles } = await supabase
     .from('profiles')
-    .select('user_id, username')
+    .select('user_id, username, supporter')
     .in('user_id', ownerIds);
 
-  const usernameByOwner = new Map();
-  for (const p of profiles || []) usernameByOwner.set(p.user_id, p.username);
+  const profileByOwner = new Map();
+  for (const p of profiles || []) profileByOwner.set(p.user_id, p);
 
-  return decks.map((row) => ({
-    ...rowToDeck(row),
-    ownerUsername: usernameByOwner.get(row.owner_id) || 'someone',
-  }));
+  return decks.map((row) => {
+    const p = profileByOwner.get(row.owner_id);
+    return {
+      ...rowToDeck(row),
+      ownerUsername: p?.username || 'someone',
+      ownerSupporter: !!p?.supporter,
+    };
+  });
 }
 
 /**
@@ -209,29 +213,33 @@ export async function loadRandomRolls(limit = 12) {
   if (!rolls?.length) return [];
 
   const ownerIds = [...new Set(rolls.map((r) => r.owner_id).filter(Boolean))];
-  let usernameByOwner = new Map();
+  let profileByOwner = new Map();
   if (ownerIds.length > 0) {
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('user_id, username')
+      .select('user_id, username, supporter')
       .in('user_id', ownerIds);
-    for (const p of profiles || []) usernameByOwner.set(p.user_id, p.username);
+    for (const p of profiles || []) profileByOwner.set(p.user_id, p);
   }
 
   // Adapt to the same shape gallery cards expect: a `deck` object with
   // commander, cards, ownerUsername, created, seedMeta. The id is the
   // roll's own uuid so React keys stay stable.
-  return rolls.map((r) => ({
-    id: `roll:${r.id}`,
-    name: r.commander_name || 'Random roll',
-    commander: r.commander_data,
-    cards: r.cards_data || [],
-    seedMeta: r.seed_meta || null,
-    created: new Date(r.created_at).getTime(),
-    updated: new Date(r.created_at).getTime(),
-    ownerUsername: r.owner_id ? (usernameByOwner.get(r.owner_id) || 'someone') : '[deleted]',
-    __fromRandomRolls: true,
-  }));
+  return rolls.map((r) => {
+    const p = r.owner_id ? profileByOwner.get(r.owner_id) : null;
+    return {
+      id: `roll:${r.id}`,
+      name: r.commander_name || 'Random roll',
+      commander: r.commander_data,
+      cards: r.cards_data || [],
+      seedMeta: r.seed_meta || null,
+      created: new Date(r.created_at).getTime(),
+      updated: new Date(r.created_at).getTime(),
+      ownerUsername: r.owner_id ? (p?.username || 'someone') : '[deleted]',
+      ownerSupporter: !!p?.supporter,
+      __fromRandomRolls: true,
+    };
+  });
 }
 
 /**

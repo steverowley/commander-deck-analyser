@@ -13,6 +13,7 @@ import { loadPublicDecks } from '../lib/storage-supabase.js';
 import { assessBracket } from '../lib/analyzers.js';
 import { computeHealth } from '../lib/health.js';
 import { ManaSymbol } from './ManaCost.jsx';
+import { SupporterBadge } from './UI.jsx';
 
 export function GalleryView({ onImportFromGallery, onViewDeck }) {
   const [decks, setDecks] = useState(null);
@@ -132,8 +133,10 @@ function GalleryCard({ deck, onImport, onView }) {
           {bracket && <Badge>B{bracket}</Badge>}
           {health && !health.empty && <Badge>Health {health.score}</Badge>}
         </div>
-        <div className="font-mono text-[10px] tracking-wider mt-auto" style={{ color: CREAM_DIM }}>
-          {pad(total)} cards · @{deck.ownerUsername} · {relativeTime(updatedAt)}
+        <div className="font-mono text-[10px] tracking-wider mt-auto flex items-center gap-1 flex-wrap" style={{ color: CREAM_DIM }}>
+          <span>{pad(total)} cards · @{deck.ownerUsername}</span>
+          {deck.ownerSupporter && <SupporterBadge />}
+          <span>· {relativeTime(updatedAt)}</span>
         </div>
         <div className="flex flex-wrap gap-2 mt-1">
           {onView && (
