@@ -13,7 +13,7 @@ import { Dices, Loader2 } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT } from '../theme.js';
 import { pad } from '../lib/utils.js';
 import { cardImageUrl } from '../lib/scryfall.js';
-import { loadRandomRolls } from '../lib/storage-supabase.js';
+import { loadRandomRolls, loadRandomRollById } from '../lib/storage-supabase.js';
 import { formatPrice, isConverted } from '../lib/pricing.js';
 import { archetypeById } from '../lib/archetypes.js';
 import { ManaSymbol } from './ManaCost.jsx';
@@ -95,11 +95,41 @@ function Header({ children, count }) {
 }
 
 function RollCard({ deck, onImport, onView }) {
+  const [busy, setBusy] = useState(null);
   const meta = deck.seedMeta || {};
   const archetype = archetypeById(meta.archetype);
   const identity = deck.commander?.color_identity || [];
-  const total = deck.cards?.reduce((s, c) => s + c.count, 0) || 0;
+  const total = deck.card_count ?? 0;
   const rolledAt = meta.rolledAt || deck.created;
+
+  // Rolls arrive slim — cards_data is lazy-fetched on click.
+  async function hydrate() {
+    const full = await loadRandomRollById(deck.id);
+    if (!full) return null;
+    return { ...full, ownerUsername: deck.ownerUsername, ownerSupporter: deck.ownerSupporter };
+  }
+
+  async function handleView() {
+    if (busy) return;
+    setBusy('view');
+    try {
+      const full = await hydrate();
+      if (full) onView(full);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handleImport() {
+    if (busy) return;
+    setBusy('import');
+    try {
+      const full = await hydrate();
+      if (full) await onImport(full);
+    } finally {
+      setBusy(null);
+    }
+  }
 
   return (
     <div
@@ -141,22 +171,24 @@ function RollCard({ deck, onImport, onView }) {
         <div className="flex flex-wrap gap-2 mt-1">
           {onView && (
             <button
-              onClick={() => onView(deck)}
+              onClick={handleView}
+              disabled={busy != null}
               className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-1"
-              style={{ borderColor: CREAM_FAINT, color: CREAM }}
+              style={{ borderColor: CREAM_FAINT, color: CREAM, opacity: busy ? 0.6 : 1 }}
               title="Open the rolled deck in the read-only viewer"
             >
-              View →
+              {busy === 'view' ? 'Loading…' : 'View →'}
             </button>
           )}
           {onImport && (
             <button
-              onClick={() => onImport(deck)}
+              onClick={handleImport}
+              disabled={busy != null}
               className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-1"
-              style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
+              style={{ borderColor: CREAM_FAINT, color: CREAM_DIM, opacity: busy ? 0.6 : 1 }}
               title="Copy a private editable version into your archive"
             >
-              Copy → mine
+              {busy === 'import' ? 'Copying…' : 'Copy → mine'}
             </button>
           )}
         </div>

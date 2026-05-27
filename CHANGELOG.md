@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.22.0 — Slim public-gallery queries
+
+The Public Gallery and Latest random rolls strips used to pull the full deck JSON (commander, every card, tags, notes, etc.) for every tile, on every homepage load — anonymous visitors included. At ~5–20 KB per deck × 30 tiles that's a chunk of Supabase egress spent on data nobody renders until they actually click in. This release denormalises the badge stats onto columns and slims the public selects to commander + summary fields only; the full payload is lazy-fetched when the user hits **View** or **Copy → mine**.
+
+### Migration (already applied)
+- New columns on `public.decks`: `card_count int`, `bracket int`, `health_score int`. `card_count` backfilled from `data->'cards'` in SQL; `bracket` / `health_score` populate on the next save per deck (legacy rows show no badge until their owner re-saves, which is fine — the card still renders).
+- New column on `public.random_rolls`: `card_count int`, backfilled the same way.
+- All columns nullable, no indexes — they're rendered, not queried.
+
+### Storage layer
+- **`src/lib/storage-supabase.js`** — `deckToRow` now computes the three denorm columns via a new `denormStats(deck)` helper (wraps `assessBracket` / `computeHealth` in try/catch so half-shaped decks still save with NULLs). `saveRandomRoll` writes `card_count` alongside the cards blob.
+- `loadPublicDecks` SELECT drops `data` and pulls `commander:data->commander` (PostgREST JSON sub-extract) plus the three new scalar columns. Returns a slim deck shape via new `rowToSlimDeck(row)` — no `cards` array.
+- `loadRandomRolls` SELECT drops `cards_data`, pulls `card_count` instead.
+- New `loadDeckById(id)` and `loadRandomRollById(rollId)` fetch the full payload on demand. Both rely on the existing "anyone can read public" RLS policies.
+
+### Gallery tiles
+- **`src/components/GalleryView.jsx`** — `GalleryCard` reads `deck.bracket` / `deck.health_score` / `deck.card_count` directly from the slim row instead of running the analyzers in the renderer. View and Copy → mine become async — each shows a brief `Loading…` / `Copying…` state while `loadDeckById` hydrates the deck, then hands the fully-shaped object to the parent.
+- **`src/components/RandomRollsView.jsx`** — `RollCard` reads `deck.card_count` directly; View / Copy lazy-load via `loadRandomRollById` with the same loading state.
+
+### Note
+This is the first change that depends on a denorm column staying in sync with `data`. Any future writer that touches `decks.data` or `random_rolls.cards_data` outside `saveDeck` / `saveRandomRoll` will drift — keep all writes funnelled through those two helpers.
+
 ## v0.21.3 — Copy tweaks: "Save settings" + "camera"
 
 - **`src/components/ProfileModal.jsx`** — the Save button outside onboarding now reads "Save settings →" instead of "Save username →". The modal embeds the Preferences body alongside the username field, so "settings" is the more accurate label for what the button is associated with.
