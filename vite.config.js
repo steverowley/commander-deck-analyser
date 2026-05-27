@@ -11,11 +11,43 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url)))
 const SUPABASE_URL_DEFAULT = 'https://jpukcgqumytxjwflxrtd.supabase.co';
 const SUPABASE_ANON_DEFAULT = 'sb_publishable_YyvhYAknrT5aDdzszs1E_Q_M-72jAbR';
 
+// Content-Security-Policy injected into the production build. Lists every
+// origin the app actually hits: Supabase (REST + realtime over wss),
+// Scryfall (cards/images/svgs), EDHREC (recs), weserv.nl (image proxy),
+// Google Fonts (display fonts loaded from src/index.css). Injected via
+// <meta http-equiv> only in the build output so Vite dev-mode HMR (which
+// needs inline scripts + eval) keeps working.
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com",
+  "img-src 'self' data: blob: https://images.weserv.nl https://cards.scryfall.io https://img.scryfall.com https://svgs.scryfall.io",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.scryfall.com https://json.edhrec.com",
+  "media-src 'self' blob:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join('; ');
+
+function cspPlugin() {
+  return {
+    name: 'inject-csp',
+    apply: 'build',
+    transformIndexHtml(html) {
+      return html.replace(
+        '<meta charset="UTF-8" />',
+        `<meta charset="UTF-8" />\n    <meta http-equiv="Content-Security-Policy" content="${CSP}" />`,
+      );
+    },
+  };
+}
+
 export default defineConfig({
   // Project page served from https://<user>.github.io/commander-deck-analyser/.
   // Override at build time with `VITE_BASE=/` (e.g. for a custom domain).
   base: process.env.VITE_BASE ?? '/commander-deck-analyser/',
-  plugins: [react()],
+  plugins: [react(), cspPlugin()],
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(process.env.VITE_SUPABASE_URL || SUPABASE_URL_DEFAULT),
