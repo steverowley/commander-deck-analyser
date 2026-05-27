@@ -93,9 +93,11 @@ export default function App() {
   useEffect(() => {
     loadCardCache();
 
-    // Tip-return param: PayPal.Me doesn't redirect back today, but anyone
-    // hitting the app with ?tip=thanks (manual link, future Donate SDK
-    // return URL) gets the thank-you state in the TipModal.
+    // Tip-return param: PayPal Donate SDK redirects here with ?tip=thanks
+    // after a tip completes. Open the modal in the thanks state and re-fetch
+    // the profile a few seconds later — the webhook usually lands before
+    // the user gets back, but give it a moment so the badge appears without
+    // a manual reload.
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       if (params.get('tip') === 'thanks') {
@@ -103,6 +105,9 @@ export default function App() {
         params.delete('tip');
         const qs = params.toString();
         window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''));
+        setTimeout(() => {
+          if (auth.user?.id) loadProfile(auth.user.id).then((p) => p && setProfile(p));
+        }, 3000);
       }
     }
 
@@ -435,7 +440,7 @@ export default function App() {
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       {showBugReport && <BugReportModal onClose={() => setShowBugReport(false)} />}
       {tipState !== 'closed' && (
-        <TipModal onClose={() => setTipState('closed')} justTipped={tipState === 'thanks'} />
+        <TipModal onClose={() => setTipState('closed')} justTipped={tipState === 'thanks'} user={auth.user} />
       )}
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       {profileMode && auth.user && (

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { X, Heart, ExternalLink, Copy, Check } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Heart, ExternalLink, Copy, Check, Loader2 } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
-import { paypalMeUrl, hasTipJar, TIP_PRESETS } from '../lib/billing.js';
+import { paypalMeUrl, hasTipJar, hasDonateButton, renderDonateButton, TIP_PRESETS } from '../lib/billing.js';
 import { cardmarketReferralUrl, cardmarketReferrerUsername } from '../lib/affiliate.js';
 
 /**
@@ -14,11 +14,25 @@ import { cardmarketReferralUrl, cardmarketReferrerUsername } from '../lib/affili
  * Also surfaces the Cardmarket EU referral CTA, since signup is the only
  * point Cardmarket can attribute referrals (no per-URL affiliate).
  */
-export function TipModal({ onClose, justTipped = false }) {
+export function TipModal({ onClose, justTipped = false, user = null }) {
   const [custom, setCustom] = useState('');
   const [copied, setCopied] = useState(false);
+  const [sdkError, setSdkError] = useState(null);
+  const donateContainerRef = useRef(null);
   const cmUser = cardmarketReferrerUsername();
   const tipsEnabled = hasTipJar();
+  // Use the SDK path when the hosted button ID is configured AND the user
+  // is signed in (so we can attribute the tip via the `custom` field).
+  // Otherwise fall back to PayPal.Me.
+  const useSdk = hasDonateButton() && !!user?.id;
+
+  useEffect(() => {
+    if (!useSdk || !donateContainerRef.current) return;
+    let cancelled = false;
+    renderDonateButton(donateContainerRef.current, { userId: user.id })
+      .catch((e) => { if (!cancelled) setSdkError(e?.message || 'SDK failed to load'); });
+    return () => { cancelled = true; };
+  }, [useSdk, user?.id]);
 
   const openTip = (amount) => {
     const url = paypalMeUrl(amount);
@@ -69,8 +83,38 @@ export function TipModal({ onClose, justTipped = false }) {
             Vault is free and ad-free. If it's saved you time, a small tip keeps it that way — every few dollars covers another month of hosting.
           </p>
 
-          {tipsEnabled ? (
+          {useSdk ? (
             <div className="space-y-3">
+              <div ref={donateContainerRef} className="flex items-center justify-center min-h-[50px]">
+                {!sdkError && (
+                  <Loader2 className="w-4 h-4 animate-spin" style={{ color: CREAM_DIM }} />
+                )}
+              </div>
+              {sdkError && (
+                <p className="font-serif text-xs italic" style={{ color: ACCENT }}>
+                  PayPal button failed to load ({sdkError}). Try refreshing, or use the link below.
+                </p>
+              )}
+              {tipsEnabled && (
+                <p className="font-serif text-[11px] italic leading-snug" style={{ color: CREAM_DIM }}>
+                  Prefer a direct link? <button
+                    onClick={() => openTip(5)}
+                    className="underline hover:opacity-100"
+                    style={{ color: CREAM }}
+                  >Open PayPal.Me</button> instead.
+                </p>
+              )}
+              <p className="font-serif text-[11px] italic leading-snug" style={{ color: CREAM_DIM }}>
+                Tipping signs your supporter badge automatically once PayPal confirms — usually a few seconds.
+              </p>
+            </div>
+          ) : tipsEnabled ? (
+            <div className="space-y-3">
+              {hasDonateButton() && !user?.id && (
+                <p className="font-serif text-[11px] italic leading-snug px-3 py-2 border" style={{ color: CREAM_DIM, borderColor: CREAM_FAINT }}>
+                  Sign in before tipping to claim your supporter badge automatically. Otherwise, the badge gets added manually within 24h.
+                </p>
+              )}
               <div className="grid grid-cols-3 gap-2">
                 {TIP_PRESETS.map((amt) => (
                   <button
