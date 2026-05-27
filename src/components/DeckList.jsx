@@ -106,10 +106,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
                 Deck · Builder
               </div>
             </button>
-            <div className="flex items-center gap-3 shrink-0">
-              <ThemeToggle compact />
-              <VersionChip version={__APP_VERSION__} align="right" />
-            </div>
+            <VersionChip version={__APP_VERSION__} align="right" />
           </div>
           <div
             className="border-t flex items-center justify-between px-5 py-3 text-[10px] tracking-[0.3em] uppercase font-serif"
@@ -210,8 +207,6 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
                 <span style={{ opacity: 0.4 }}>·</span>
               </>
             )}
-            <ThemeToggle compact />
-            <span style={{ opacity: 0.4 }}>·</span>
             <VersionChip version={__APP_VERSION__} align="right" />
           </div>
         </div>
