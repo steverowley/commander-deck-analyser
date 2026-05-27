@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
-import { CREAM, CREAM_DIM, BG } from './theme.js';
+import { CREAM, CREAM_DIM, BG, ACCENT } from './theme.js';
 import { loadDecks, saveDeck, deleteDeck, readLocalDecks, clearLocalDecks } from './lib/storage.js';
 import { uploadLocalDecks } from './lib/storage-supabase.js';
 import { useAuthState, isCloudEnabled, signOut, consumeOAuthParams } from './lib/supabase.js';
@@ -552,7 +552,7 @@ function SharePrompt({ share, onAccept, onDismiss, loading, progress }) {
   return (
     <div
       className="fixed inset-x-0 top-0 z-40 border-b"
-      style={{ borderColor: 'rgba(243,231,201,0.15)', background: 'rgba(13,22,20,0.95)', backdropFilter: 'blur(6px)' }}
+      style={{ borderColor: 'rgba(var(--ink-rgb),0.15)', background: 'rgba(var(--bg-rgb),0.95)', backdropFilter: 'blur(6px)' }}
     >
       <div className="max-w-6xl mx-auto px-4 md:px-8 py-3 flex flex-col md:flex-row items-start md:items-center gap-3">
         <div className="flex-1 min-w-0">
@@ -582,7 +582,7 @@ function SharePrompt({ share, onAccept, onDismiss, loading, progress }) {
             onClick={onAccept}
             disabled={loading}
             className="font-serif text-[10px] tracking-[0.3em] uppercase border px-4 py-2 disabled:opacity-30"
-            style={{ borderColor: 'rgba(243,231,201,0.3)', color: CREAM }}
+            style={{ borderColor: 'rgba(var(--ink-rgb),0.3)', color: CREAM }}
           >
             {loading ? 'Importing...' : 'Import →'}
           </button>
@@ -596,7 +596,7 @@ function MigrationBanner({ message, busy }) {
   return (
     <div
       className="fixed inset-x-0 top-0 z-40 border-b"
-      style={{ borderColor: 'rgba(243,231,201,0.15)', background: 'rgba(13,22,20,0.95)', backdropFilter: 'blur(6px)' }}
+      style={{ borderColor: 'rgba(var(--ink-rgb),0.15)', background: 'rgba(var(--bg-rgb),0.95)', backdropFilter: 'blur(6px)' }}
     >
       <div className="max-w-6xl mx-auto px-4 md:px-8 py-3 flex items-center gap-3">
         {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: CREAM_DIM }} />}
@@ -610,10 +610,10 @@ function AuthErrorBanner({ message, onDismiss }) {
   return (
     <div
       className="fixed inset-x-0 top-0 z-40 border-b"
-      style={{ borderColor: 'rgba(196,74,63,0.6)', background: 'rgba(13,22,20,0.95)', backdropFilter: 'blur(6px)' }}
+      style={{ borderColor: 'rgba(var(--accent-rgb),0.6)', background: 'rgba(var(--bg-rgb),0.95)', backdropFilter: 'blur(6px)' }}
     >
       <div className="max-w-6xl mx-auto px-4 md:px-8 py-3 flex items-center gap-3">
-        <div className="font-serif text-[10px] tracking-[0.3em] uppercase shrink-0" style={{ color: '#c44a3f' }}>
+        <div className="font-serif text-[10px] tracking-[0.3em] uppercase shrink-0" style={{ color: ACCENT }}>
           Sign-in error
         </div>
         <div className="font-mono text-xs flex-1" style={{ color: CREAM }}>{message}</div>

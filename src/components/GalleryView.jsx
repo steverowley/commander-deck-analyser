@@ -105,7 +105,7 @@ function GalleryCard({ deck, onImport, onView }) {
     <div
       className="border-r border-b p-4 flex gap-3 transition"
       style={{ borderColor: CREAM_FAINT }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.04)')}
+      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(var(--ink-rgb),0.04)')}
       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
     >
       {deck.commander && (

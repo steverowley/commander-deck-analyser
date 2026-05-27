@@ -75,7 +75,7 @@ export function BulkAddModal({ onClose, onAdd }) {
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
-      style={{ background: 'rgba(13,22,20,0.92)', backdropFilter: 'blur(6px)' }}
+      style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
       <div className="w-full max-w-2xl max-h-[90vh] flex flex-col border" style={{ background: BG, borderColor: CREAM_FAINT }}>
         <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
@@ -90,7 +90,7 @@ export function BulkAddModal({ onClose, onAdd }) {
           <p className="font-serif text-sm mb-4 italic" style={{ color: CREAM_DIM }}>
             Paste decklist below. Format: <span className="font-mono not-italic">1 Card Name</span> per line. Set codes are stripped automatically.
           </p>
-          <div className="border" style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}>
+          <div className="border" style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.02)' }}>
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -109,7 +109,7 @@ export function BulkAddModal({ onClose, onAdd }) {
             </div>
           )}
           {error && (
-            <div className="mt-4 px-4 py-3 border" style={{ borderColor: ACCENT, background: 'rgba(196,74,63,0.08)' }}>
+            <div className="mt-4 px-4 py-3 border" style={{ borderColor: ACCENT, background: 'rgba(var(--accent-rgb),0.08)' }}>
               <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-1" style={{ color: ACCENT }}>
                 Error
               </div>
@@ -181,7 +181,7 @@ export function TagEditModal({ entry, onClose, onSave }) {
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
-      style={{ background: 'rgba(13,22,20,0.92)', backdropFilter: 'blur(6px)' }}
+      style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
       <div className="w-full max-w-lg border" style={{ background: BG, borderColor: CREAM_FAINT }}>
         <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
@@ -218,7 +218,7 @@ export function TagEditModal({ entry, onClose, onSave }) {
               onChange={(e) => setNote(e.target.value.slice(0, 160))}
               placeholder="why this card is in the deck..."
               className="w-full h-16 p-3 border bg-transparent focus:outline-none font-mono text-xs resize-none"
-              style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(243,231,201,0.02)' }}
+              style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(var(--ink-rgb),0.02)' }}
             />
             <div className="font-mono text-[9px] mt-1 text-right" style={{ color: CREAM_DIM }}>
               {note.length} / 160
@@ -247,7 +247,7 @@ export function TagEditModal({ entry, onClose, onSave }) {
             </div>
             <div
               className="flex gap-2 border px-3 py-2"
-              style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}
+              style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.02)' }}
             >
               <input
                 value={newTag}
@@ -291,7 +291,7 @@ export function RulesModal({ onClose }) {
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
-      style={{ background: 'rgba(13,22,20,0.92)', backdropFilter: 'blur(6px)' }}
+      style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
       <div className="w-full max-w-2xl max-h-[90vh] overflow-auto border" style={{ background: BG, borderColor: CREAM_FAINT }}>
         <div
@@ -365,7 +365,7 @@ export function ExportModal({ deck, onClose }) {
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
-      style={{ background: 'rgba(13,22,20,0.92)', backdropFilter: 'blur(6px)' }}
+      style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
       <div className="w-full max-w-2xl max-h-[90vh] flex flex-col border" style={{ background: BG, borderColor: CREAM_FAINT }}>
         <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
@@ -404,7 +404,7 @@ export function ExportModal({ deck, onClose }) {
             readOnly
             onClick={(e) => e.currentTarget.select()}
             className="w-full h-72 p-4 border bg-transparent focus:outline-none font-mono text-xs leading-relaxed"
-            style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(243,231,201,0.02)' }}
+            style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(var(--ink-rgb),0.02)' }}
           />
         </div>
         <div className="px-5 py-4 border-t flex justify-end gap-4" style={{ borderColor: CREAM_FAINT }}>
@@ -501,7 +501,7 @@ export function CompareModal({ deck, otherDecks, onClose }) {
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
-      style={{ background: 'rgba(13,22,20,0.92)', backdropFilter: 'blur(6px)' }}
+      style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
       <div className="w-full max-w-5xl max-h-[92vh] flex flex-col border" style={{ background: BG, borderColor: CREAM_FAINT }}>
         <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
@@ -525,9 +525,9 @@ export function CompareModal({ deck, otherDecks, onClose }) {
                 onClick={compareWithAverage}
                 disabled={synthLoading}
                 className="w-full border px-4 py-3 text-left transition flex items-center justify-between disabled:opacity-50"
-                style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.025)' }}
-                onMouseEnter={(e) => !synthLoading && (e.currentTarget.style.background = 'rgba(243,231,201,0.06)')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.025)')}
+                style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.025)' }}
+                onMouseEnter={(e) => !synthLoading && (e.currentTarget.style.background = 'rgba(var(--ink-rgb),0.06)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(var(--ink-rgb),0.025)')}
               >
                 <div>
                   <div className="font-serif text-sm uppercase tracking-tight" style={{ color: CREAM }}>
@@ -544,7 +544,7 @@ export function CompareModal({ deck, otherDecks, onClose }) {
             )}
 
             {synthError && (
-              <div className="border px-4 py-3" style={{ borderColor: ACCENT, background: 'rgba(196,74,63,0.06)' }}>
+              <div className="border px-4 py-3" style={{ borderColor: ACCENT, background: 'rgba(var(--accent-rgb),0.06)' }}>
                 <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-1" style={{ color: ACCENT }}>Error</div>
                 <div className="font-mono text-xs" style={{ color: CREAM }}>{synthError}</div>
               </div>
@@ -567,7 +567,7 @@ export function CompareModal({ deck, otherDecks, onClose }) {
                       onClick={() => setPickedId(d.id)}
                       className="w-full border-r border-b px-4 py-3 text-left transition flex items-center justify-between"
                       style={{ borderColor: CREAM_FAINT }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.05)')}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(var(--ink-rgb),0.05)')}
                       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                     >
                       <div>
@@ -747,7 +747,7 @@ export function ShareModal({ deck, onClose }) {
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
-      style={{ background: 'rgba(13,22,20,0.92)', backdropFilter: 'blur(6px)' }}
+      style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
       <div className="w-full max-w-xl border" style={{ background: BG, borderColor: CREAM_FAINT }}>
         <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
@@ -767,7 +767,7 @@ export function ShareModal({ deck, onClose }) {
             readOnly
             onClick={(e) => e.currentTarget.select()}
             className="w-full h-24 p-3 border bg-transparent focus:outline-none font-mono text-[10px] leading-relaxed break-all"
-            style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(243,231,201,0.02)' }}
+            style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(var(--ink-rgb),0.02)' }}
           />
           <div className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>
             {url.length} characters · {deck.cards.length} cards
@@ -869,7 +869,7 @@ export function ImportDeckModal({ onClose, onImport, suggestedName = '' }) {
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
-      style={{ background: 'rgba(13,22,20,0.92)', backdropFilter: 'blur(6px)' }}
+      style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
       <div className="w-full max-w-2xl max-h-[90vh] flex flex-col border" style={{ background: BG, borderColor: CREAM_FAINT }}>
         <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
@@ -891,7 +891,7 @@ export function ImportDeckModal({ onClose, onImport, suggestedName = '' }) {
               placeholder="edgar markov vampires"
               disabled={loading}
               className="w-full border px-4 py-2.5 bg-transparent focus:outline-none font-mono text-sm"
-              style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(243,231,201,0.02)' }}
+              style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(var(--ink-rgb),0.02)' }}
             />
           </div>
           <div>
@@ -907,7 +907,7 @@ export function ImportDeckModal({ onClose, onImport, suggestedName = '' }) {
               disabled={loading}
               placeholder={'Commander\n1 Edgar Markov\n\nDeck\n1 Sol Ring\n1 Arcane Signet\n...'}
               className="w-full h-56 p-4 border bg-transparent focus:outline-none font-mono text-xs leading-relaxed"
-              style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(243,231,201,0.02)' }}
+              style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(var(--ink-rgb),0.02)' }}
             />
           </div>
           {progress && (
@@ -916,7 +916,7 @@ export function ImportDeckModal({ onClose, onImport, suggestedName = '' }) {
             </div>
           )}
           {error && (
-            <div className="px-4 py-3 border" style={{ borderColor: ACCENT, background: 'rgba(196,74,63,0.08)' }}>
+            <div className="px-4 py-3 border" style={{ borderColor: ACCENT, background: 'rgba(var(--accent-rgb),0.08)' }}>
               <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-1" style={{ color: ACCENT }}>
                 Error
               </div>
@@ -987,7 +987,7 @@ export function BackupModal({ decks, onClose, onRestore }) {
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
-      style={{ background: 'rgba(13,22,20,0.92)', backdropFilter: 'blur(6px)' }}
+      style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
       <div className="w-full max-w-2xl max-h-[90vh] flex flex-col border" style={{ background: BG, borderColor: CREAM_FAINT }}>
         <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
@@ -1009,7 +1009,7 @@ export function BackupModal({ decks, onClose, onRestore }) {
               className="flex-1 px-4 py-3 font-serif text-[10px] tracking-[0.3em] uppercase"
               style={{
                 color: tab === t.id ? CREAM : CREAM_DIM,
-                background: tab === t.id ? 'rgba(243,231,201,0.05)' : 'transparent',
+                background: tab === t.id ? 'rgba(var(--ink-rgb),0.05)' : 'transparent',
                 borderBottom: tab === t.id ? `1px solid ${CREAM}` : 'none',
               }}
             >
@@ -1081,7 +1081,7 @@ function BackupExport({ decks, onClose }) {
           readOnly
           onClick={(e) => e.currentTarget.select()}
           className="w-full h-44 p-3 border bg-transparent focus:outline-none font-mono text-[10px] leading-relaxed"
-          style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(243,231,201,0.02)' }}
+          style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(var(--ink-rgb),0.02)' }}
         />
       </div>
       <div className="px-5 py-4 border-t flex justify-end gap-4" style={{ borderColor: CREAM_FAINT }}>
@@ -1150,7 +1150,7 @@ function BackupRestore({ onRestore, onClose }) {
           onChange={(e) => setText(e.target.value)}
           placeholder='{ "vault": "v1", "decks": [...] }'
           className="w-full h-44 p-3 border bg-transparent focus:outline-none font-mono text-[10px] leading-relaxed"
-          style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(243,231,201,0.02)' }}
+          style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(var(--ink-rgb),0.02)' }}
         />
         <div className="flex items-center gap-3">
           <span className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>Mode</span>
@@ -1162,7 +1162,7 @@ function BackupRestore({ onRestore, onClose }) {
               style={{
                 borderColor: mode === m ? CREAM : CREAM_FAINT,
                 color: mode === m ? CREAM : CREAM_DIM,
-                background: mode === m ? 'rgba(243,231,201,0.05)' : 'transparent',
+                background: mode === m ? 'rgba(var(--ink-rgb),0.05)' : 'transparent',
               }}
             >
               {m}
@@ -1178,7 +1178,7 @@ function BackupRestore({ onRestore, onClose }) {
           </div>
         )}
         {error && (
-          <div className="px-4 py-3 border" style={{ borderColor: ACCENT, background: 'rgba(196,74,63,0.06)' }}>
+          <div className="px-4 py-3 border" style={{ borderColor: ACCENT, background: 'rgba(var(--accent-rgb),0.06)' }}>
             <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-1" style={{ color: ACCENT }}>Error</div>
             <div className="font-mono text-xs" style={{ color: CREAM }}>{error}</div>
           </div>
@@ -1281,7 +1281,7 @@ export function BugReportModal({ onClose }) {
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
-      style={{ background: 'rgba(13,22,20,0.92)', backdropFilter: 'blur(6px)' }}
+      style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
       <div className="w-full max-w-xl max-h-[90vh] flex flex-col border" style={{ background: BG, borderColor: CREAM_FAINT }}>
         <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
@@ -1495,7 +1495,7 @@ export function SettingsModal({ onClose }) {
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
-      style={{ background: 'rgba(13,22,20,0.92)', backdropFilter: 'blur(6px)' }}
+      style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
       <div className="w-full max-w-xl flex flex-col border" style={{ background: BG, borderColor: CREAM_FAINT }}>
         <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
@@ -1528,7 +1528,7 @@ export function SettingsModal({ onClose }) {
                   className="font-mono text-[10px] px-3 py-1.5 uppercase tracking-wider"
                   style={{
                     color: settings.currency === c ? CREAM : CREAM_DIM,
-                    background: settings.currency === c ? 'rgba(243,231,201,0.08)' : 'transparent',
+                    background: settings.currency === c ? 'rgba(var(--ink-rgb),0.08)' : 'transparent',
                   }}
                 >
                   {c}
@@ -1553,7 +1553,7 @@ export function SettingsModal({ onClose }) {
                   className="font-mono text-[10px] px-3 py-1.5 uppercase tracking-wider"
                   style={{
                     color: settings.prefRetailer === r ? CREAM : CREAM_DIM,
-                    background: settings.prefRetailer === r ? 'rgba(243,231,201,0.08)' : 'transparent',
+                    background: settings.prefRetailer === r ? 'rgba(var(--ink-rgb),0.08)' : 'transparent',
                   }}
                   title={RETAILER_LABEL[r]}
                 >
@@ -1579,7 +1579,7 @@ export function SettingsModal({ onClose }) {
                   className="font-mono text-[10px] px-3 py-1.5 uppercase tracking-wider"
                   style={{
                     color: settings.prefPriceSource === v ? CREAM : CREAM_DIM,
-                    background: settings.prefPriceSource === v ? 'rgba(243,231,201,0.08)' : 'transparent',
+                    background: settings.prefPriceSource === v ? 'rgba(var(--ink-rgb),0.08)' : 'transparent',
                   }}
                   title={vendorLabel(v)}
                 >
@@ -1658,7 +1658,7 @@ function ToggleSwitch({ on, onChange }) {
       style={{
         borderColor: on ? CREAM : CREAM_FAINT,
         color: on ? CREAM : CREAM_DIM,
-        background: on ? 'rgba(243,231,201,0.08)' : 'transparent',
+        background: on ? 'rgba(var(--ink-rgb),0.08)' : 'transparent',
       }}
     >
       {on ? 'ON' : 'OFF'}
@@ -1681,7 +1681,7 @@ export function NotesModal({ deck, onClose, onSave }) {
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
-      style={{ background: 'rgba(13,22,20,0.92)', backdropFilter: 'blur(6px)' }}
+      style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
       <div className="w-full max-w-2xl flex flex-col border" style={{ background: BG, borderColor: CREAM_FAINT }}>
         <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
@@ -1702,7 +1702,7 @@ export function NotesModal({ deck, onClose, onSave }) {
             onChange={(e) => setDraft(e.target.value.slice(0, 2000))}
             placeholder="aggressive vampire opener; mulligan for ramp; watch out for board wipes after T5; consider Sword of Hearth and Home..."
             className="w-full h-72 p-4 border bg-transparent focus:outline-none font-mono text-sm leading-relaxed resize-none"
-            style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(243,231,201,0.02)' }}
+            style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(var(--ink-rgb),0.02)' }}
           />
           <div className="flex items-center justify-between">
             <span className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>
@@ -1765,7 +1765,7 @@ export function PrintingPickerModal({ card, onClose, onPick }) {
   return createPortal((
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(13,22,20,0.92)', backdropFilter: 'blur(6px)' }}
+      style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
       onClick={onClose}
     >
       <div
@@ -1811,7 +1811,7 @@ export function PrintingPickerModal({ card, onClose, onPick }) {
                       className="border p-2 text-left transition flex flex-col gap-2 hover:opacity-100"
                       style={{
                         borderColor: active ? CREAM : CREAM_FAINT,
-                        background: active ? 'rgba(243,231,201,0.08)' : 'transparent',
+                        background: active ? 'rgba(var(--ink-rgb),0.08)' : 'transparent',
                       }}
                       title={`${p.set_name} · #${p.collector_number}`}
                     >
@@ -2013,7 +2013,7 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(13,22,20,0.92)', backdropFilter: 'blur(6px)' }}
+      style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
       onClick={onClose}
     >
       <div
@@ -2050,7 +2050,7 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
                     className="w-9 h-9 border flex items-center justify-center transition"
                     style={{
                       borderColor: active ? CREAM : CREAM_FAINT,
-                      background: active ? 'rgba(243,231,201,0.08)' : 'transparent',
+                      background: active ? 'rgba(var(--ink-rgb),0.08)' : 'transparent',
                     }}
                     title={c}
                   >
@@ -2081,7 +2081,7 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
               className="w-9 h-5 border flex items-center transition"
               style={{
                 borderColor: CREAM_FAINT,
-                background: partner ? 'rgba(243,231,201,0.15)' : 'transparent',
+                background: partner ? 'rgba(var(--ink-rgb),0.15)' : 'transparent',
                 justifyContent: partner ? 'flex-end' : 'flex-start',
               }}
               aria-pressed={partner}
@@ -2116,7 +2116,7 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
                     style={{
                       borderColor: active ? CREAM : CREAM_FAINT,
                       color: active ? CREAM : CREAM_DIM,
-                      background: active ? 'rgba(243,231,201,0.08)' : 'transparent',
+                      background: active ? 'rgba(var(--ink-rgb),0.08)' : 'transparent',
                     }}
                   >
                     {b}
@@ -2157,7 +2157,7 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
                     style={{
                       borderColor: active ? CREAM : CREAM_FAINT,
                       color: active ? CREAM : CREAM_DIM,
-                      background: active ? 'rgba(243,231,201,0.08)' : 'transparent',
+                      background: active ? 'rgba(var(--ink-rgb),0.08)' : 'transparent',
                     }}
                   >
                     {b.label}
@@ -2193,7 +2193,7 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
                     style={{
                       borderColor: active ? CREAM : CREAM_FAINT,
                       color: active ? CREAM : CREAM_DIM,
-                      background: active ? 'rgba(243,231,201,0.08)' : 'transparent',
+                      background: active ? 'rgba(var(--ink-rgb),0.08)' : 'transparent',
                     }}
                   >
                     {a.label}
@@ -2209,7 +2209,7 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
           </div>
 
           {commander && (
-            <div className="border p-4 flex flex-col sm:flex-row gap-4" style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}>
+            <div className="border p-4 flex flex-col sm:flex-row gap-4" style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.02)' }}>
               <img
                 src={cardImageUrl(commander, 'normal')}
                 alt={commander.name}
@@ -2250,7 +2250,7 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
               className="w-9 h-5 border flex items-center transition disabled:opacity-40 disabled:cursor-not-allowed"
               style={{
                 borderColor: CREAM_FAINT,
-                background: ownedOnly ? 'rgba(243,231,201,0.15)' : 'transparent',
+                background: ownedOnly ? 'rgba(var(--ink-rgb),0.15)' : 'transparent',
                 justifyContent: ownedOnly ? 'flex-end' : 'flex-start',
               }}
               aria-pressed={ownedOnly}
@@ -2275,7 +2275,7 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
                 className="w-9 h-5 border flex items-center transition"
                 style={{
                   borderColor: CREAM_FAINT,
-                  background: shareRoll ? 'rgba(243,231,201,0.15)' : 'transparent',
+                  background: shareRoll ? 'rgba(var(--ink-rgb),0.15)' : 'transparent',
                   justifyContent: shareRoll ? 'flex-end' : 'flex-start',
                 }}
                 aria-pressed={shareRoll}
@@ -2321,7 +2321,7 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
               onClick={build}
               disabled={!commander || building}
               className="font-serif text-[10px] tracking-[0.3em] uppercase border px-4 py-2 disabled:opacity-30"
-              style={{ borderColor: CREAM, color: CREAM, background: 'rgba(243,231,201,0.06)' }}
+              style={{ borderColor: CREAM, color: CREAM, background: 'rgba(var(--ink-rgb),0.06)' }}
             >
               {building ? 'Building...' : 'Build deck →'}
             </button>

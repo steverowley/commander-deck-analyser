@@ -289,7 +289,7 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
       </div>
 
       {error && (
-        <div className="border border-l-4 mt-4 p-3" style={{ borderColor: ACCENT, background: 'rgba(196,74,63,0.06)' }}>
+        <div className="border border-l-4 mt-4 p-3" style={{ borderColor: ACCENT, background: 'rgba(var(--accent-rgb),0.06)' }}>
           <div className="font-mono text-xs" style={{ color: CREAM }}>{error}</div>
         </div>
       )}
@@ -395,7 +395,7 @@ function StatsDashboard({ stats, currency, approx, priceSourceTip }) {
                     )}
                     <span className="font-serif text-xs truncate" style={{ color: CREAM }}>{COLOR_LABELS[c]}</span>
                   </div>
-                  <div className="col-span-6 h-2" style={{ background: 'rgba(243,231,201,0.08)' }}>
+                  <div className="col-span-6 h-2" style={{ background: 'rgba(var(--ink-rgb),0.08)' }}>
                     <div className="h-full" style={{ background: CREAM, opacity: n > 0 ? 0.7 : 0, width: `${pct}%` }} />
                   </div>
                   <div className="col-span-2 text-right font-mono text-[10px]" style={{ color: CREAM }}>{n}</div>
@@ -414,7 +414,7 @@ function StatsDashboard({ stats, currency, approx, priceSourceTip }) {
             {stats.typeHistogram.map((t) => (
               <div key={t.name} className="grid grid-cols-12 gap-2 items-center">
                 <div className="col-span-4 font-serif text-xs truncate" style={{ color: CREAM }}>{t.name}</div>
-                <div className="col-span-6 h-2" style={{ background: 'rgba(243,231,201,0.08)' }}>
+                <div className="col-span-6 h-2" style={{ background: 'rgba(var(--ink-rgb),0.08)' }}>
                   <div className="h-full" style={{ background: CREAM, opacity: t.count > 0 ? 0.7 : 0, width: `${(t.count / maxType) * 100}%` }} />
                 </div>
                 <div className="col-span-2 text-right font-mono text-[10px]" style={{ color: CREAM }}>{t.count}</div>
@@ -453,7 +453,7 @@ function StatsDashboard({ stats, currency, approx, priceSourceTip }) {
             {stats.rarityHistogram.filter((r) => r.count > 0).map((r) => (
               <div key={r.name} className="grid grid-cols-12 gap-2 items-center">
                 <div className="col-span-4 font-serif text-xs capitalize" style={{ color: CREAM }}>{r.name}</div>
-                <div className="col-span-6 h-2" style={{ background: 'rgba(243,231,201,0.08)' }}>
+                <div className="col-span-6 h-2" style={{ background: 'rgba(var(--ink-rgb),0.08)' }}>
                   <div className="h-full" style={{ background: CREAM, opacity: 0.7, width: `${(r.count / maxRarity) * 100}%` }} />
                 </div>
                 <div className="col-span-2 text-right font-mono text-[10px]" style={{ color: CREAM }}>{r.count}</div>
@@ -544,7 +544,7 @@ function ValuablesAndCoverage({ stats, currency, approx, onSelectDeck, priceSour
                     {d.percent}%
                   </span>
                 </div>
-                <div className="h-1.5" style={{ background: 'rgba(243,231,201,0.08)' }}>
+                <div className="h-1.5" style={{ background: 'rgba(var(--ink-rgb),0.08)' }}>
                   <div className="h-full" style={{ background: coverageColor(d.percent), opacity: 0.8, width: `${d.percent}%` }} />
                 </div>
               </button>
@@ -583,7 +583,7 @@ function BuildableSection({ stats }) {
             {c.image ? (
               <img src={c.image} alt={c.name} className="w-full object-cover" style={{ aspectRatio: '5/7', borderRadius: '5%' }} />
             ) : (
-              <div className="w-full flex items-center justify-center" style={{ aspectRatio: '5/7', background: 'rgba(243,231,201,0.04)' }}>
+              <div className="w-full flex items-center justify-center" style={{ aspectRatio: '5/7', background: 'rgba(var(--ink-rgb),0.04)' }}>
                 <Crown className="w-4 h-4" style={{ color: CREAM_DIM }} />
               </div>
             )}
@@ -608,7 +608,7 @@ function BuildableSection({ stats }) {
 function UnusedSection({ stats, approx, onShowUnused, priceSourceTip }) {
   if (!stats || stats.unusedCards.length === 0) return null;
   return (
-    <div className="mt-10 border p-5 fade-up" style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}>
+    <div className="mt-10 border p-5 fade-up" style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.02)' }}>
       <div className="flex flex-col md:flex-row md:items-center gap-3">
         <div className="flex-1 min-w-0">
           <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
@@ -661,14 +661,14 @@ function InventorySection({
         </div>
       </div>
 
-      <div className="border p-3 grid grid-cols-1 md:grid-cols-12 gap-3 items-center" style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}>
+      <div className="border p-3 grid grid-cols-1 md:grid-cols-12 gap-3 items-center" style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.02)' }}>
         <div className="md:col-span-5">
           <input
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             placeholder="filter by name…"
             className="w-full bg-transparent border px-3 py-2 focus:outline-none font-mono text-xs"
-            style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(243,231,201,0.02)' }}
+            style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(var(--ink-rgb),0.02)' }}
           />
         </div>
         <div className="md:col-span-4 flex items-center gap-1.5 flex-wrap">
@@ -680,7 +680,7 @@ function InventorySection({
               className="w-5 h-5 border transition flex items-center justify-center"
               style={{
                 borderColor: colorFilter === c ? CREAM : CREAM_FAINT,
-                background: colorFilter === c ? 'rgba(243,231,201,0.08)' : 'transparent',
+                background: colorFilter === c ? 'rgba(var(--ink-rgb),0.08)' : 'transparent',
               }}
               title={COLOR_LABELS[c]}
             >
@@ -697,7 +697,7 @@ function InventorySection({
                 className="font-mono text-[9px] uppercase tracking-wider px-2 py-1"
                 style={{
                   color: view === v ? CREAM : CREAM_DIM,
-                  background: view === v ? 'rgba(243,231,201,0.08)' : 'transparent',
+                  background: view === v ? 'rgba(var(--ink-rgb),0.08)' : 'transparent',
                 }}
                 title={`Switch to ${v} view`}
               >
@@ -820,7 +820,7 @@ function BulkPasteModal({ bulkText, setBulkText, busy, onClose, onSubmit }) {
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center p-4"
-      style={{ background: 'rgba(13,22,20,0.94)', backdropFilter: 'blur(6px)' }}
+      style={{ background: 'rgba(var(--bg-rgb),0.94)', backdropFilter: 'blur(6px)' }}
       onClick={onClose}
     >
       <div className="border w-full max-w-lg flex flex-col" style={{ background: BG, borderColor: CREAM_FAINT }} onClick={(e) => e.stopPropagation()}>
@@ -853,7 +853,7 @@ function BulkPasteModal({ bulkText, setBulkText, busy, onClose, onSubmit }) {
             onClick={onSubmit}
             disabled={busy || !bulkText.trim()}
             className="font-serif text-[10px] tracking-[0.3em] uppercase border px-4 py-2 disabled:opacity-30"
-            style={{ borderColor: CREAM, color: CREAM, background: 'rgba(243,231,201,0.06)' }}
+            style={{ borderColor: CREAM, color: CREAM, background: 'rgba(var(--ink-rgb),0.06)' }}
           >
             {busy ? 'Adding…' : 'Add to Vault →'}
           </button>

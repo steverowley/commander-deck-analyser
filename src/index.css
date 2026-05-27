@@ -4,9 +4,47 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Theme tokens. The three base colors (bg / ink / accent) are exposed
+   in both hex form (for solid fills) and "r,g,b" form (for the many
+   rgba(... , α) literals used throughout the app). Dark is the
+   default; light mode is applied either by [data-theme="light"] on
+   <html> (explicit user choice) or, when no choice is set, by the
+   user's OS preference via the prefers-color-scheme media query. */
+:root {
+  --bg: #0d1614;
+  --bg-rgb: 13, 22, 20;
+  --ink: #f3e7c9;
+  --ink-rgb: 243, 231, 201;
+  --accent: #c44a3f;
+  --accent-rgb: 196, 74, 63;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]):not([data-theme="light"]) {
+    --bg: #fdf9ec;
+    --bg-rgb: 253, 249, 236;
+    --ink: #2b1f12;
+    --ink-rgb: 43, 31, 18;
+    --accent: #a8392f;
+    --accent-rgb: 168, 57, 47;
+    color-scheme: light;
+  }
+}
+
+:root[data-theme="light"] {
+  --bg: #fdf9ec;
+  --bg-rgb: 253, 249, 236;
+  --ink: #2b1f12;
+  --ink-rgb: 43, 31, 18;
+  --accent: #a8392f;
+  --accent-rgb: 168, 57, 47;
+  color-scheme: light;
+}
+
 html, body, #root {
-  background: #0d1614;
-  color: #f3e7c9;
+  background: var(--bg);
+  color: var(--ink);
   min-height: 100%;
 }
 
@@ -27,9 +65,9 @@ body {
   50%      { opacity: 1;   transform: scale(1.15); }
 }
 
-input::placeholder, textarea::placeholder { color: rgba(243, 231, 201, 0.3); }
+input::placeholder, textarea::placeholder { color: rgba(var(--ink-rgb), 0.3); }
 
-::selection { background: rgba(243, 231, 201, 0.2); color: #f3e7c9; }
+::selection { background: rgba(var(--ink-rgb), 0.2); color: var(--ink); }
 
 /* Cursors: using OS defaults. Earlier attempts at custom on-brand
    cursors didn't pan out, so we let the system pick the right cursor

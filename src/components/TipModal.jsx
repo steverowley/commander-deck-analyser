@@ -57,7 +57,7 @@ export function TipModal({ onClose, justTipped = false, user = null, onRemindLat
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
-      style={{ background: 'rgba(13,22,20,0.92)', backdropFilter: 'blur(6px)' }}
+      style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
       <div className="w-full max-w-md max-h-[90vh] flex flex-col border" style={{ background: BG, borderColor: CREAM_FAINT }}>
         <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
@@ -73,7 +73,7 @@ export function TipModal({ onClose, justTipped = false, user = null, onRemindLat
           {justTipped && (
             <div
               className="border px-4 py-3 font-serif text-xs italic"
-              style={{ borderColor: ACCENT, color: CREAM, background: 'rgba(196,74,63,0.06)' }}
+              style={{ borderColor: ACCENT, color: CREAM, background: 'rgba(var(--accent-rgb),0.06)' }}
             >
               Thanks — that means a lot. Your supporter badge will appear within 24h (we add them manually for now).
             </div>

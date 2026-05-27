@@ -109,7 +109,7 @@ function CommanderPicker({ deck, onSet, onCycleFoil }) {
       <div className="grid grid-cols-1 md:grid-cols-5 border" style={{ borderColor: CREAM_FAINT }}>
         <div
           className="md:col-span-2 p-6 md:border-r border-b md:border-b-0 flex items-center justify-center relative group"
-          style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}
+          style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.02)' }}
         >
           {/* Card wrapper. Art opens the printing picker; Foil toggles
               the foil overlay. Both action buttons are siblings of the
@@ -277,7 +277,7 @@ function CommanderPicker({ deck, onSet, onCycleFoil }) {
       <div className="p-6">
         <div
           className="flex gap-3 items-center border px-4 py-3"
-          style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}
+          style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.02)' }}
         >
           <input
             value={q}
@@ -309,7 +309,7 @@ function CommanderPicker({ deck, onSet, onCycleFoil }) {
                 style={{
                   borderColor: CREAM_FAINT,
                   color: CREAM,
-                  background: i === highlight ? 'rgba(243,231,201,0.08)' : 'transparent',
+                  background: i === highlight ? 'rgba(var(--ink-rgb),0.08)' : 'transparent',
                 }}
               >
                 {s}
@@ -462,7 +462,7 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, onSaveTransien
       {(deck.__transient || String(deck.id).startsWith('roll:') || String(deck.id).startsWith('view:')) && onSaveTransient && (
         <div
           className="px-4 md:px-5 py-2.5 border-b flex items-center justify-between gap-3 flex-wrap"
-          style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.04)' }}
+          style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.04)' }}
         >
           <div className="font-serif text-xs italic" style={{ color: CREAM_DIM }}>
             This is a transient session — edits don't persist until you save it to your archive.
@@ -470,7 +470,7 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, onSaveTransien
           <button
             onClick={() => onSaveTransient(deck)}
             className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-1.5 hover:opacity-100 flex items-center gap-1.5 shrink-0"
-            style={{ borderColor: CREAM, color: CREAM, background: 'rgba(243,231,201,0.08)' }}
+            style={{ borderColor: CREAM, color: CREAM, background: 'rgba(var(--ink-rgb),0.08)' }}
           >
             <Save className="w-3 h-3" /> Save to my archive →
           </button>
@@ -570,7 +570,7 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, onSaveTransien
                 className="border-r border-b py-3 px-4 md:px-3 transition flex flex-col items-center gap-1.5 shrink-0 min-w-[72px]"
                 style={{
                   borderColor: CREAM_FAINT,
-                  background: active ? 'rgba(243,231,201,0.06)' : 'transparent',
+                  background: active ? 'rgba(var(--ink-rgb),0.06)' : 'transparent',
                   color: active ? CREAM : CREAM_DIM,
                 }}
               >

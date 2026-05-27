@@ -47,7 +47,7 @@ export function AuthModal({ onClose }) {
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
-      style={{ background: 'rgba(13,22,20,0.92)', backdropFilter: 'blur(6px)' }}
+      style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
       <div className="w-full max-w-md flex flex-col border" style={{ background: BG, borderColor: CREAM_FAINT }}>
         <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
@@ -83,7 +83,7 @@ export function AuthModal({ onClose }) {
                 </div>
                 <div
                   className="flex items-center gap-3 border px-4 py-2.5"
-                  style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}
+                  style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.02)' }}
                 >
                   <Mail className="w-3.5 h-3.5" style={{ color: CREAM_DIM }} />
                   <input
@@ -128,7 +128,7 @@ export function AuthModal({ onClose }) {
           )}
 
           {error && (
-            <div className="px-4 py-3 border" style={{ borderColor: ACCENT, background: 'rgba(196,74,63,0.06)' }}>
+            <div className="px-4 py-3 border" style={{ borderColor: ACCENT, background: 'rgba(var(--accent-rgb),0.06)' }}>
               <div className="font-mono text-xs" style={{ color: CREAM }}>{error}</div>
             </div>
           )}

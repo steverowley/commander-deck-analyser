@@ -32,7 +32,7 @@ export function OfflineIndicator() {
       className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 border px-4 py-2 flex items-center gap-2 font-mono text-[11px] tracking-wider"
       style={{
         borderColor: ACCENT,
-        background: 'rgba(13,22,20,0.95)',
+        background: 'rgba(var(--bg-rgb),0.95)',
         backdropFilter: 'blur(6px)',
         color: CREAM,
       }}
