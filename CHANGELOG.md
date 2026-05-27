@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.20.0 — Decoupled price source + buy-link
+
+Card Kingdom doesn't publish per-card prices on Scryfall, but v0.18.0 still proxied CK numbers from TCGplayer Mid — which produced totals that disagreed with what users actually paid when they clicked through. Celestine, the Living Saint was the canary: app showed ~£21, CK's actual sell price was materially lower. The buy-link vendor and the price-source vendor are now two separate settings — pick CK as your cart destination, pick TCGplayer or Cardmarket as your price feed, no more pretend-CK numbers.
+
+### Pricing
+- **`prefPriceSource` setting** in `src/lib/settings.js` (default `tcgplayer`). Migrates existing users on first load: anyone who had Cardmarket as their buy-link keeps Cardmarket as their source; everyone else (incl. all the default-CK users) lands on TCGplayer.
+- **`activePriceSource()` in `src/lib/pricing.js`** reads `prefPriceSource`; `activeVendor()` stays as a back-compat alias. `PRICE_VENDORS` now only lists `['tcgplayer', 'cardmarket']` — Card Kingdom isn't a valid price source anywhere in the app.
+- **`cardPriceDetails()` / `deckTotalPrice()`** carry a `buyLink` + `buyLinkLabel` so tooltips can say "Cart icon links to Card Kingdom — actual price there may differ" when the two diverge. The misleading "TCGplayer Mid as an estimate" note is gone; the source is just whichever feed you picked.
+
+### Settings UI
+- **Settings → Buy links** drives only the cart icon now. Copy trimmed to match.
+- **New Settings → Price source row** with TCGplayer / Cardmarket buttons. Description explains why CK isn't an option.
+
+### Vendor threading (audit)
+Vendor was being re-read at call time in several spots, so a setting flip mid-flow could mix sources. Each of these now captures the source once and threads it explicitly:
+- **`src/lib/vaultStats.js`** — `computeVaultStats(collection, cardData, decks, currency, vendor)` accepts and threads vendor; both per-card price lookups (`totalValue` and `unusedValue`) use it.
+- **`src/lib/autoseed.js`** — `buildSeededDeck` snapshots `activePriceSource()` (or `opts.priceVendor`) at entry so pool prune, swap-loop, and final sweep all quote from the same feed.
+- **`src/components/VaultPage.jsx`** — the value-sort and the `computeVaultStats` call both receive the active source; the memo dependencies include it.
+- **`src/lib/compare.js`** — `compareDecks` captures the source once and passes it to both `deckTotalPrice` calls.
+- **`src/lib/stats.js`** — switched to `activePriceSource()` and now passes `vendor` + `buyLink` into `deckPriceTooltip`.
+
+### Tests
+- `pricing.test.js` rewritten for the new model: Card Kingdom as a price source returns null, `PRICE_VENDORS` no longer lists CK, `cardPriceDetails` notes the buy-link when it differs from the source, `deckTotalPrice` returns `buyLink`/`buyLinkLabel`, and the regression that CK-buy-link totals are no longer marked `exact: false` is pinned.
+
 ## v0.19.1 — Dim zero labels on bar charts
 
 - Bar-chart labels with a value of zero now render at ~40% opacity instead of full CREAM_DIM, so empty buckets recede and the eye lands on the buckets that actually have data. Applied to the archive bracket distribution, Vault mana curve, deck-editor Stats mana curve, and Probability-tab land distribution.

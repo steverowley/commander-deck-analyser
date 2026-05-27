@@ -2,17 +2,22 @@
  * Deck pricing math.
  *
  * Prices come from Scryfall as string-encoded decimals on the card's
- * `prices` object — null when a price isn't known. Which Scryfall field
- * we read depends on the vendor the user picked under Settings → Buy
- * links, so the displayed total reflects what they'd actually pay at
- * the store they buy from:
+ * `prices` object — null when a price isn't known. Scryfall publishes
+ * two real per-card feeds, and those are our only price sources:
  *
  *   - tcgplayer:  `prices.usd` / `usd_foil` / `usd_etched` (TCGplayer Mid). Exact.
  *   - cardmarket: `prices.eur` / `eur_foil`              (Cardmarket Trend). Exact.
- *   - cardkingdom: no Scryfall feed exists — we fall back to TCGplayer
- *     USD as an approximation and surface the caveat in the tooltip.
  *
- * Display currency is independent of vendor. USD/EUR show native; GBP
+ * Card Kingdom is intentionally NOT a price source. CK doesn't publish
+ * per-card prices to Scryfall, and proxying from TCGplayer Mid produced
+ * numbers that didn't match what users saw when they clicked the cart
+ * (often materially higher — Celestine showed ~£21 vs CK's actual sell
+ * price). The price source is now decoupled from the buy-link vendor:
+ * pick a real price feed under Settings → Price source, and pick the
+ * cart destination separately under Settings → Buy links. CK remains a
+ * valid buy-link vendor; it just doesn't drive the displayed number.
+ *
+ * Display currency is independent of source. USD/EUR show native; GBP
  * converts client-side from USD. When the source currency differs from
  * the display currency we convert at the FX rate below (intentionally
  * approximate — "$40 jank vs $400 monster" precision, not to-the-penny).
@@ -33,15 +38,24 @@ const FX_FROM_USD = {
 
 const SYMBOLS = { usd: '$', eur: '€', gbp: '£' };
 
+// Buy-link vendor labels for the price-tooltip "cart goes to X" note.
+// Kept in sync with affiliate.js — but inlined here to avoid the
+// affiliate <-> pricing import cycle.
+const BUY_LINK_LABEL = {
+  cardkingdom: 'Card Kingdom',
+  tcgplayer: 'TCGplayer',
+  cardmarket: 'Cardmarket',
+};
+
 /**
- * Vendor → Scryfall price field map.
+ * Price-source vendor → Scryfall price field map.
  *
  *   - field/foilField/etchedField: which `prices.*` key holds the value
  *     for this vendor (null when the vendor doesn't publish it).
  *   - currency: source currency the field is denominated in.
- *   - exact: false means we're proxying from another vendor's feed
- *     (Card Kingdom has no Scryfall feed; we use TCGplayer Mid).
  *   - label: human-readable name shown in tooltips.
+ *
+ * Card Kingdom is not in this table on purpose — see the file header.
  */
 const VENDOR_PRICE = {
   tcgplayer: {
@@ -54,25 +68,25 @@ const VENDOR_PRICE = {
     currency: 'eur', exact: true,
     label: 'Cardmarket (Trend)',
   },
-  cardkingdom: {
-    field: 'usd', foilField: 'usd_foil', etchedField: 'usd_etched',
-    currency: 'usd', exact: false,
-    label: 'Card Kingdom',
-    proxiedFrom: 'TCGplayer Mid',
-  },
 };
 
 export const PRICE_VENDORS = Object.keys(VENDOR_PRICE);
 
 /**
- * Vendor currently active for pricing. Reads `prefRetailer` from
- * settings so the buy-link vendor and the price-feed vendor stay in
- * lockstep (the SettingsModal copy makes this explicit).
+ * Vendor currently active for pricing. Reads `prefPriceSource` from
+ * settings; unknown / missing values fall through to TCGplayer. The
+ * buy-link vendor (`prefRetailer`) is independent — it drives the cart
+ * icon, not the displayed number.
  */
-export function activeVendor() {
-  const v = loadSettings()?.prefRetailer;
+export function activePriceSource() {
+  const v = loadSettings()?.prefPriceSource;
   return VENDOR_PRICE[v] ? v : 'tcgplayer';
 }
+
+// Back-compat alias. Older call sites used `activeVendor` when the
+// buy-link and price-feed were the same setting; keep the name working
+// so we don't have to chase every importer in one PR.
+export const activeVendor = activePriceSource;
 
 export function vendorLabel(vendor) {
   return VENDOR_PRICE[vendor]?.label || 'Unknown vendor';
@@ -116,7 +130,7 @@ function rawPrice(card, vendor, { foil = false, etched = false } = {}) {
  * no price is known for the vendor.
  */
 export function cardPrice(card, displayCurrency = 'usd', vendor = null, opts = {}) {
-  const v = vendor || activeVendor();
+  const v = vendor || activePriceSource();
   const meta = VENDOR_PRICE[v];
   if (!meta) return null;
   const raw = rawPrice(card, v, opts);
@@ -139,18 +153,17 @@ export function cardPrice(card, displayCurrency = 'usd', vendor = null, opts = {
  *   }
  */
 export function cardPriceDetails(card, displayCurrency = 'usd', vendor = null, opts = {}) {
-  const v = vendor || activeVendor();
+  const v = vendor || activePriceSource();
   const meta = VENDOR_PRICE[v] || VENDOR_PRICE.tcgplayer;
   const raw = rawPrice(card, v, opts);
   const amount = raw ? convertFx(raw.value, meta.currency, displayCurrency) : null;
+  const buyLink = loadSettings()?.prefRetailer;
+  const buyLabel = BUY_LINK_LABEL[buyLink];
   const notes = [];
   if (!raw) {
     notes.push(`No ${meta.label} price on Scryfall for this card.`);
   } else {
     notes.push(`Source: ${meta.label}.`);
-    if (!meta.exact) {
-      notes.push(`${meta.label} prices aren't published on Scryfall — showing ${meta.proxiedFrom} as an estimate.`);
-    }
     if (meta.currency !== displayCurrency) {
       notes.push(`Converted ${meta.currency.toUpperCase()} → ${displayCurrency.toUpperCase()} at an approximate FX rate.`);
     }
@@ -159,6 +172,9 @@ export function cardPriceDetails(card, displayCurrency = 'usd', vendor = null, o
       notes.push(opts.foil
         ? 'No foil price available — showing non-foil.'
         : 'No non-foil price available — showing foil.');
+    }
+    if (buyLabel && buyLink !== v) {
+      notes.push(`Cart icon links to ${buyLabel} — actual price there may differ.`);
     }
   }
   return {
@@ -170,7 +186,7 @@ export function cardPriceDetails(card, displayCurrency = 'usd', vendor = null, o
     sourceField: raw?.field || null,
     exact: meta.exact,
     converted: meta.currency !== displayCurrency,
-    approximate: !raw || !meta.exact || meta.currency !== displayCurrency,
+    approximate: !raw || meta.currency !== displayCurrency,
     notes,
   };
 }
@@ -198,7 +214,7 @@ export function priceTooltip(details) {
  * 1-of in the deck).
  */
 export function deckTotalPrice(deck, displayCurrency = 'usd', collection = null, vendor = null) {
-  const v = vendor || activeVendor();
+  const v = vendor || activePriceSource();
   const meta = VENDOR_PRICE[v] || VENDOR_PRICE.tcgplayer;
   let total = 0;
   let priced = 0;
@@ -233,6 +249,7 @@ export function deckTotalPrice(deck, displayCurrency = 'usd', collection = null,
       ownedCount += 1;
     }
   }
+  const buyLink = loadSettings()?.prefRetailer || null;
   return {
     total,
     priced,
@@ -242,11 +259,13 @@ export function deckTotalPrice(deck, displayCurrency = 'usd', collection = null,
     toBuy: Math.max(0, total - ownedTotal),
     vendor: v,
     vendorLabel: meta.label,
+    buyLink,
+    buyLinkLabel: BUY_LINK_LABEL[buyLink] || null,
     sourceCurrency: meta.currency,
     displayCurrency,
     exact: meta.exact,
     converted: meta.currency !== displayCurrency,
-    approximate: !meta.exact || meta.currency !== displayCurrency || unpriced > 0,
+    approximate: meta.currency !== displayCurrency || unpriced > 0,
   };
 }
 
@@ -258,9 +277,6 @@ export function deckTotalPrice(deck, displayCurrency = 'usd', collection = null,
 export function deckPriceTooltip(price) {
   if (!price) return '';
   const lines = [`Source: ${price.vendorLabel}.`];
-  if (!price.exact) {
-    lines.push(`Card Kingdom prices aren't on Scryfall — showing TCGplayer Mid as an estimate.`);
-  }
   if (price.converted) {
     lines.push(`Converted ${price.sourceCurrency.toUpperCase()} → ${price.displayCurrency.toUpperCase()} at an approximate FX rate.`);
   }
@@ -270,7 +286,10 @@ export function deckPriceTooltip(price) {
   if (price.ownedTotal > 0) {
     lines.push(`${price.ownedCount} card${price.ownedCount === 1 ? '' : 's'} already in your Vault subtract from the "to buy" total.`);
   }
-  lines.push('Change the vendor under Settings → Buy links.');
+  if (price.buyLinkLabel && price.buyLink && price.buyLink !== price.vendor) {
+    lines.push(`Cart icon links to ${price.buyLinkLabel} — actual price there may differ.`);
+  }
+  lines.push('Change either under Settings.');
   return lines.join('\n');
 }
 
@@ -283,18 +302,18 @@ export function formatPrice(amount, currency = 'usd') {
 }
 
 /**
- * Whether the displayed price is approximate — either client-side
- * currency-converted or proxied from another vendor's feed (Card
- * Kingdom). The UI uses this to decide whether to prefix the number
- * with `~`.
+ * Whether the displayed price is approximate — client-side currency
+ * conversion is the only thing that triggers it now (CK proxying is
+ * gone). The UI uses this to decide whether to prefix the number with
+ * `~`.
  *
- * `vendor` is optional; when omitted only currency-conversion is
- * considered. Pass `activeVendor()` for the fully-accurate answer.
+ * `vendor` is optional; when omitted only the GBP-conversion case is
+ * considered. Pass `activePriceSource()` for the fully-accurate answer.
  */
 export function isConverted(displayCurrency, vendor = null) {
   if (vendor) {
     const meta = VENDOR_PRICE[vendor];
-    if (meta && (!meta.exact || meta.currency !== displayCurrency)) return true;
+    if (meta && meta.currency !== displayCurrency) return true;
   }
   return displayCurrency === 'gbp';
 }

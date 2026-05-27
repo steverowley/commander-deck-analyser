@@ -16,7 +16,7 @@
 import { assessBracket } from './analyzers.js';
 import { computeHealth } from './health.js';
 import { classifyArchetype } from './strategy.js';
-import { deckTotalPrice, deckPriceTooltip, activeVendor, vendorMeta } from './pricing.js';
+import { deckTotalPrice, deckPriceTooltip, activePriceSource, vendorMeta } from './pricing.js';
 
 export function aggregateStats(decks, currency = 'usd', collection = null) {
   const result = {
@@ -104,10 +104,11 @@ export function aggregateStats(decks, currency = 'usd', collection = null) {
 
   // Single price tooltip across the whole archive — same vendor for
   // every deck, so render it once at the dashboard level.
-  const vendor = activeVendor();
+  const vendor = activePriceSource();
   const meta = vendorMeta(vendor);
-  result.priceApproximate = !meta?.exact || meta?.currency !== currency || result.totalPriceUnpriced > 0;
+  result.priceApproximate = meta?.currency !== currency || result.totalPriceUnpriced > 0;
   result.priceTooltip = deckPriceTooltip({
+    vendor,
     vendorLabel: meta?.label || 'Unknown',
     sourceCurrency: meta?.currency || 'usd',
     displayCurrency: currency,
@@ -116,6 +117,8 @@ export function aggregateStats(decks, currency = 'usd', collection = null) {
     unpriced: result.totalPriceUnpriced,
     ownedTotal: result.totalOwned,
     ownedCount: 0,
+    buyLink: null,
+    buyLinkLabel: null,
   });
 
   return result;

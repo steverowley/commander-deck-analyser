@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { cardPrice, cardPriceDetails, deckTotalPrice, deckPriceTooltip, formatPrice, isConverted, activeVendor, vendorLabel, priceTooltip } from './pricing.js';
+import { cardPrice, cardPriceDetails, deckTotalPrice, deckPriceTooltip, formatPrice, isConverted, activePriceSource, activeVendor, vendorLabel, priceTooltip, PRICE_VENDORS } from './pricing.js';
 import { saveSettings, SETTING_DEFAULTS } from './settings.js';
 
-// Each test resets settings to the defaults so the active vendor is
-// deterministic. Tests that need a specific vendor flip prefRetailer.
+// Each test resets settings to the defaults so the active price source
+// is deterministic. Tests that need a specific source flip
+// prefPriceSource (and prefRetailer for buy-link assertions).
 beforeEach(() => {
   saveSettings(SETTING_DEFAULTS);
 });
@@ -22,7 +23,7 @@ const priced = (name, prices, count = 1) => ({
 
 describe('cardPrice', () => {
   it('parses Scryfall string prices (USD default)', () => {
-    saveSettings({ ...SETTING_DEFAULTS, prefRetailer: 'tcgplayer' });
+    saveSettings({ ...SETTING_DEFAULTS, prefPriceSource: 'tcgplayer' });
     expect(cardPrice({ prices: { usd: '1.50' } })).toBe(1.5);
   });
 
@@ -44,9 +45,16 @@ describe('cardPrice', () => {
     expect(cardPrice(card, 'eur', 'tcgplayer')).toBeCloseTo(9.2);
   });
 
-  it('Card Kingdom vendor falls back to the USD field (no Scryfall feed)', () => {
+  it('Card Kingdom is not a valid price source — returns null', () => {
+    // CK was previously proxied from TCGplayer Mid; that proxy is gone
+    // because the displayed numbers didn't match what users saw at the
+    // CK store. CK lives on as a buy-link vendor only.
     const card = { prices: { usd: '3.00', eur: '2.50' } };
-    expect(cardPrice(card, 'usd', 'cardkingdom')).toBe(3);
+    expect(cardPrice(card, 'usd', 'cardkingdom')).toBeNull();
+  });
+
+  it('exposes only TCGplayer and Cardmarket as price-source vendors', () => {
+    expect(PRICE_VENDORS).toEqual(['tcgplayer', 'cardmarket']);
   });
 
   it('Cardmarket with no EUR price returns null even if USD is present', () => {
@@ -78,11 +86,18 @@ describe('cardPriceDetails', () => {
     expect(d.notes.join(' ')).toContain('TCGplayer');
   });
 
-  it('flags Card Kingdom as proxied', () => {
-    const d = cardPriceDetails({ prices: fullPrices() }, 'usd', 'cardkingdom');
-    expect(d.exact).toBe(false);
-    expect(d.approximate).toBe(true);
-    expect(d.notes.some((n) => /TCGplayer/i.test(n) && /estimate/i.test(n))).toBe(true);
+  it('notes the buy-link vendor when it differs from the price source', () => {
+    saveSettings({ ...SETTING_DEFAULTS, prefRetailer: 'cardkingdom', prefPriceSource: 'tcgplayer' });
+    const d = cardPriceDetails({ prices: fullPrices() }, 'usd');
+    expect(d.amount).toBe(1.5);
+    expect(d.vendor).toBe('tcgplayer');
+    expect(d.notes.some((n) => /Card Kingdom/.test(n) && /Cart icon/i.test(n))).toBe(true);
+  });
+
+  it('omits the buy-link note when buy-link and price source match', () => {
+    saveSettings({ ...SETTING_DEFAULTS, prefRetailer: 'tcgplayer', prefPriceSource: 'tcgplayer' });
+    const d = cardPriceDetails({ prices: fullPrices() }, 'usd');
+    expect(d.notes.some((n) => /Cart icon/i.test(n))).toBe(false);
   });
 
   it('flags FX conversion when source and display currencies differ', () => {
@@ -106,18 +121,20 @@ describe('cardPriceDetails', () => {
 });
 
 describe('priceTooltip', () => {
-  it('joins notes with newlines', () => {
-    const d = cardPriceDetails({ prices: fullPrices() }, 'gbp', 'cardkingdom');
+  it('joins notes with newlines and lists every caveat (FX + buy-link)', () => {
+    saveSettings({ ...SETTING_DEFAULTS, prefRetailer: 'cardkingdom', prefPriceSource: 'tcgplayer' });
+    const d = cardPriceDetails({ prices: fullPrices() }, 'gbp');
     const tip = priceTooltip(d);
     expect(tip.split('\n').length).toBeGreaterThan(1);
-    expect(tip).toContain('Card Kingdom');
+    expect(tip).toContain('TCGplayer');
     expect(tip).toContain('GBP');
+    expect(tip).toContain('Card Kingdom'); // buy-link note
   });
 });
 
 describe('deckTotalPrice', () => {
   it('sums prices × count and tracks unpriced cards (default vendor)', () => {
-    saveSettings({ ...SETTING_DEFAULTS, prefRetailer: 'tcgplayer' });
+    saveSettings({ ...SETTING_DEFAULTS, prefPriceSource: 'tcgplayer' });
     const deck = {
       cards: [
         priced('Sol Ring', '2.00'),
@@ -135,7 +152,7 @@ describe('deckTotalPrice', () => {
   });
 
   it('multiplies by card count (basics)', () => {
-    saveSettings({ ...SETTING_DEFAULTS, prefRetailer: 'tcgplayer' });
+    saveSettings({ ...SETTING_DEFAULTS, prefPriceSource: 'tcgplayer' });
     const deck = {
       cards: [priced('Forest', '0.10', 30)],
       commander: null,
@@ -144,7 +161,7 @@ describe('deckTotalPrice', () => {
   });
 
   it('subtracts owned-collection cards from `toBuy`', () => {
-    saveSettings({ ...SETTING_DEFAULTS, prefRetailer: 'tcgplayer' });
+    saveSettings({ ...SETTING_DEFAULTS, prefPriceSource: 'tcgplayer' });
     const deck = {
       cards: [
         priced('Sol Ring', '2.00', 1),
@@ -166,7 +183,7 @@ describe('deckTotalPrice', () => {
   });
 
   it('caps owned quantity at the deck count (4 in collection, 1 in deck = 1 counted)', () => {
-    saveSettings({ ...SETTING_DEFAULTS, prefRetailer: 'tcgplayer' });
+    saveSettings({ ...SETTING_DEFAULTS, prefPriceSource: 'tcgplayer' });
     const deck = { cards: [priced('Lightning Bolt', '0.50', 1)], commander: null };
     const r = deckTotalPrice(deck, 'usd', { 'lightning bolt': { quantity: 4 } });
     expect(r.ownedTotal).toBeCloseTo(0.5);
@@ -175,7 +192,7 @@ describe('deckTotalPrice', () => {
   });
 
   it('honours an explicit vendor argument over the active setting', () => {
-    saveSettings({ ...SETTING_DEFAULTS, prefRetailer: 'tcgplayer' });
+    saveSettings({ ...SETTING_DEFAULTS, prefPriceSource: 'tcgplayer' });
     const deck = {
       cards: [priced('Sol Ring', { usd: '2.00', eur: '1.50' })],
       commander: null,
@@ -186,21 +203,31 @@ describe('deckTotalPrice', () => {
     expect(cm.total).toBeCloseTo(1.5);
   });
 
-  it('marks Card Kingdom deck totals as approximate even when fully priced', () => {
-    saveSettings({ ...SETTING_DEFAULTS, prefRetailer: 'cardkingdom' });
-    const deck = {
-      cards: [priced('Sol Ring', '2.00')],
-      commander: null,
-    };
+  it('reports the buy-link vendor alongside the price source', () => {
+    saveSettings({ ...SETTING_DEFAULTS, prefRetailer: 'cardkingdom', prefPriceSource: 'tcgplayer' });
+    const deck = { cards: [priced('Sol Ring', '2.00')], commander: null };
     const r = deckTotalPrice(deck);
-    expect(r.exact).toBe(false);
-    expect(r.approximate).toBe(true);
+    expect(r.vendor).toBe('tcgplayer');
+    expect(r.buyLink).toBe('cardkingdom');
+    expect(r.buyLinkLabel).toBe('Card Kingdom');
+  });
+
+  it('no longer marks fully-priced USD totals approximate when CK is the buy-link', () => {
+    // Regression: pre-v0.20 this returned exact:false because CK was the
+    // price source proxy. After decoupling, the price source is TCG so the
+    // number is exact in USD — only the cart icon points at CK.
+    saveSettings({ ...SETTING_DEFAULTS, prefRetailer: 'cardkingdom', prefPriceSource: 'tcgplayer' });
+    const deck = { cards: [priced('Sol Ring', '2.00')], commander: null };
+    const r = deckTotalPrice(deck);
+    expect(r.exact).toBe(true);
+    expect(r.approximate).toBe(false);
   });
 });
 
 describe('deckPriceTooltip', () => {
   it('mentions the vendor, unpriced count, and an FX caveat when relevant', () => {
     const tip = deckPriceTooltip({
+      vendor: 'cardmarket',
       vendorLabel: 'Cardmarket (Trend)',
       sourceCurrency: 'eur',
       displayCurrency: 'usd',
@@ -209,24 +236,31 @@ describe('deckPriceTooltip', () => {
       unpriced: 2,
       ownedTotal: 0,
       ownedCount: 0,
+      buyLink: 'cardmarket',
+      buyLinkLabel: 'Cardmarket',
     });
     expect(tip).toContain('Cardmarket');
     expect(tip).toContain('2 cards');
     expect(tip).toContain('EUR');
   });
 
-  it('mentions the CK proxy when exact is false', () => {
+  it('notes the buy-link target when it differs from the price source', () => {
     const tip = deckPriceTooltip({
-      vendorLabel: 'Card Kingdom',
+      vendor: 'tcgplayer',
+      vendorLabel: 'TCGplayer (Mid)',
       sourceCurrency: 'usd',
       displayCurrency: 'usd',
-      exact: false,
+      exact: true,
       converted: false,
       unpriced: 0,
       ownedTotal: 0,
       ownedCount: 0,
+      buyLink: 'cardkingdom',
+      buyLinkLabel: 'Card Kingdom',
     });
-    expect(tip).toContain("aren't on Scryfall");
+    expect(tip).toContain('TCGplayer');
+    expect(tip).toContain('Card Kingdom');
+    expect(tip).toMatch(/actual price.*may differ/i);
   });
 });
 
@@ -241,33 +275,42 @@ describe('isConverted', () => {
     expect(isConverted('eur', 'tcgplayer')).toBe(true);
   });
 
-  it('returns true for Card Kingdom (proxied) even on USD display', () => {
-    expect(isConverted('usd', 'cardkingdom')).toBe(true);
-  });
-
   it('returns false when vendor and currency line up exactly', () => {
     expect(isConverted('usd', 'tcgplayer')).toBe(false);
     expect(isConverted('eur', 'cardmarket')).toBe(false);
   });
 });
 
-describe('activeVendor', () => {
-  it('reads prefRetailer from settings', () => {
-    saveSettings({ ...SETTING_DEFAULTS, prefRetailer: 'cardmarket' });
+describe('activePriceSource', () => {
+  it('reads prefPriceSource from settings', () => {
+    saveSettings({ ...SETTING_DEFAULTS, prefPriceSource: 'cardmarket' });
+    expect(activePriceSource()).toBe('cardmarket');
+  });
+
+  it('falls back to tcgplayer when prefPriceSource is unknown', () => {
+    saveSettings({ ...SETTING_DEFAULTS, prefPriceSource: 'cardkingdom' });
+    expect(activePriceSource()).toBe('tcgplayer');
+  });
+
+  it('back-compat alias `activeVendor` matches `activePriceSource`', () => {
+    saveSettings({ ...SETTING_DEFAULTS, prefPriceSource: 'cardmarket' });
     expect(activeVendor()).toBe('cardmarket');
   });
 
-  it('falls back to tcgplayer when prefRetailer is unknown', () => {
-    saveSettings({ ...SETTING_DEFAULTS, prefRetailer: 'ebay' });
-    expect(activeVendor()).toBe('tcgplayer');
+  it('is independent of prefRetailer (buy-link vendor)', () => {
+    saveSettings({ ...SETTING_DEFAULTS, prefRetailer: 'cardkingdom', prefPriceSource: 'cardmarket' });
+    expect(activePriceSource()).toBe('cardmarket');
   });
 });
 
 describe('vendorLabel', () => {
-  it('returns a friendly label per vendor', () => {
+  it('returns a friendly label for every supported price source', () => {
     expect(vendorLabel('tcgplayer')).toContain('TCGplayer');
     expect(vendorLabel('cardmarket')).toContain('Cardmarket');
-    expect(vendorLabel('cardkingdom')).toContain('Card Kingdom');
+  });
+
+  it('returns an unknown placeholder for non-source vendors', () => {
+    expect(vendorLabel('cardkingdom')).toContain('Unknown');
   });
 });
 

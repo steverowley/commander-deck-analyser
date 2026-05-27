@@ -18,7 +18,7 @@
 import { assessBracket } from './analyzers.js';
 import { computeHealth } from './health.js';
 import { pipDistribution } from './landbase.js';
-import { deckTotalPrice } from './pricing.js';
+import { deckTotalPrice, activePriceSource } from './pricing.js';
 import { lc } from './utils.js';
 
 function curveOf(deck) {
@@ -62,8 +62,11 @@ export function compareDecks(a, b) {
   const union = namesA.size + namesB.size - shared.length;
   const overlapPct = union > 0 ? shared.length / union : 0;
 
-  const priceA = deckTotalPrice(a).total;
-  const priceB = deckTotalPrice(b).total;
+  // Capture the price source once so both decks are quoted from the
+  // same feed even if settings flip between the two reads.
+  const vendor = activePriceSource();
+  const priceA = deckTotalPrice(a, 'usd', null, vendor).total;
+  const priceB = deckTotalPrice(b, 'usd', null, vendor).total;
 
   return {
     a, b,
