@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.20.1
+
+- **Random-deck roller now respects "Only use cards from my Vault" for the commander itself.** The toggle previously only filtered the 99-card body — the commander was always rolled from the full Scryfall database. New `pickRandomCommanderFromCollection()` in `src/lib/scryfall.js` picks from the user's vault using the same "Legendary Creature" rule the Vault page applies (`vaultStats.js#isLegendaryCreature`), honouring color identity and the partner/background toggle. Empty-match path shows a Vault-specific error so users know to widen their colors or add a commander to their Vault.
+
 ## v0.20.0 — Decoupled price source + buy-link
 
 Card Kingdom doesn't publish per-card prices on Scryfall, but v0.18.0 still proxied CK numbers from TCGplayer Mid — which produced totals that disagreed with what users actually paid when they clicked through. Celestine, the Living Saint was the canary: app showed ~£21, CK's actual sell price was materially lower. The buy-link vendor and the price-source vendor are now two separate settings — pick CK as your cart destination, pick TCGplayer or Cardmarket as your price feed, no more pretend-CK numbers.
