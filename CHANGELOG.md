@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.21.0 — Light mode
+
+Vault now ships with a light theme. On first load the palette follows the OS preference (`prefers-color-scheme`); a small Sun / Moon / Monitor icon in the header lets the user cycle through **System → Light → Dark → System**, with the choice persisted to localStorage. "System" stays live — flipping the OS appearance updates Vault without a reload.
+
+### Light palette
+- Warm parchment background `#fdf9ec` with dark sepia ink `#2b1f12`, keeping Vault's bookish identity in daylight. Accent red darkened to `#a8392f` for AA contrast against the cream.
+- Dark mode is unchanged — the historical `#0d1614` / `#f3e7c9` / `#c44a3f` triple is the default and what existing users see if they leave the toggle on System with a dark OS.
+
+### CSS variable refactor
+- **`src/index.css`** — three base colors are now exposed as CSS custom properties at `:root` (`--bg`, `--ink`, `--accent`), each in both hex (for solid fills) and `r,g,b` form (for the ~165 `rgba(... , α)` literals scattered across the JSX). Light values cascade in via `[data-theme="light"]` (explicit) and `@media (prefers-color-scheme: light)` (when no override is set).
+- **`src/theme.js`** — `CREAM`, `CREAM_DIM`, `CREAM_FAINT`, `BG`, `ACCENT` are now `var(...)` / `rgba(var(...), α)` strings rather than hex literals. Every inline `style={{ color: CREAM, ... }}` in the app now reflows automatically when the theme flips.
+- Mechanical sweep of `rgba(243,231,201,α)` → `rgba(var(--ink-rgb),α)` and the matching bg / accent triples across every component file (including the new `prefPriceSource` row added in v0.20.0). Tests stay green.
+- `color-scheme: light|dark` is set alongside the variables so native form controls and scrollbars track the theme.
+
+### Toggle + persistence
+- **`src/lib/themeMode.js`** — owns the `vault:themeMode` localStorage key. Exports `getThemeMode()`, `setThemeMode(mode)`, `applyThemeMode(mode)`, `nextThemeMode(mode)`, `systemPrefersLight()`. Storage access wrapped in a `safeStorage()` guard.
+- **`src/components/ThemeToggle.jsx`** — small icon button in the landing header (mobile + desktop). Tooltip names the current state and the next state. While on "System" it listens to `matchMedia('(prefers-color-scheme: light)')` for live OS flips.
+- **`src/main.jsx`** applies the persisted choice before React mounts, so users who explicitly picked Light never see a dark flash on load.
+
 ## v0.20.1
 
 - **Random-deck roller now respects "Only use cards from my Vault" for the commander itself.** The toggle previously only filtered the 99-card body — the commander was always rolled from the full Scryfall database. New `pickRandomCommanderFromCollection()` in `src/lib/scryfall.js` picks from the user's vault using the same "Legendary Creature" rule the Vault page applies (`vaultStats.js#isLegendaryCreature`), honouring color identity and the partner/background toggle. Empty-match path shows a Vault-specific error so users know to widen their colors or add a commander to their Vault.

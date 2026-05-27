@@ -11,6 +11,7 @@ import { loadSettings } from '../lib/settings.js';
 import { aggregateStats } from '../lib/stats.js';
 import { ManaSymbol } from './ManaCost.jsx';
 import { VersionChip, SupporterBadge } from './UI.jsx';
+import { ThemeToggle } from './ThemeToggle.jsx';
 import { ImportDeckModal, RandomDeckModal } from './Modals.jsx';
 import { GalleryView } from './GalleryView.jsx';
 import { RandomRollsView } from './RandomRollsView.jsx';
@@ -105,7 +106,10 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
                 Deck · Builder
               </div>
             </button>
-            <VersionChip version={__APP_VERSION__} align="right" />
+            <div className="flex items-center gap-3 shrink-0">
+              <ThemeToggle compact />
+              <VersionChip version={__APP_VERSION__} align="right" />
+            </div>
           </div>
           <div
             className="border-t flex items-center justify-between px-5 py-3 text-[10px] tracking-[0.3em] uppercase font-serif"
@@ -206,6 +210,8 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
                 <span style={{ opacity: 0.4 }}>·</span>
               </>
             )}
+            <ThemeToggle compact />
+            <span style={{ opacity: 0.4 }}>·</span>
             <VersionChip version={__APP_VERSION__} align="right" />
           </div>
         </div>
@@ -238,7 +244,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
               Create →
             </button>
           </div>
-          <div className="border px-4 py-3" style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.03)' }}>
+          <div className="border px-4 py-3" style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.03)' }}>
             <input
               type="text"
               value={name}
@@ -271,7 +277,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
           <button
             onClick={() => setShowImport(true)}
             className="w-full border px-4 py-3 text-left flex items-center gap-3"
-            style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.03)' }}
+            style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.03)' }}
           >
             <Upload className="w-4 h-4" style={{ color: CREAM_DIM }} />
             <span className="font-mono text-sm" style={{ color: CREAM_DIM }}>
@@ -295,7 +301,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
           <button
             onClick={() => setShowRandom(true)}
             className="w-full border px-4 py-3 text-left flex items-center gap-3"
-            style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.03)' }}
+            style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.03)' }}
           >
             <Dices className="w-4 h-4" style={{ color: CREAM_DIM }} />
             <span className="font-mono text-sm" style={{ color: CREAM_DIM }}>
@@ -319,7 +325,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
           <button
             onClick={() => setShowScryfall(true)}
             className="w-full border px-4 py-3 text-left flex items-center gap-3"
-            style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.03)' }}
+            style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.03)' }}
           >
             <Search className="w-4 h-4" style={{ color: CREAM_DIM }} />
             <span className="font-mono text-sm" style={{ color: CREAM_DIM }}>
@@ -335,7 +341,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
       {!user && cloudEnabled && (
         <div
           className="mt-12 border p-8 md:p-10 text-center fade-up"
-          style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)', animationDelay: '180ms' }}
+          style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.02)', animationDelay: '180ms' }}
         >
           <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold mb-2" style={{ color: CREAM }}>
             Sign in to keep your archive
@@ -369,14 +375,14 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
         </div>
 
         {decks.length >= 3 && (
-          <div className="border mb-4 p-3 grid grid-cols-1 md:grid-cols-12 gap-3 items-center" style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}>
+          <div className="border mb-4 p-3 grid grid-cols-1 md:grid-cols-12 gap-3 items-center" style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.02)' }}>
             <div className="md:col-span-5">
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="search deck, commander, or card..."
                 className="w-full bg-transparent border px-3 py-2 focus:outline-none font-mono text-xs"
-                style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(243,231,201,0.02)' }}
+                style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(var(--ink-rgb),0.02)' }}
               />
             </div>
             <div className="md:col-span-4 flex items-center gap-1.5">
@@ -389,7 +395,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
                   style={{
                     borderColor: bracketFilter === b ? CREAM : CREAM_FAINT,
                     color: bracketFilter === b ? CREAM : CREAM_DIM,
-                    background: bracketFilter === b ? 'rgba(243,231,201,0.08)' : 'transparent',
+                    background: bracketFilter === b ? 'rgba(var(--ink-rgb),0.08)' : 'transparent',
                   }}
                 >
                   {b}
@@ -405,7 +411,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
                   className="w-5 h-5 border transition flex items-center justify-center"
                   style={{
                     borderColor: colorFilter === c ? CREAM : CREAM_FAINT,
-                    background: colorFilter === c ? 'rgba(243,231,201,0.08)' : 'transparent',
+                    background: colorFilter === c ? 'rgba(var(--ink-rgb),0.08)' : 'transparent',
                   }}
                   title={c}
                 >
@@ -464,7 +470,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
                 key={d.id}
                 className="group border-r border-b p-6 cursor-pointer transition fade-up flex items-start gap-5"
                 style={{ borderColor: CREAM_FAINT, animationDelay: `${300 + idx * 40}ms` }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.04)')}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(var(--ink-rgb),0.04)')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 onClick={() => onSelect(d.id)}
               >
@@ -876,7 +882,7 @@ function ArchiveDashboard({ decks, collection }) {
                       {item.name}
                     </span>
                   </div>
-                  <div className="col-span-6 h-2" style={{ background: 'rgba(243,231,201,0.08)' }}>
+                  <div className="col-span-6 h-2" style={{ background: 'rgba(var(--ink-rgb),0.08)' }}>
                     <div className="h-full" style={{ background: CREAM, opacity: 0.7, width: `${pct}%` }} />
                   </div>
                   <div className="col-span-2 text-right font-mono text-[10px]" style={{ color: CREAM }}>
@@ -1030,9 +1036,9 @@ function EmptyArchive({ onCreate, onImport }) {
             key={ex.name}
             onClick={() => onCreate(ex.name)}
             className="border p-4 text-left transition"
-            style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.06)')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.02)')}
+            style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.02)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(var(--ink-rgb),0.06)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(var(--ink-rgb),0.02)')}
           >
             <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
               Start with
@@ -1159,7 +1165,7 @@ function VaultSection({ collection, onOpen, onSearch, onAddCard, onChanged }) {
         className="border p-5 transition-all"
         style={{
           borderColor: dragOver ? CREAM : CREAM_FAINT,
-          background: dragOver ? 'rgba(243,231,201,0.08)' : 'rgba(243,231,201,0.02)',
+          background: dragOver ? 'rgba(var(--ink-rgb),0.08)' : 'rgba(var(--ink-rgb),0.02)',
           borderStyle: dragOver ? 'dashed' : 'solid',
         }}
         onDragOver={handleDragOver}
@@ -1188,7 +1194,7 @@ function VaultSection({ collection, onOpen, onSearch, onAddCard, onChanged }) {
             <button
               onClick={onOpen}
               className="font-serif text-[10px] tracking-[0.3em] uppercase border px-4 py-2"
-              style={{ borderColor: CREAM, color: CREAM, background: 'rgba(243,231,201,0.06)' }}
+              style={{ borderColor: CREAM, color: CREAM, background: 'rgba(var(--ink-rgb),0.06)' }}
             >
               Open Vault →
             </button>

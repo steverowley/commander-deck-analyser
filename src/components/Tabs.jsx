@@ -32,7 +32,7 @@ function WishlistPanel({ deck, onPromote, onRemove }) {
   if (wishlist.length === 0) return null;
 
   return (
-    <div className="my-3 border" style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}>
+    <div className="my-3 border" style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.02)' }}>
       <button
         onClick={() => setOpen(!open)}
         className="w-full px-4 py-2.5 flex items-center justify-between"
@@ -205,7 +205,7 @@ function LegalityBanner({ legality }) {
       className="my-3 border px-4 py-3"
       style={{
         borderColor: hasErrors ? ACCENT : CREAM_FAINT,
-        background: hasErrors ? 'rgba(196,74,63,0.06)' : 'rgba(243,231,201,0.025)',
+        background: hasErrors ? 'rgba(var(--accent-rgb),0.06)' : 'rgba(var(--ink-rgb),0.025)',
       }}
     >
       <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-2" style={{ color: hasErrors ? ACCENT : CREAM_DIM }}>
@@ -261,7 +261,7 @@ function HealthPanel({ health }) {
               <div className="col-span-3 font-serif text-[11px] tracking-[0.2em] uppercase" style={{ color: CREAM_DIM }}>
                 {comp.label}
               </div>
-              <div className="col-span-7 h-2" style={{ background: 'rgba(243,231,201,0.08)' }}>
+              <div className="col-span-7 h-2" style={{ background: 'rgba(var(--ink-rgb),0.08)' }}>
                 <div
                   className="h-full"
                   style={{
@@ -399,9 +399,9 @@ export function CardsTab({ deck, onUpdate }) {
         <button
           onClick={() => setShowScryfall(true)}
           className="border flex items-center justify-center gap-2 font-serif text-[11px] tracking-[0.3em] uppercase py-3 transition"
-          style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(243,231,201,0.02)' }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.06)')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.02)')}
+          style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(var(--ink-rgb),0.02)' }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(var(--ink-rgb),0.06)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(var(--ink-rgb),0.02)')}
           title="Open Scryfall search — drag results onto the deck to add them"
         >
           <Search className="w-3 h-3" /> Scryfall
@@ -409,9 +409,9 @@ export function CardsTab({ deck, onUpdate }) {
         <button
           onClick={() => setShowBulk(true)}
           className="border flex items-center justify-center gap-2 font-serif text-[11px] tracking-[0.3em] uppercase py-3 transition"
-          style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(243,231,201,0.02)' }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.06)')}
-          onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.02)')}
+          style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(var(--ink-rgb),0.02)' }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(var(--ink-rgb),0.06)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(var(--ink-rgb),0.02)')}
         >
           <Upload className="w-3 h-3" /> Bulk Import
         </button>
@@ -434,7 +434,7 @@ export function CardsTab({ deck, onUpdate }) {
             style={{
               borderColor: deck.strictIdentity ? CREAM : CREAM_FAINT,
               color: deck.strictIdentity ? CREAM : CREAM_DIM,
-              background: deck.strictIdentity ? 'rgba(243,231,201,0.06)' : 'transparent',
+              background: deck.strictIdentity ? 'rgba(var(--ink-rgb),0.06)' : 'transparent',
             }}
             title={deck.strictIdentity
               ? 'Strict mode: blocks off-color, banned, and duplicate adds. Click to disable.'
@@ -449,7 +449,7 @@ export function CardsTab({ deck, onUpdate }) {
       <LegalityBanner legality={legality} />
 
       {recentlyRejected.length > 0 && (
-        <div className="my-3 border px-4 py-3" style={{ borderColor: ACCENT, background: 'rgba(196,74,63,0.06)' }}>
+        <div className="my-3 border px-4 py-3" style={{ borderColor: ACCENT, background: 'rgba(var(--accent-rgb),0.06)' }}>
           <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-2" style={{ color: ACCENT }}>
             Blocked by strict mode · {recentlyRejected.length} card{recentlyRejected.length === 1 ? '' : 's'}
           </div>
@@ -476,7 +476,7 @@ export function CardsTab({ deck, onUpdate }) {
           onChange={(e) => setFilter(e.target.value)}
           placeholder="filter name or tag..."
           className="col-span-2 border px-3 py-2 bg-transparent focus:outline-none font-mono text-xs"
-          style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(243,231,201,0.02)' }}
+          style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(var(--ink-rgb),0.02)' }}
         />
         <select
           value={sortBy}
@@ -604,7 +604,7 @@ export function PackagesTab({ deck }) {
               <div
                 key={card.name}
                 className="border-r border-b p-3 flex items-start gap-3"
-                style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.025)' }}
+                style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.025)' }}
               >
                 <CardThumb card={card.scryfall} />
                 <div className="flex-1 min-w-0">
@@ -632,7 +632,7 @@ export function PackagesTab({ deck }) {
       {focusTag && (
         <div
           className="flex items-center justify-between border px-4 py-3"
-          style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.04)' }}
+          style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.04)' }}
         >
           <div className="flex items-center gap-3">
             <span className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
@@ -696,7 +696,7 @@ function PackageBlock({ tag, cards, focused, onFocus }) {
         className="w-full px-4 py-2.5 border-b flex items-center justify-between transition"
         style={{
           borderColor: CREAM_FAINT,
-          background: expanded ? 'rgba(243,231,201,0.04)' : 'rgba(243,231,201,0.015)',
+          background: expanded ? 'rgba(var(--ink-rgb),0.04)' : 'rgba(var(--ink-rgb),0.015)',
         }}
       >
         <div className="flex items-center gap-3">
@@ -998,7 +998,7 @@ function LandBaseSection({ deck }) {
                   <div className="col-span-3 font-serif text-sm" style={{ color: CREAM }}>
                     {name}
                   </div>
-                  <div className="col-span-6 h-2" style={{ background: 'rgba(243,231,201,0.08)' }}>
+                  <div className="col-span-6 h-2" style={{ background: 'rgba(var(--ink-rgb),0.08)' }}>
                     <div className="h-full" style={{ background: rec === 0 ? 'transparent' : CREAM, opacity: 0.85, width: `${(rec / 20) * 100}%` }}></div>
                   </div>
                   <div className="col-span-2 text-right font-mono text-xs" style={{ color: CREAM }}>
@@ -1313,9 +1313,9 @@ function GoldfishSection({ deck }) {
             onClick={runOpeners}
             disabled={running}
             className="border p-5 text-left transition disabled:opacity-50"
-            style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.05)')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.02)')}
+            style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.02)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(var(--ink-rgb),0.05)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(var(--ink-rgb),0.02)')}
           >
             <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
               {running ? 'Sampling...' : 'Sample 1,000 hands →'}
@@ -1327,9 +1327,9 @@ function GoldfishSection({ deck }) {
           <button
             onClick={runPlayout}
             className="border p-5 text-left transition"
-            style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.05)')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.02)')}
+            style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.02)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(var(--ink-rgb),0.05)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(var(--ink-rgb),0.02)')}
           >
             <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
               Play a sample game →
@@ -1378,7 +1378,7 @@ function MulliganTreeResult({ tree }) {
             </div>
           ))}
         </div>
-        <div className="border p-4" style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}>
+        <div className="border p-4" style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.02)' }}>
           <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-2" style={{ color: CREAM_DIM }}>
             Expected mulligan depth
           </div>
@@ -1388,7 +1388,7 @@ function MulliganTreeResult({ tree }) {
                 <div className="col-span-2 font-serif text-xs" style={{ color: CREAM }}>
                   {s === 7 ? 'No mull' : `Mull to ${s}`}
                 </div>
-                <div className="col-span-8 h-2" style={{ background: 'rgba(243,231,201,0.08)' }}>
+                <div className="col-span-8 h-2" style={{ background: 'rgba(var(--ink-rgb),0.08)' }}>
                   <div className="h-full" style={{ background: tree.stop[s] === 0 ? 'transparent' : CREAM, opacity: 0.85, width: `${tree.stop[s] * 100}%` }}></div>
                 </div>
                 <div className="col-span-2 text-right font-mono text-xs" style={{ color: CREAM }}>
@@ -1401,7 +1401,7 @@ function MulliganTreeResult({ tree }) {
                 <div className="col-span-2 font-serif text-xs" style={{ color: CREAM_DIM }}>
                   Mull 4 or fewer
                 </div>
-                <div className="col-span-8 h-2" style={{ background: 'rgba(243,231,201,0.08)' }}>
+                <div className="col-span-8 h-2" style={{ background: 'rgba(var(--ink-rgb),0.08)' }}>
                   <div className="h-full" style={{ background: tree.stop.further === 0 ? 'transparent' : ACCENT, opacity: 0.85, width: `${tree.stop.further * 100}%` }}></div>
                 </div>
                 <div className="col-span-2 text-right font-mono text-xs" style={{ color: ACCENT }}>
@@ -1702,7 +1702,7 @@ export function ProbabilitiesTab({ deck }) {
                 className="flex items-center justify-between border-r border-b px-3 py-2 cursor-pointer transition"
                 style={{ borderColor: CREAM_FAINT }}
                 onClick={() => setSelectedTag(t)}
-                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.04)')}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(var(--ink-rgb),0.04)')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
               >
                 <TagPill tag={t} />
@@ -1849,7 +1849,7 @@ export function RecommendationsTab({ deck, onUpdate }) {
               className="px-4 py-2 font-serif text-[10px] tracking-[0.25em] uppercase transition whitespace-nowrap"
               style={{
                 color: view === v.id ? CREAM : CREAM_DIM,
-                background: view === v.id ? 'rgba(243,231,201,0.06)' : 'transparent',
+                background: view === v.id ? 'rgba(var(--ink-rgb),0.06)' : 'transparent',
                 borderLeft: i > 0 ? `1px solid ${CREAM_FAINT}` : 'none',
               }}
             >
@@ -1860,7 +1860,7 @@ export function RecommendationsTab({ deck, onUpdate }) {
       </div>
 
       {recs && deck.cards.length < 50 && (
-        <div className="border p-4 flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-5" style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.025)' }}>
+        <div className="border p-4 flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-5" style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.025)' }}>
           <div className="flex-1">
             <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-1" style={{ color: CREAM_DIM }}>
               Quick start
@@ -1892,7 +1892,7 @@ export function RecommendationsTab({ deck, onUpdate }) {
       )}
 
       {error && !loading && (
-        <div className="border p-6" style={{ borderColor: ACCENT, background: 'rgba(196,74,63,0.06)' }}>
+        <div className="border p-6" style={{ borderColor: ACCENT, background: 'rgba(var(--accent-rgb),0.06)' }}>
           <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-1" style={{ color: ACCENT }}>
             Unavailable
           </div>
@@ -1926,7 +1926,7 @@ export function RecommendationsTab({ deck, onUpdate }) {
             <div key={theme.header} className="border" style={{ borderColor: theme.relevant ? CREAM : CREAM_FAINT }}>
               <div
                 className="px-4 py-2 border-b flex items-center justify-between"
-                style={{ borderColor: theme.relevant ? CREAM : CREAM_FAINT, background: theme.relevant ? 'rgba(243,231,201,0.06)' : 'rgba(243,231,201,0.02)' }}
+                style={{ borderColor: theme.relevant ? CREAM : CREAM_FAINT, background: theme.relevant ? 'rgba(var(--ink-rgb),0.06)' : 'rgba(var(--ink-rgb),0.02)' }}
               >
                 <div className="flex items-center gap-3">
                   <div className="font-serif text-sm tracking-[0.2em] uppercase font-bold" style={{ color: CREAM }}>
@@ -1965,7 +1965,7 @@ export function RecommendationsTab({ deck, onUpdate }) {
           </div>
         ) : (
           <div className="border-t border-l" style={{ borderColor: CREAM_FAINT }}>
-            <div className="border-r border-b px-4 py-2 font-serif text-[10px] tracking-[0.3em] uppercase" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM, background: 'rgba(243,231,201,0.025)' }}>
+            <div className="border-r border-b px-4 py-2 font-serif text-[10px] tracking-[0.3em] uppercase" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM, background: 'rgba(var(--ink-rgb),0.025)' }}>
               {cuts.length} possible cut{cuts.length === 1 ? '' : 's'} — weakest first
             </div>
             {cuts.map((cut) => (
@@ -2061,7 +2061,7 @@ function CutRow({ cut, replacements, busy, onRemove, onReplace }) {
         </button>
       </div>
       {showPicker && swapCandidates.length > 0 && (
-        <div className="border-t px-3 py-2 space-y-1" style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.025)' }}>
+        <div className="border-t px-3 py-2 space-y-1" style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.025)' }}>
           <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
             Replace with — top EDHREC picks
           </div>
@@ -2074,9 +2074,9 @@ function CutRow({ cut, replacements, busy, onRemove, onReplace }) {
               }}
               disabled={!!busy[rec.name]}
               className="w-full flex items-center justify-between gap-3 px-2 py-1.5 border transition disabled:opacity-40"
-              style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.06)')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(243,231,201,0.02)')}
+              style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.02)' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(var(--ink-rgb),0.06)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(var(--ink-rgb),0.02)')}
             >
               <span className="font-serif font-bold uppercase tracking-tight truncate text-left" style={{ color: CREAM, fontSize: '0.85rem' }}>
                 {rec.name}

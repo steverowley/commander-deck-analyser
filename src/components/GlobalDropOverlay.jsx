@@ -185,7 +185,7 @@ export function GlobalDropOverlay({ onAddToVault, onAddToDeck, activeDeckName, o
   return (
     <div
       className="fixed inset-0 z-[60] flex flex-col items-stretch pointer-events-none"
-      style={{ background: 'rgba(13,22,20,0.55)', backdropFilter: 'blur(4px)' }}
+      style={{ background: 'rgba(var(--bg-rgb),0.55)', backdropFilter: 'blur(4px)' }}
     >
       <div className="flex-1 flex items-stretch">
         <Zone
@@ -213,18 +213,18 @@ export function GlobalDropOverlay({ onAddToVault, onAddToDeck, activeDeckName, o
       </div>
       {resolving && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="px-4 py-3 border font-mono text-xs flex items-center gap-2" style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(13,22,20,0.92)' }}>
+          <div className="px-4 py-3 border font-mono text-xs flex items-center gap-2" style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(var(--bg-rgb),0.92)' }}>
             <Loader2 className="w-3.5 h-3.5 animate-spin" /> Working...
           </div>
         </div>
       )}
       {error && (
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 px-4 py-3 border font-mono text-xs max-w-lg text-center pointer-events-none" style={{ borderColor: 'rgb(196,74,63)', color: CREAM, background: 'rgba(13,22,20,0.94)' }}>
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 px-4 py-3 border font-mono text-xs max-w-lg text-center pointer-events-none" style={{ borderColor: 'rgb(196,74,63)', color: CREAM, background: 'rgba(var(--bg-rgb),0.94)' }}>
           {error}
         </div>
       )}
       {notice && (
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 px-4 py-3 border font-mono text-xs pointer-events-none" style={{ borderColor: '#a3c98a', color: CREAM, background: 'rgba(13,22,20,0.94)' }}>
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 px-4 py-3 border font-mono text-xs pointer-events-none" style={{ borderColor: '#a3c98a', color: CREAM, background: 'rgba(var(--bg-rgb),0.94)' }}>
           {notice}
         </div>
       )}
@@ -238,7 +238,7 @@ function Zone({ title, sub, icon: Icon, onDragOver, onDrop }) {
       onDragOver={onDragOver}
       onDrop={onDrop}
       className="flex-1 m-6 border-2 border-dashed flex flex-col items-center justify-center gap-3 transition pointer-events-auto"
-      style={{ borderColor: CREAM, color: CREAM, background: 'rgba(243,231,201,0.06)' }}
+      style={{ borderColor: CREAM, color: CREAM, background: 'rgba(var(--ink-rgb),0.06)' }}
     >
       <Icon className="w-8 h-8" />
       <div className="font-serif text-base tracking-[0.3em] uppercase font-bold text-center px-4">

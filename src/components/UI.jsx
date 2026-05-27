@@ -261,7 +261,7 @@ export function CardPreview({ card, onClose, onChangeArt }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(13,22,20,0.92)', backdropFilter: 'blur(6px)' }}
+      style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
       onClick={onClose}
     >
       <div
@@ -335,7 +335,7 @@ export function TagPill({ tag, onRemove }) {
       style={{
         borderColor: accent ? ACCENT : CREAM_FAINT,
         color: accent ? ACCENT : CREAM_DIM,
-        background: accent ? 'rgba(196,74,63,0.05)' : 'transparent',
+        background: accent ? 'rgba(var(--accent-rgb),0.05)' : 'transparent',
       }}
     >
       {tag}
@@ -396,7 +396,7 @@ export function FlagBox({ title, items, desc }) {
   return (
     <div
       className="border-r border-b p-5"
-      style={{ borderColor: CREAM_FAINT, background: active ? 'rgba(196,74,63,0.04)' : 'transparent' }}
+      style={{ borderColor: CREAM_FAINT, background: active ? 'rgba(var(--accent-rgb),0.04)' : 'transparent' }}
     >
       <div className="flex items-baseline justify-between mb-2">
         <div
@@ -492,7 +492,7 @@ export function CardRow({ entry, idx, onChangeCount, onRemove, onEditTags, onDem
       style={{ borderColor: CREAM_FAINT }}
       onMouseEnter={(e) => {
         handleMouseEnter(e);
-        e.currentTarget.style.background = 'rgba(243,231,201,0.025)';
+        e.currentTarget.style.background = 'rgba(var(--ink-rgb),0.025)';
       }}
       onMouseMove={handleMouseMove}
       onMouseLeave={(e) => {
@@ -741,7 +741,7 @@ export function CardSearchBar({ onAdd, target = 'deck', onTargetChange }) {
     <div className="relative">
       <div
         className="flex gap-3 items-center border px-4 py-2.5"
-        style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}
+        style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.02)' }}
       >
         <Search className="w-3.5 h-3.5" style={{ color: CREAM_DIM }} />
         <input
@@ -761,7 +761,7 @@ export function CardSearchBar({ onAdd, target = 'deck', onTargetChange }) {
                 className="font-mono text-[9px] px-2 py-0.5 uppercase tracking-wider"
                 style={{
                   color: target === t ? CREAM : CREAM_DIM,
-                  background: target === t ? 'rgba(243,231,201,0.08)' : 'transparent',
+                  background: target === t ? 'rgba(var(--ink-rgb),0.08)' : 'transparent',
                 }}
                 title={t === 'deck' ? 'Add to deck' : 'Add to wishlist'}
               >
@@ -786,7 +786,7 @@ export function CardSearchBar({ onAdd, target = 'deck', onTargetChange }) {
               style={{
                 borderColor: CREAM_FAINT,
                 color: CREAM,
-                background: i === highlight ? 'rgba(243,231,201,0.08)' : 'transparent',
+                background: i === highlight ? 'rgba(var(--ink-rgb),0.08)' : 'transparent',
               }}
             >
               {s}

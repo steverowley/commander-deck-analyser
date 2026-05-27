@@ -34,7 +34,7 @@ export class ErrorBoundary extends React.Component {
   render() {
     if (this.state.error) {
       return (
-        <div className="border p-6" style={{ borderColor: ACCENT, background: 'rgba(196,74,63,0.06)' }}>
+        <div className="border p-6" style={{ borderColor: ACCENT, background: 'rgba(var(--accent-rgb),0.06)' }}>
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" style={{ color: ACCENT }} />
             <div className="flex-1 min-w-0">

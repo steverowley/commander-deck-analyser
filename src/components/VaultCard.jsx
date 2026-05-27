@@ -101,7 +101,7 @@ export function VaultCard({ entry, card, onChanged, size = 'md', showArtFoil = t
       ) : (
         <div
           className="w-full aspect-[5/7] flex items-center justify-center font-mono text-[10px] px-2 text-center"
-          style={{ color: CREAM_DIM, borderRadius: '4.75% / 3.5%', background: 'rgba(243,231,201,0.04)' }}
+          style={{ color: CREAM_DIM, borderRadius: '4.75% / 3.5%', background: 'rgba(var(--ink-rgb),0.04)' }}
         >
           {entry.name.slice(0, 18)}
         </div>

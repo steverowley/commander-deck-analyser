@@ -273,7 +273,7 @@ export function CardScanner({ onClose, onAdded }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(13,22,20,0.94)', backdropFilter: 'blur(6px)' }}
+      style={{ background: 'rgba(var(--bg-rgb),0.94)', backdropFilter: 'blur(6px)' }}
       onClick={onClose}
     >
       <div
@@ -313,7 +313,7 @@ export function CardScanner({ onClose, onAdded }) {
               <div
                 className="border-2 relative"
                 style={{
-                  borderColor: 'rgba(243,231,201,0.65)',
+                  borderColor: 'rgba(var(--ink-rgb),0.65)',
                   aspectRatio: '5 / 7',
                   height: '85%',
                   borderRadius: '12px',
@@ -323,7 +323,7 @@ export function CardScanner({ onClose, onAdded }) {
                 <div
                   className="absolute left-2 right-2 top-2 border border-dashed"
                   style={{
-                    borderColor: 'rgba(243,231,201,0.55)',
+                    borderColor: 'rgba(var(--ink-rgb),0.55)',
                     height: '12%',
                     borderRadius: '4px',
                   }}
@@ -365,7 +365,7 @@ export function CardScanner({ onClose, onAdded }) {
           {error && (
             <div
               className="px-4 py-3 border flex items-start gap-2"
-              style={{ borderColor: ACCENT, background: 'rgba(196,74,63,0.06)' }}
+              style={{ borderColor: ACCENT, background: 'rgba(var(--accent-rgb),0.06)' }}
             >
               <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: ACCENT }} />
               <div className="font-mono text-xs" style={{ color: CREAM }}>{error}</div>
@@ -373,7 +373,7 @@ export function CardScanner({ onClose, onAdded }) {
           )}
 
           {candidate && (
-            <div className="border p-4 flex gap-4" style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}>
+            <div className="border p-4 flex gap-4" style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.02)' }}>
               <img
                 src={cardImageUrl(candidate, 'normal')}
                 alt={candidate.name}
@@ -400,7 +400,7 @@ export function CardScanner({ onClose, onAdded }) {
                   <button
                     onClick={confirmAdd}
                     className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-1.5 flex items-center gap-1.5"
-                    style={{ borderColor: CREAM, color: CREAM, background: 'rgba(243,231,201,0.08)' }}
+                    style={{ borderColor: CREAM, color: CREAM, background: 'rgba(var(--ink-rgb),0.08)' }}
                   >
                     <Check className="w-3 h-3" /> Add to collection
                   </button>
@@ -464,7 +464,7 @@ export function CardScanner({ onClose, onAdded }) {
             onClick={() => capture()}
             disabled={status !== 'ready'}
             className="font-serif text-[10px] tracking-[0.3em] uppercase border px-5 py-2 disabled:opacity-30 flex items-center gap-1.5"
-            style={{ borderColor: CREAM, color: CREAM, background: 'rgba(243,231,201,0.06)' }}
+            style={{ borderColor: CREAM, color: CREAM, background: 'rgba(var(--ink-rgb),0.06)' }}
             title={autoScan ? 'Force an immediate scan — auto-scan also fires every 1.5s' : 'Capture the current frame'}
           >
             <Camera className="w-3 h-3" /> Scan now

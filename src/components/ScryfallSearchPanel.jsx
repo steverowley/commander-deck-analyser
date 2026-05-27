@@ -74,7 +74,7 @@ export function ScryfallSearchPanel({ open, onClose, onAdd, addLabel = 'Add' }) 
       </div>
 
       <div className="p-3 border-b" style={{ borderColor: CREAM_FAINT }}>
-        <div className="flex gap-2 items-center border px-3 py-2" style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}>
+        <div className="flex gap-2 items-center border px-3 py-2" style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.02)' }}>
           <Search className="w-3.5 h-3.5" style={{ color: CREAM_DIM }} />
           <input
             value={q}
@@ -134,7 +134,7 @@ function ResultCard({ name, card, onClick, addLabel }) {
       draggable={draggable}
       onDragStart={handleDragStart}
       className="border flex flex-col items-stretch text-left transition cursor-grab active:cursor-grabbing"
-      style={{ borderColor: CREAM_FAINT, background: 'rgba(243,231,201,0.02)' }}
+      style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.02)' }}
       title={`${addLabel}: ${name}`}
     >
       {card ? (
