@@ -1068,6 +1068,7 @@ function VaultSection({ collection, onOpen, onSearch, onAddCard, onChanged }) {
                       entry={e}
                       card={card}
                       onChanged={onChanged}
+                      showArtFoil={false}
                     />
                   );
                 })}

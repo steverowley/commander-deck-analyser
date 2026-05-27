@@ -11,6 +11,7 @@ The Vault graduates from a modal to a first-class page, sitting beside Decks. Sa
 - **Buildable commanders.** Every legendary creature in your Vault, sorted by colour-identity size so the deepest builds appear first. The deck roller's "Vault-only" toggle picks from these.
 - **Cards on the shelf.** Surface unique cards in the Vault that aren't in any saved deck (excluding basics) — and how much that unplayed value totals to. One-click "Show me →" filters the inventory grid to just those.
 - **Inventory filters.** Filter by type (creature / instant / sorcery / artifact / enchantment / planeswalker / land), colour (W/U/B/R/G + multicolour + colourless), or "unused only". Sort by recent / name / value / quantity. Grid and list views.
+- **Cleaner homepage strip.** The Art / Foil overlay buttons are hidden on the landing-page Vault thumbnails — picking printings and cycling foils belongs on the full Vault page. Remove (×) still available on hover for quick deletes.
 
 ### Internals
 - New `src/lib/vaultStats.js` — pure, tested. 8 unit tests cover empty collections, foil tracking, deck coverage, unused exclusions, buildable-commander filtering, the lands-out-of-CMC rule, and the multicolor/colourless bucketing.
