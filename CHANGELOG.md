@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.10.1 — Homepage QA polish
+
+- **Removed leftover `3.` prefix** on the homepage Archive section header. It was a holdover from an older numbered-section layout — the four action tiles still go 1→4, but the Archive section (like Vault, Latest Rolls, Public Gallery) is no longer in that sequence.
+- **Tightened drag-from-Scryfall copy** on the homepage Vault strip and the Vault page empty state, matching the wording used elsewhere ("Scryfall" instead of "scryfall.com tab" / "scryfall.com").
+
 ## v0.10.0 — Vault is now its own page (with stats)
 
 The Vault graduates from a modal to a first-class page, sitting beside Decks. Same add / paste / scan / search affordances, plus a dashboard built for actually looking at a 1000-card inventory.
