@@ -72,6 +72,7 @@ export function computeVaultStats(collection, cardData, decks = [], currency = '
     foilCount: 0,
     foilUnique: 0,
     knownCount: 0,
+    pricedCount: 0,
     totalValue: 0,
     foilValue: 0,
     avgValue: 0,
@@ -147,12 +148,14 @@ export function computeVaultStats(collection, cardData, decks = [], currency = '
 
     const price = cardPrice(card, currency);
     if (price != null) {
-      const value = price * (entry.quantity || 0);
+      const qty = entry.quantity || 0;
+      const value = price * qty;
       out.totalValue += value;
+      out.pricedCount += qty;
       if (entry.meta?.foil) out.foilValue += value;
       valued.push({
         name: entry.name,
-        quantity: entry.quantity || 0,
+        quantity: qty,
         unitValue: price,
         value,
         image: card.image_uris?.normal || card.image_uris?.small,
@@ -162,7 +165,11 @@ export function computeVaultStats(collection, cardData, decks = [], currency = '
     }
   }
 
-  out.avgValue = out.knownCount > 0 ? out.totalValue / out.total : 0;
+  // Denominator must be the number of copies that contributed to
+  // totalValue, not every copy in the vault — otherwise avgValue is
+  // deflated by unresolved-Scryfall or no-price entries (a half-
+  // resolved CSV import would report half the real average).
+  out.avgValue = out.pricedCount > 0 ? out.totalValue / out.pricedCount : 0;
   out.typeHistogram.sort((a, b) => b.count - a.count);
   out.identityHistogram = Array.from(identityCounts.values()).sort((a, b) => b.count - a.count);
   out.topSets = Array.from(setCounts.values()).sort((a, b) => b.count - a.count).slice(0, 12);

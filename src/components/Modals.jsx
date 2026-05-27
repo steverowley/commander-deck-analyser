@@ -1661,11 +1661,21 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
       };
       // Snapshot the roll into random_rolls — survives the user
       // later deleting the deck from their archive. Best-effort;
-      // a failure here doesn't block creating the deck itself.
+      // a failure here doesn't block creating the deck itself, but
+      // we surface it to the user so they know the gallery copy
+      // isn't there (was previously console-only).
       if (willShare) {
-        saveRandomRoll({ commander, cards, seedMeta }).catch((e) => {
+        try {
+          const { ok } = await saveRandomRoll({ commander, cards, seedMeta });
+          if (!ok) {
+            setError("Deck built, but couldn't publish to the public Random Rolls gallery. It's saved locally — try rolling again later.");
+            setTimeout(() => setError(null), 10000);
+          }
+        } catch (e) {
           console.warn('Vault: random-roll snapshot failed', e);
-        });
+          setError("Deck built, but couldn't publish to the public Random Rolls gallery. It's saved locally — try rolling again later.");
+          setTimeout(() => setError(null), 10000);
+        }
       }
       onBuild({
         name: commander.name,

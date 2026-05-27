@@ -22,7 +22,6 @@ import { VaultCard } from './VaultCard.jsx';
 import { ManaSymbol } from './ManaCost.jsx';
 import {
   loadCollection,
-  addToCollection,
   setCardQuantity,
   bulkAddToCollection,
   bulkImportVault,
@@ -138,7 +137,9 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
   const hasFilter = !!(filter.trim() || typeFilter || colorFilter || showOnlyUnused);
 
   const handleAddFromSearch = async (cards) => {
-    for (const c of cards) await addToCollection(c.name, 1);
+    // bulkAddToCollection batches: one read + one upsert covering all
+    // cards, instead of an addToCollection round-trip per card.
+    await bulkAddToCollection(cards.map((c) => ({ name: c.name, quantity: 1 })));
     await refresh();
   };
 

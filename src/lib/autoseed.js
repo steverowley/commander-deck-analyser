@@ -66,6 +66,13 @@ function categorize(card) {
   return 'other';
 }
 
+// Recognises plain and Snow-Covered basics. Used by the budget swap
+// and safety-trim loops to (a) skip basics as swap candidates and
+// (b) decrement summary.basics when a basic is removed.
+function isBasicLandName(name) {
+  return /^(Snow-Covered )?(Plains|Island|Swamp|Mountain|Forest)$|^Wastes$/.test(name || '');
+}
+
 function avgCmcOf(cards) {
   const nonLand = cards.filter((c) => !isLand(c));
   if (nonLand.length === 0) return 3.0;
@@ -250,7 +257,11 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
   while (totalSlots(entries) < DECK_TOTAL && overflow.length > 0) {
     const card = overflow.shift();
     entries.push(entryFor(card));
-    summary.other++;
+    // Bump the bucket the card actually belongs to, not always
+    // `other` — a ramp piece pulled from overflow is still ramp.
+    const cat = categorize(card);
+    if (cat !== 'land' && summary[cat] !== undefined) summary[cat]++;
+    else summary.other++;
   }
 
   // Pad lands with basics if EDHREC didn't deliver enough lands.
@@ -303,7 +314,6 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
   // built deck and swap out the most-expensive non-basic non-owned
   // cards for basic lands until the total fits the budget.
   if (Number.isFinite(opts.budget) && opts.budget > 0) {
-    const isBasicName = (n) => /^(Plains|Island|Swamp|Mountain|Forest|Wastes)$/.test(n);
     const computeTotal = () => entries.reduce((s, e) => {
       const p = cardPrice(e.scryfall, currency) || 0;
       return s + p * e.count;
@@ -322,7 +332,7 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
       let worstPrice = 0;
       for (let i = 0; i < entries.length; i++) {
         const e = entries[i];
-        if (isBasicName(e.name)) continue;
+        if (isBasicLandName(e.name)) continue;
         if (collection && collection[lc(e.name)]) continue;
         const p = cardPrice(e.scryfall, currency) || 0;
         if (p > worstPrice) {
@@ -363,13 +373,13 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
     const last = entries[entries.length - 1];
     if (last.count > 1) {
       last.count--;
-      if (last.scryfall && categorize(last.scryfall) === 'land' && /^(Plains|Island|Swamp|Mountain|Forest|Wastes)$/.test(last.name)) {
+      if (last.scryfall && categorize(last.scryfall) === 'land' && isBasicLandName(last.name)) {
         summary.basics--;
       }
     } else {
       const removed = entries.pop();
       const cat = categorize(removed.scryfall);
-      if (cat === 'land' && /^(Plains|Island|Swamp|Mountain|Forest|Wastes)$/.test(removed.name)) summary.basics--;
+      if (cat === 'land' && isBasicLandName(removed.name)) summary.basics--;
       else if (summary[cat] !== undefined) summary[cat]--;
     }
   }

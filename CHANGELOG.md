@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.11.3 — Code-review fixes
+
+A round of correctness and efficiency cleanups surfaced by a deep code review. No new features.
+
+- **Drag-to-Vault now reports its own failures.** A drop that failed on the Supabase side (RLS reject, transient 5xx, expired session) used to silently look like success — the homepage strip refreshed but the card never landed. The drop overlay now throws on a null write so the error toast actually fires.
+- **Random-roll publish errors are visible.** The "share to gallery" snapshot was fire-and-forget; if it failed (offline, schema drift) the deck still opened in the editor and the user had no idea the gallery copy hadn't been written. Now the modal shows a "saved locally — couldn't publish" banner.
+- **`avgValue` on the Vault page used the wrong denominator** — divided priced cards by all owned copies (including unresolved-Scryfall entries), so a half-loaded vault read as half its real per-card average. Now uses the priced-copy count.
+- **Random-deck summary misclassified overflow cards.** Ramp/draw/removal pieces that spilled into the post-priority overflow fill all reported as `other` strategy — the modal's `ramp X, draw Y, removal Z` line now reflects what's actually in the deck.
+- **Snow-Covered basics are now recognised** by the autoseed budget swap + safety-trim loops, so they no longer slip into "expensive non-basic" candidate lists and their removal correctly decrements `summary.basics`.
+- **Bulk-add to Vault is now one batched upsert** instead of one round-trip per card. Pasting 60 cards was ~120 sequential round-trips (~18s); now it's one read + one upsert.
+- **Restoring a backup runs deletes / saves in parallel** instead of awaiting each one sequentially, so a 20-deck restore over Supabase no longer freezes the tab for ~6 seconds.
+- **`currentUserId() === null` no longer silently runs queries against `user_id = null`.** Every cloud-path Vault call (load, add, set quantity, bulk import, clear, set meta) now guards on the id resolving — a transient session expiry returns an empty result instead of looking like an empty inventory.
+- **Local-fallback `bulkImportVault` clamps `quantity` to `Math.max(1, count | 0)`** to match the Supabase path, so a corrupted CSV can't store negative or zero quantities in localStorage.
+
 ## v0.11.2 — Security hardening for public launch
 
 - **`deleteDeck` now binds the delete to the authenticated owner_id.** Previously the call ran `.delete().eq('id', id)` and relied entirely on Supabase RLS to reject cross-tenant deletes. Same defense-in-depth shape as `loadDecks` / `saveDeck`, so an accidental RLS policy widening can't be exploited from the client.
