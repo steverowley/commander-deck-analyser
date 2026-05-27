@@ -15,7 +15,7 @@ import { OfflineIndicator } from './components/OfflineIndicator.jsx';
 import { AuthModal } from './components/AuthModal.jsx';
 import { ProfileModal } from './components/ProfileModal.jsx';
 import { BackupModal, SettingsModal } from './components/Modals.jsx';
-import { CollectionModal } from './components/CollectionModal.jsx';
+import { VaultPage } from './components/VaultPage.jsx';
 import { GlobalDropOverlay } from './components/GlobalDropOverlay.jsx';
 import { addToCollection } from './lib/collection.js';
 import { loadProfile } from './lib/profile.js';
@@ -35,9 +35,10 @@ export default function App() {
   const [showBackup, setShowBackup] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
-  const [showCollection, setShowCollection] = useState(false);
+  // 'landing' | 'vault'. activeId (deck editor) takes precedence over both.
+  const [view, setView] = useState('landing');
   // Bumped whenever the user's collection mutates from outside the
-  // VaultSection (e.g. via the global drop overlay or the CollectionModal).
+  // VaultSection (e.g. via the global drop overlay or the Vault page).
   // DeckList watches this as a useEffect dependency to re-fetch.
   const [collectionRev, setCollectionRev] = useState(0);
   // Migration state — when a user signs in for the first time with local
@@ -326,6 +327,14 @@ export default function App() {
             otherDecks={decks.filter((d) => d.id !== activeDeck.id)}
             initialTab={initialTab}
           />
+        ) : view === 'vault' ? (
+          <VaultPage
+            onBack={() => setView('landing')}
+            signedIn={!!auth.user}
+            decks={decks}
+            onSelectDeck={(id) => { setView('landing'); selectDeck(id); }}
+            onCollectionChanged={() => setCollectionRev((r) => r + 1)}
+          />
         ) : (
           <DeckListView
             decks={decks}
@@ -337,7 +346,7 @@ export default function App() {
             onBackup={() => setShowBackup(true)}
             onSettings={() => setShowSettings(true)}
             onProfile={() => setProfileMode('edit')}
-            onCollection={() => setShowCollection(true)}
+            onCollection={() => setView('vault')}
             collectionRev={collectionRev}
             user={auth.user}
             cloudEnabled={isCloudEnabled()}
@@ -397,12 +406,6 @@ export default function App() {
         />
       )}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
-      {showCollection && (
-        <CollectionModal
-          onClose={() => { setShowCollection(false); setCollectionRev((r) => r + 1); }}
-          signedIn={!!auth.user}
-        />
-      )}
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       {profileMode && auth.user && (
         <ProfileModal

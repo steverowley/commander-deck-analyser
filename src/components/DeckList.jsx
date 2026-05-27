@@ -964,8 +964,9 @@ function EmptyArchive({ onCreate, onImport }) {
 /**
  * Vault section on the landing page. Summarises the user's owned-
  * card inventory, opens the search panel, and acts as a drop zone
- * for the Scryfall drag-and-drop flow. Full management still lives
- * in the CollectionModal opened via 'Manage Vault →'.
+ * for the Scryfall drag-and-drop flow. Full management — stats,
+ * filters, deck coverage — lives on the dedicated Vault page reached
+ * via 'Open Vault →'.
  */
 function VaultSection({ collection, onOpen, onSearch, onAddCard, onChanged }) {
   const [dragOver, setDragOver] = useState(false);
@@ -1051,7 +1052,7 @@ function VaultSection({ collection, onOpen, onSearch, onAddCard, onChanged }) {
               ? 'Drop to add this card to your Vault.'
               : (unique === 0
                   ? 'Cards you actually own. Drag a card image straight from a scryfall.com tab onto this box, search via the panel, scan with the webcam, or paste a list. The deck roller can then build only from cards you own.'
-                  : 'Cards you actually own. Drag in cards from scryfall.com (just drop the image onto this box) or open Manage Vault to scan / paste / edit.')}
+                  : 'Cards you actually own. Drag in cards from scryfall.com (just drop the image onto this box) or open the Vault page for stats, filters, and deck coverage.')}
           </p>
           {recent.length > 0 && (
             <div className="mt-4">
@@ -1067,6 +1068,7 @@ function VaultSection({ collection, onOpen, onSearch, onAddCard, onChanged }) {
                       entry={e}
                       card={card}
                       onChanged={onChanged}
+                      showArtFoil={false}
                     />
                   );
                 })}
@@ -1090,7 +1092,7 @@ function VaultSection({ collection, onOpen, onSearch, onAddCard, onChanged }) {
             className="font-serif text-[10px] tracking-[0.3em] uppercase border px-4 py-2"
             style={{ borderColor: CREAM, color: CREAM, background: 'rgba(243,231,201,0.06)' }}
           >
-            Manage Vault →
+            Open Vault →
           </button>
         </div>
       </div>

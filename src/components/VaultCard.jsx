@@ -1,6 +1,6 @@
 /**
  * VaultCard — single owned-card thumbnail used in both the Vault
- * grid on the homepage and the Manage Vault modal.
+ * strip on the homepage and the full Vault page grid.
  *
  * Adds the same affordances as the commander panel: rounded corners
  * (via Scryfall's PNG-with-alpha variant + a CSS borderRadius
@@ -35,7 +35,7 @@ function nextFoilStyle(current) {
   return FOIL_STYLES[idx + 1];
 }
 
-export function VaultCard({ entry, card, onChanged, size = 'md' }) {
+export function VaultCard({ entry, card, onChanged, size = 'md', showArtFoil = true }) {
   const [showPrintings, setShowPrintings] = useState(false);
   const [busy, setBusy] = useState(false);
   const meta = entry.meta || {};
@@ -120,36 +120,39 @@ export function VaultCard({ entry, card, onChanged, size = 'md' }) {
           ×{entry.quantity}
         </span>
       )}
-      {/* Hover action strip — Art / Foil / Remove */}
       <div
-        className="absolute left-1 right-1 bottom-1 flex items-center justify-between gap-1 md:opacity-0 md:group-hover:opacity-100 transition z-10"
+        className={`absolute left-1 right-1 bottom-1 flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition z-10 ${showArtFoil ? 'justify-between' : 'justify-end'}`}
       >
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); setShowPrintings(true); }}
-          disabled={busy}
-          className="flex items-center gap-1 px-1.5 py-0.5 text-[9px] tracking-[0.15em] uppercase font-serif border disabled:opacity-30"
-          style={{ background: BG, borderColor: CREAM_FAINT, color: CREAM_DIM }}
-          title="Pick a different printing"
-        >
-          <Images className="w-2.5 h-2.5" /> Art
-        </button>
-        <button
-          type="button"
-          onClick={cycleFoil}
-          disabled={busy}
-          className="flex items-center gap-1 px-1.5 py-0.5 text-[9px] tracking-[0.15em] uppercase font-serif border disabled:opacity-30"
-          style={{
-            background: BG,
-            borderColor: foilStyle ? CREAM : CREAM_FAINT,
-            color: foilStyle ? CREAM : CREAM_DIM,
-          }}
-          title={foilStyle
-            ? `Foil: ${FOIL_LABELS[foilStyle]} — click to cycle`
-            : 'Click to add foil overlay'}
-        >
-          <Sparkle className="w-2.5 h-2.5" /> {foilStyle ? FOIL_LABELS[foilStyle].slice(0, 4) : 'Foil'}
-        </button>
+        {showArtFoil && (
+          <>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setShowPrintings(true); }}
+              disabled={busy}
+              className="flex items-center gap-1 px-1.5 py-0.5 text-[9px] tracking-[0.15em] uppercase font-serif border disabled:opacity-30"
+              style={{ background: BG, borderColor: CREAM_FAINT, color: CREAM_DIM }}
+              title="Pick a different printing"
+            >
+              <Images className="w-2.5 h-2.5" /> Art
+            </button>
+            <button
+              type="button"
+              onClick={cycleFoil}
+              disabled={busy}
+              className="flex items-center gap-1 px-1.5 py-0.5 text-[9px] tracking-[0.15em] uppercase font-serif border disabled:opacity-30"
+              style={{
+                background: BG,
+                borderColor: foilStyle ? CREAM : CREAM_FAINT,
+                color: foilStyle ? CREAM : CREAM_DIM,
+              }}
+              title={foilStyle
+                ? `Foil: ${FOIL_LABELS[foilStyle]} — click to cycle`
+                : 'Click to add foil overlay'}
+            >
+              <Sparkle className="w-2.5 h-2.5" /> {foilStyle ? FOIL_LABELS[foilStyle].slice(0, 4) : 'Foil'}
+            </button>
+          </>
+        )}
         <button
           type="button"
           onClick={remove}

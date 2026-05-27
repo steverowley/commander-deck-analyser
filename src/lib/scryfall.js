@@ -79,6 +79,7 @@ function normalize(card) {
     set: card.set,
     set_name: card.set_name,
     collector_number: card.collector_number,
+    rarity: card.rarity,
   };
 }
 
