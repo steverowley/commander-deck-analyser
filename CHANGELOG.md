@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.24.0 — Combo detection (Commander Spellbook)
+
+The Bracket tab now lists every combo the deck has fully assembled — cards, what the combo produces, and the prerequisites to fire it. The Recs tab gains a "Near-miss combos" section that shows lines where the deck has every card but one, with a one-click "Add missing card" button.
+
+### Library
+- **New `src/lib/combos.js`** carrying a curated combo index (60+ entries) modelled on Commander Spellbook's schema — each entry has `id`, `cards`, `results`, optional `prerequisites`, and `colors`. The index includes a few 3-card combos (e.g. Persist + Redcap + Seer; Thopter/Sword/Sieve) so the near-miss detector has something to find. `detectCombos(deck)` returns `{ assembled, nearMiss }`; matching is case-insensitive and includes the commander toward the 99. `loadComboIndex()` is async on purpose — a future remote-refresh path (Spellbook via Supabase proxy → IDB cache) can drop in without changing callers.
+- **`KNOWN_COMBOS` removed from `src/lib/constants.js`** — `analyzers.js` and `tags.js` import `detectCombos` / `COMBO_INDEX` directly. The `assessBracket` flags object now also carries `comboDetails` (full combo objects) and `nearMissCombos` alongside the existing `combos` string array.
+- **`tags.js` "Combo piece" detection** now respects N-card combos: a card is tagged only when every other required card in the combo is also in the deck.
+
+### UI
+- **`CombosPanel` in the Bracket tab** lists assembled combos under the flag boxes, showing the card chips, every listed result, and the prereq line.
+- **Near-miss combos panel in the Recs tab** shows combos with one missing piece, highlights the missing card in the accent color, and offers a one-click add via the existing Scryfall fetch + `addCardsToDeck` path.
+
+### Tests
+- New `combos.test.js` (10 cases) covers Thoracle + Consultation assembly, a 3-card combo missing one card as a near-miss, commander counted toward combo cards, case-insensitivity, scryfall-less card stubs, and schema invariants on the bundled index.
+
 ## v0.23.3 — Settings modal QA pass
 
 - **`SettingsRow` now stacks on mobile.** Was a rigid 7/5 grid that wedged controls into a 5-column sliver; long buttons ("Card Kingdom", "Cardmarket (Trend)") overflowed into the description text on desktop and were unreadable on mobile. Below the `sm` breakpoint the label/description and the controls now stack vertically; at `sm+` the same 7/5 grid layout remains.

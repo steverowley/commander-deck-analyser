@@ -1,6 +1,7 @@
 import {
-  GAME_CHANGERS, MLD_CARDS, EXTRA_TURN_CARDS, FAST_MANA, KNOWN_COMBOS,
+  GAME_CHANGERS, MLD_CARDS, EXTRA_TURN_CARDS, FAST_MANA,
 } from './constants.js';
+import { detectCombos } from './combos.js';
 import { lc } from './utils.js';
 
 /**
@@ -16,9 +17,11 @@ import { lc } from './utils.js';
  */
 export function assessBracket(deck) {
   const cards = deck.cards.filter((c) => c.scryfall);
-  const cardNames = new Set(cards.map((c) => lc(c.scryfall.name)));
   const flags = {
-    gameChangers: [], mld: [], extraTurns: [], tutors: [], combos: [], fastMana: [],
+    gameChangers: [], mld: [], extraTurns: [], tutors: [],
+    combos: [],         // string labels "a + b" — preserves the legacy FlagBox shape
+    comboDetails: [],   // full combo objects from src/lib/combos.js
+    fastMana: [],
   };
 
   let totalCmc = 0;
@@ -38,9 +41,10 @@ export function assessBracket(deck) {
       nonLandCount += c.count;
     }
   }
-  for (const [a, b] of KNOWN_COMBOS) {
-    if (cardNames.has(a) && cardNames.has(b)) flags.combos.push(`${a} + ${b}`);
-  }
+  const comboMatches = detectCombos(deck);
+  flags.comboDetails = comboMatches.assembled;
+  flags.combos = comboMatches.assembled.map((c) => c.cards.join(' + '));
+  flags.nearMissCombos = comboMatches.nearMiss;
 
   const avgCmc = nonLandCount > 0 ? totalCmc / nonLandCount : 0;
   const deckSize = cards.reduce((s, c) => s + c.count, 0);

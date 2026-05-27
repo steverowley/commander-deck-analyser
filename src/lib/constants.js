@@ -80,70 +80,9 @@ export const BANNED_CARDS = new Set([
   "tempest efreet", "timmerian fiends", "chaos orb", "falling star",
 ]);
 
-// Known two-card infinite combos. Used by the bracket assessor and combo-piece tagger.
-// Format: [card_a, card_b, description]. Both names lowercased.
-export const KNOWN_COMBOS = [
-  // Win-on-cast
-  ["thassa's oracle", "demonic consultation", "Win on cast"],
-  ["thassa's oracle", "tainted pact", "Win on cast"],
-  ["laboratory maniac", "demonic consultation", "Win on cast"],
-  ["laboratory maniac", "tainted pact", "Win on cast"],
-  ["jace, wielder of mysteries", "demonic consultation", "Win on cast"],
-  ["jace, wielder of mysteries", "tainted pact", "Win on cast"],
-  // Infinite mana
-  ["dockside extortionist", "temur sabertooth", "Infinite mana"],
-  ["dockside extortionist", "cloudstone curio", "Infinite mana"],
-  ["dockside extortionist", "phantasmal image", "Infinite mana"],
-  ["isochron scepter", "dramatic reversal", "Infinite mana with rocks"],
-  ["devoted druid", "vizier of remedies", "Infinite green mana"],
-  ["pestermite", "kiki-jiki, mirror breaker", "Infinite hasty creatures"],
-  ["deceiver exarch", "kiki-jiki, mirror breaker", "Infinite hasty creatures"],
-  ["zealous conscripts", "splinter twin", "Infinite hasty creatures"],
-  ["pestermite", "splinter twin", "Infinite hasty creatures"],
-  ["deceiver exarch", "splinter twin", "Infinite hasty creatures"],
-  ["birthing pod", "lotus cobra", "Infinite mana with fetches"],
-  ["basalt monolith", "rings of brighthearth", "Infinite colorless"],
-  ["basalt monolith", "power artifact", "Infinite mana"],
-  ["grim monolith", "power artifact", "Infinite mana"],
-  ["palinchron", "high tide", "Infinite blue mana"],
-  ["palinchron", "phantasmal image", "Infinite mana"],
-  // Reanimator infinite loops
-  ["worldgorger dragon", "animate dead", "Infinite mana + ETB/LTB"],
-  ["worldgorger dragon", "necromancy", "Infinite mana + ETB/LTB"],
-  ["worldgorger dragon", "dance of the dead", "Infinite mana + ETB/LTB"],
-  ["leonin relic-warder", "animate dead", "Infinite ETB/LTB"],
-  ["karmic guide", "reveillark", "Infinite reanimation w/ sac outlet"],
-  ["nim deathmantle", "ashnod's altar", "Infinite ETB/LTB w/ creature"],
-  // Lifegain/drain loops
-  ["sanguine bond", "exquisite blood", "Infinite lifegain/drain"],
-  ["vito, thorn of the dusk rose", "exquisite blood", "Infinite lifegain/drain"],
-  ["heliod, sun-crowned", "walking ballista", "Infinite damage"],
-  ["heliod, sun-crowned", "spike feeder", "Infinite life + +1/+1 counters"],
-  // Token / damage
-  ["kiki-jiki, mirror breaker", "zealous conscripts", "Infinite hasty tokens"],
-  ["kiki-jiki, mirror breaker", "felidar guardian", "Infinite hasty tokens"],
-  ["kiki-jiki, mirror breaker", "village bell-ringer", "Infinite hasty tokens"],
-  ["mikaeus, the unhallowed", "triskelion", "Infinite damage"],
-  ["mikaeus, the unhallowed", "walking ballista", "Infinite damage"],
-  ["mikaeus, the unhallowed", "putrid goblin", "Infinite sacrifice triggers"],
-  ["earthcraft", "squirrel nest", "Infinite squirrels"],
-  ["intruder alarm", "shrieking drake", "Infinite ETB triggers"],
-  // Storm/etc
-  ["underworld breach", "lion's eye diamond", "Storm engine"],
-  ["underworld breach", "brain freeze", "Mill-self-then-storm win"],
-  ["aetherflux reservoir", "bolas's citadel", "50-life burst"],
-  ["food chain", "eternal scourge", "Infinite mana + creature"],
-  ["food chain", "misthollow griffin", "Infinite mana + creature"],
-  ["food chain", "squee, the immortal", "Infinite mana + creature"],
-  // Tribal / niche
-  ["edgar markov", "phyrexian altar", "Mana from vampire tokens"],
-  ["krenko, mob boss", "thornbite staff", "Infinite goblins"],
-  ["krark, the thumbless", "sakashima of a thousand faces", "Coin-flip storm"],
-  // Wheels / draw infinites
-  ["niv-mizzet, parun", "curiosity", "Infinite draw / damage"],
-  ["niv-mizzet, parun", "ophidian eye", "Infinite draw / damage"],
-  ["niv-mizzet, the firemind", "curiosity", "Infinite draw / damage"],
-];
+// Known infinite/win combos now live in src/lib/combos.js with full
+// metadata (results, prerequisites, colors). The bracket assessor and the
+// combo-piece tagger import from there directly.
 
 // Regex patterns matched against oracle text to assign tags.
 export const TAG_PATTERNS = {
