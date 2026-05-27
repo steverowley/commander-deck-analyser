@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.11.1 — Hero cycle: dots + always-cycle
+
+- **Position dots under the hero.** Small click-to-jump indicators show which of the four taglines is active and let you skip ahead.
+- **Reduced motion no longer kills the rotation.** `prefers-reduced-motion: reduce` was silently turning the whole cycle off for anyone with macOS Reduce Motion enabled — only the first entry ever showed. Reduced motion now drops the 600ms crossfade + 8px slide (content swaps instantly) but the rotation itself keeps running. The listener is live, so toggling the OS setting takes effect without a reload.
+
 ## v0.11.0 — Cycling hero copy
 
 The landing-page hero now cycles between four taglines, each leading with a different USP the previous single-headline didn't quite earn space for:
