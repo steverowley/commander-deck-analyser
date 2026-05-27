@@ -603,24 +603,25 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
       {cloudEnabled && <RandomRollsView onImportFromGallery={onImportFromGallery} onViewDeck={onViewGalleryDeck} />}
       {cloudEnabled && <GalleryView onImportFromGallery={onImportFromGallery} onViewDeck={onViewGalleryDeck} />}
 
-      {/* Footer — stacks on mobile so the version chip + Backup + Settings
-          don't overflow into a single squashed row. */}
+      {/* Footer — on mobile the chip and the action row each stack and the
+          action row wraps freely. Separator dots are desktop-only because on
+          a wrapped row they end up stranded at the start of a new line. */}
       <div
-        className="border-t mt-20 py-6 flex flex-col items-center justify-center gap-2 font-serif text-[10px] tracking-[0.4em] uppercase"
+        className="border-t mt-20 py-6 px-4 flex flex-col items-center justify-center gap-3 md:gap-2 font-serif text-[10px] tracking-[0.3em] md:tracking-[0.4em] uppercase"
         style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
       >
-       <div className="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-4">
-        <span className="flex items-center gap-2">
+       <div className="flex flex-col md:flex-row items-center justify-center gap-3 md:gap-4 w-full">
+        <span className="flex items-center gap-2 shrink-0">
           <span>Vault ·</span>
           <VersionChip version={__APP_VERSION__} align="left" />
         </span>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-center flex-wrap gap-x-4 gap-y-2 md:gap-x-3 md:gap-y-0">
           {onBackup && (
             <button onClick={onBackup} className="hover:opacity-100 transition" style={{ color: CREAM_DIM }}>
               Backup ↓
             </button>
           )}
-          {onBackup && onSettings && <span style={{ opacity: 0.4 }}>·</span>}
+          {onBackup && onSettings && <span className="hidden md:inline" style={{ opacity: 0.4 }}>·</span>}
           {onSettings && (
             <button onClick={onSettings} className="hover:opacity-100 transition" style={{ color: CREAM_DIM }}>
               Settings
@@ -628,7 +629,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
           )}
           {user && onProfile && (
             <>
-              <span style={{ opacity: 0.4 }}>·</span>
+              <span className="hidden md:inline" style={{ opacity: 0.4 }}>·</span>
               <button onClick={onProfile} className="hover:opacity-100 transition" style={{ color: CREAM_DIM }}>
                 Profile
               </button>
@@ -636,7 +637,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
           )}
           {onCollection && (
             <>
-              <span style={{ opacity: 0.4 }}>·</span>
+              <span className="hidden md:inline" style={{ opacity: 0.4 }}>·</span>
               <button onClick={onCollection} className="hover:opacity-100 transition" style={{ color: CREAM_DIM }}>
                 Vault
               </button>
@@ -644,7 +645,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
           )}
           {onReportBug && (
             <>
-              <span style={{ opacity: 0.4 }}>·</span>
+              <span className="hidden md:inline" style={{ opacity: 0.4 }}>·</span>
               <button onClick={onReportBug} className="hover:opacity-100 transition" style={{ color: CREAM_DIM }}>
                 Report bug
               </button>
@@ -652,7 +653,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
           )}
           {onTipJar && (
             <>
-              <span style={{ opacity: 0.4 }}>·</span>
+              <span className="hidden md:inline" style={{ opacity: 0.4 }}>·</span>
               <button onClick={onTipJar} className="hover:opacity-100 transition" style={{ color: CREAM_DIM }}>
                 Tip jar
               </button>
@@ -661,7 +662,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
         </div>
        </div>
         <div
-          className="font-serif text-[9px] tracking-[0.25em] italic normal-case mt-1"
+          className="font-serif text-[9px] tracking-[0.25em] italic normal-case mt-1 text-center max-w-xs md:max-w-none"
           style={{ color: CREAM_DIM, opacity: 0.7 }}
         >
           Buy links are affiliate — we earn a small commission at no extra cost to you.

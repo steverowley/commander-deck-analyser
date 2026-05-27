@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.21.2
+
+- **Landing footer now wraps cleanly on mobile.** The `Backup · Settings · Profile · Vault · Report bug · Tip jar` row was a single non-wrapping flex with `tracking-[0.4em]` letter-spacing — on a phone it overflowed the viewport and pushed the page into horizontal scroll. The button row now uses `flex-wrap` with vertical `gap-y` so links flow onto multiple rows, the separator dots are hidden on mobile (`hidden md:inline`) so wrapped lines don't start with a stray `·`, mobile tracking eases off to `0.3em`, and the affiliate disclaimer is constrained to `max-w-xs` so it wraps mid-sentence rather than running to the edge. Desktop layout is unchanged. (`src/components/DeckList.jsx`)
+
 ## v0.21.1 — Theme toggle moves into Settings + Profile
 
 The Sun/Moon/Monitor toggle was crowding the already-busy landing nav. It's now a row inside the Settings modal (footer entrypoint, available to everyone) and — for signed-in users — inside the Profile modal under a new "Preferences" section. Two entrypoints, same body.
