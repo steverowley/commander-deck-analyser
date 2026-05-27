@@ -14,7 +14,7 @@ import { cardmarketReferralUrl, cardmarketReferrerUsername } from '../lib/affili
  * Also surfaces the Cardmarket EU referral CTA, since signup is the only
  * point Cardmarket can attribute referrals (no per-URL affiliate).
  */
-export function TipModal({ onClose, justTipped = false, user = null }) {
+export function TipModal({ onClose, justTipped = false, user = null, onRemindLater = null, autoPrompted = false }) {
   const [custom, setCustom] = useState('');
   const [copied, setCopied] = useState(false);
   const [sdkError, setSdkError] = useState(null);
@@ -77,6 +77,12 @@ export function TipModal({ onClose, justTipped = false, user = null }) {
             >
               Thanks — that means a lot. Your supporter badge will appear within 24h (we add them manually for now).
             </div>
+          )}
+
+          {autoPrompted && !justTipped && (
+            <p className="font-serif text-xs italic leading-snug" style={{ color: CREAM_DIM }}>
+              Enjoying Vault? You can close this — it won't pop up again unless you ask.
+            </p>
           )}
 
           <p className="font-serif text-sm leading-snug" style={{ color: CREAM }}>
@@ -190,7 +196,16 @@ export function TipModal({ onClose, justTipped = false, user = null }) {
           )}
         </div>
 
-        <div className="px-5 py-4 border-t flex justify-end" style={{ borderColor: CREAM_FAINT }}>
+        <div className="px-5 py-4 border-t flex justify-between items-center gap-3" style={{ borderColor: CREAM_FAINT }}>
+          {onRemindLater ? (
+            <button
+              onClick={onRemindLater}
+              className="font-serif text-[10px] tracking-[0.3em] uppercase hover:opacity-100"
+              style={{ color: CREAM_DIM }}
+            >
+              Maybe later
+            </button>
+          ) : <span />}
           <button onClick={onClose} className="font-serif text-[10px] tracking-[0.3em] uppercase hover:opacity-100" style={{ color: CREAM }}>
             Close →
           </button>

@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.19.0 — Engagement-gated tip-jar CTA
+
+The tip jar now nudges itself once, on its own. After the user does something meaningful in a session (creates a deck, rolls one, saves a roll, imports a shared deck) and five minutes have passed, the tip modal opens automatically with a "Maybe later" affordance. Closing it sets a localStorage flag that suppresses the prompt forever on that device; "Maybe later" defers it ~30 days. Supporters and builds with no tip jar configured never see it.
+
+### Prompt state machine
+- **`src/lib/tipPrompt.js`** owns the localStorage flags (`vault:tipPrompt:dismissed`, `vault:tipPrompt:remindAfter`, `vault:tipPrompt:shownAt`) and exposes `isPromptEligible({ supporter, tipsConfigured, now })`, `dismissTipPrompt()`, `remindLater(days)`, `markPromptShown()`, `clearTipPrompt()`. Storage access goes through a `safeStorage()` guard so SSR / non-browser callers no-op cleanly.
+- **`tipPrompt.test.js`** covers eligibility for tip-jar config, supporter status, dismissal, future / past / malformed remind-after timestamps, and the dismiss-clears-remind / remind-clears-dismiss invariants.
+
+### App wiring
+- **`App.jsx`** tracks `engagementAt` (set once per session via `markEngagement()` from `handleCreate` / `handleSaveTransient` / `handleImport` / `onRandomBuild`) and runs a single `setTimeout` for the remaining delay. A `useRef` one-shot (`autoPromptHandled`) prevents re-arming after the user manually opens / closes the tip jar in the same session.
+- **`tipState`** gains an `'open-auto'` variant. Auto-prompt closes call `dismissTipPrompt()`; manual closes leave the flags alone. Re-checks eligibility at timer-fire time so a webhook-flipped supporter never sees the modal.
+
+### TipModal copy
+- New `autoPrompted` + `onRemindLater` props. Auto-prompted opens render a "Enjoying Vault? You can close this — it won't pop up again unless you ask." lead-in and a left-aligned **Maybe later** button alongside **Close →**.
+
 ## v0.18.0 — Vendor-aware pricing
 
 Prices shown across Vault now come from the same retailer you've chosen for buy links — pick TCGplayer and you see TCGplayer Mid; pick Cardmarket and you see Cardmarket Trend in EUR. Card Kingdom doesn't publish per-card prices on Scryfall, so its prices are estimated from TCGplayer Mid and flagged with a `~` prefix everywhere they appear. Every price now has a hover tooltip that explains its source, any FX conversion, and any unpriced cards in the total.
