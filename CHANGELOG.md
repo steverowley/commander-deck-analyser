@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.10.2 — Homepage Vault layout
+
+- **Search / Open Vault buttons now sit inline with the copy** instead of squeezed to the right of the recent-cards strip. Recently-added cards now span the full width of the container — up to 10 across at md, 12 across at lg, so all 12 thumbnails usually fit on a single row.
+
 ## v0.10.1 — Homepage QA polish
 
 - **Removed leftover `3.` prefix** on the homepage Archive section header. It was a holdover from an older numbered-section layout — the four action tiles still go 1→4, but the Archive section (like Vault, Latest Rolls, Public Gallery) is no longer in that sequence.
