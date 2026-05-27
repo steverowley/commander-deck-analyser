@@ -17,6 +17,7 @@ import { ProfileModal } from './components/ProfileModal.jsx';
 import { BackupModal, SettingsModal, BugReportModal } from './components/Modals.jsx';
 import { VaultPage } from './components/VaultPage.jsx';
 import { GlobalDropOverlay } from './components/GlobalDropOverlay.jsx';
+import { TipModal } from './components/TipModal.jsx';
 import { addToCollection } from './lib/collection.js';
 import { loadProfile } from './lib/profile.js';
 
@@ -35,6 +36,9 @@ export default function App() {
   const [showBackup, setShowBackup] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showBugReport, setShowBugReport] = useState(false);
+  // 'closed' | 'open' | 'thanks' — `thanks` is set when the user lands
+  // back at the app with `?tip=thanks` after completing a PayPal tip.
+  const [tipState, setTipState] = useState('closed');
   const [showAuth, setShowAuth] = useState(false);
   // 'landing' | 'vault'. activeId (deck editor) takes precedence over both.
   const [view, setView] = useState('landing');
@@ -88,6 +92,19 @@ export default function App() {
 
   useEffect(() => {
     loadCardCache();
+
+    // Tip-return param: PayPal.Me doesn't redirect back today, but anyone
+    // hitting the app with ?tip=thanks (manual link, future Donate SDK
+    // return URL) gets the thank-you state in the TipModal.
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('tip') === 'thanks') {
+        setTipState('thanks');
+        params.delete('tip');
+        const qs = params.toString();
+        window.history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''));
+      }
+    }
 
     // OAuth params: shared-deck URL share uses `#d=...`; Supabase magic-link
     // / Google OAuth use `?code=...&state=...` or `?error=...`. Check the
@@ -355,6 +372,7 @@ export default function App() {
             onProfile={() => setProfileMode('edit')}
             onCollection={() => setView('vault')}
             onReportBug={() => setShowBugReport(true)}
+            onTipJar={() => setTipState('open')}
             collectionRev={collectionRev}
             user={auth.user}
             profile={profile}
@@ -416,6 +434,9 @@ export default function App() {
       )}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       {showBugReport && <BugReportModal onClose={() => setShowBugReport(false)} />}
+      {tipState !== 'closed' && (
+        <TipModal onClose={() => setTipState('closed')} justTipped={tipState === 'thanks'} />
+      )}
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       {profileMode && auth.user && (
         <ProfileModal

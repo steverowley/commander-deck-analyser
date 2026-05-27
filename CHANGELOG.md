@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.16.0 — Tip jar
+
+A new **Tip jar** link in the footer opens a small modal with preset $3 / $5 / $10 PayPal buttons (plus a custom amount). Each opens PayPal.Me in a new tab where the tipper completes payment. Tips land in Vault's PayPal account; the supporter badge added in v0.15.0 is flipped manually for now — the auto-attribution webhook lands in the next slice.
+
+- **PayPal.Me-based, zero infrastructure.** No SDK loaded, no CSP changes, no webhook yet. `VITE_PAYPAL_ME_URL` at build time enables the modal; without it, the footer link still shows but the modal explains tipping isn't configured for that build.
+- **`?tip=thanks` URL handler.** Returning to the app with this query param auto-opens the modal in a "thanks" state. Wired in `App.jsx` against the existing URL-cleanup pass so the param is consumed and the address bar stays clean. PayPal.Me doesn't redirect today; the handler is ready for the Donate-SDK return URL that lands in the next slice.
+- **Cardmarket EU referral CTA inside the modal.** Because Cardmarket attribution only happens at signup (no per-URL affiliate exists), the modal also surfaces the referrer username with a click-to-copy pill + "Open Cardmarket signup →" link — the only place in Vault that referral can actually convert.
+- **`src/lib/billing.js`** with `paypalMeUrl(amount)`, `hasTipJar()`, and `TIP_PRESETS`. Eight unit tests cover URL construction, trailing-slash normalisation, integer flooring, and unconfigured-build fallback.
+
 ## v0.15.0 — Supporter badge foundation
 
 The plumbing for a "supporter" badge that will eventually be flipped automatically when someone tips via PayPal. **No tip jar yet** — that lands in the next slice. This release adds the data shape, the badge component, and renders it next to handles in the Public Gallery, Latest Random Rolls, and the Cloud · @handle button in the nav.
