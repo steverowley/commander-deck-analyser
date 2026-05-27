@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.13.0 — Affiliate buy links
+
+A small cart icon now sits next to the price on every card row. Click it to open the card on your chosen retailer in a new tab — Card Kingdom by default, with TCGplayer and Cardmarket selectable in **Settings → Buy links**.
+
+- **Retailer picker in Settings.** Card Kingdom (default), TCGplayer, or Cardmarket. Stored in localStorage; signed-out users get the same options.
+- **Card Kingdom + TCGplayer links are affiliate.** Vault earns a small commission on purchases that flow through them; you pay the same price. Cardmarket links are plain — Cardmarket's referral program only attributes at signup, not via URL, so the buy link there is unmodified.
+- **Footer disclosure** added so the affiliate relationship is up-front: _"Buy links are affiliate — we earn a small commission at no extra cost to you."_
+- **Env-var based, fail-soft.** If the affiliate codes (`VITE_CARDKINGDOM_PARTNER`, `VITE_TCGPLAYER_IMPACT_PREFIX`, `VITE_CARDMARKET_REFERRER_USERNAME`) aren't set at build time, the buy links still work — they just lose attribution.
+
 ## v0.12.0 — In-app bug reporting
 
 - **Report bug** link in the footer opens a small in-app form (title, what went wrong, optional repro steps). Submit kicks the user out to a pre-filled new-issue page on GitHub, tagged `bug`, with app version, browser user-agent, and current URL appended (toggleable). No backend, no secrets — the user clicks **Submit new issue** on GitHub to actually file it.

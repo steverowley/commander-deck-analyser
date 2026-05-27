@@ -14,6 +14,7 @@ import { deckTotalPrice, formatPrice, isConverted } from '../lib/pricing.js';
 import { compareDecks } from '../lib/compare.js';
 import { buildBackup, parseBackup, backupFilename } from '../lib/backup.js';
 import { loadSettings, updateSetting } from '../lib/settings.js';
+import { RETAILERS, RETAILER_LABEL } from '../lib/affiliate.js';
 import { cacheSize, clearIDBCache } from '../lib/idbcache.js';
 import { fetchRecommendations, topRecommendations } from '../lib/edhrec.js';
 import { TagPill, RuleSection } from './UI.jsx';
@@ -1407,6 +1408,27 @@ export function SettingsModal({ onClose }) {
                   }}
                 >
                   {c}
+                </button>
+              ))}
+            </div>
+          </SettingsRow>
+          <SettingsRow
+            label="Buy links"
+            description="The cart icon next to each card opens the chosen retailer. Card Kingdom + TCGplayer links are affiliate (we earn a small commission). Cardmarket links are plain — no affiliate."
+          >
+            <div className="flex border" style={{ borderColor: CREAM_FAINT }}>
+              {RETAILERS.map((r) => (
+                <button
+                  key={r}
+                  onClick={() => update('prefRetailer', r)}
+                  className="font-mono text-[10px] px-3 py-1.5 uppercase tracking-wider"
+                  style={{
+                    color: settings.prefRetailer === r ? CREAM : CREAM_DIM,
+                    background: settings.prefRetailer === r ? 'rgba(243,231,201,0.08)' : 'transparent',
+                  }}
+                  title={RETAILER_LABEL[r]}
+                >
+                  {RETAILER_LABEL[r]}
                 </button>
               ))}
             </div>

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Loader2, Tag, Trash2, X, FileX, Bookmark, HelpCircle, Images } from 'lucide-react';
+import { Search, Loader2, Tag, Trash2, X, FileX, Bookmark, HelpCircle, Images, ShoppingCart } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad } from '../lib/utils.js';
 import { cardImageUrl, searchCardAutocomplete, fetchCardByExactName } from '../lib/scryfall.js';
 import { cardPrice, formatPrice, isConverted } from '../lib/pricing.js';
 import { loadSettings } from '../lib/settings.js';
+import { buyUrlFor, openExternal, defaultRetailer, RETAILER_LABEL } from '../lib/affiliate.js';
 import { ManaCost, ManaSymbol } from './ManaCost.jsx';
 import { getLatestRelease } from '../lib/changelog.js';
 
@@ -522,7 +523,7 @@ export function CardRow({ entry, idx, onChangeCount, onRemove, onEditTags, onDem
         </div>
       </div>
       <div className="flex flex-col items-end gap-1.5 shrink-0">
-        <div className="font-mono text-[10px] tracking-wider text-right" style={{ color: CREAM_DIM }}>
+        <div className="font-mono text-[10px] tracking-wider text-right flex items-center gap-1.5" style={{ color: CREAM_DIM }}>
           <span>cmc · {c.cmc ?? 0}</span>
           {(() => {
             const cur = loadSettings().currency || 'usd';
@@ -530,11 +531,27 @@ export function CardRow({ entry, idx, onChangeCount, onRemove, onEditTags, onDem
             if (p == null) return null;
             return (
               <>
-                <span className="opacity-50"> · </span>
+                <span className="opacity-50">·</span>
                 <span style={{ color: CREAM }}>
                   {isConverted(cur) ? '~' : ''}{formatPrice(p, cur)}
                 </span>
               </>
+            );
+          })()}
+          {(() => {
+            const r = defaultRetailer();
+            const url = buyUrlFor(c, r);
+            if (!url) return null;
+            return (
+              <button
+                onClick={(e) => { e.stopPropagation(); openExternal(url); }}
+                className="hover:opacity-100 transition opacity-60"
+                style={{ color: CREAM_DIM }}
+                title={`Buy on ${RETAILER_LABEL[r]} (affiliate)`}
+                aria-label={`Buy ${c.name} on ${RETAILER_LABEL[r]}`}
+              >
+                <ShoppingCart className="w-3 h-3" />
+              </button>
             );
           })()}
         </div>

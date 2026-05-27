@@ -603,9 +603,10 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
       {/* Footer — stacks on mobile so the version chip + Backup + Settings
           don't overflow into a single squashed row. */}
       <div
-        className="border-t mt-20 py-6 flex flex-col md:flex-row items-center justify-center gap-2 md:gap-4 font-serif text-[10px] tracking-[0.4em] uppercase"
+        className="border-t mt-20 py-6 flex flex-col items-center justify-center gap-2 font-serif text-[10px] tracking-[0.4em] uppercase"
         style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}
       >
+       <div className="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-4">
         <span className="flex items-center gap-2">
           <span>Vault ·</span>
           <VersionChip version={__APP_VERSION__} align="left" />
@@ -646,6 +647,13 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
               </button>
             </>
           )}
+        </div>
+       </div>
+        <div
+          className="font-serif text-[9px] tracking-[0.25em] italic normal-case mt-1"
+          style={{ color: CREAM_DIM, opacity: 0.7 }}
+        >
+          Buy links are affiliate — we earn a small commission at no extra cost to you.
         </div>
       </div>
 
