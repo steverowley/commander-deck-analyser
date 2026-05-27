@@ -12,6 +12,7 @@ import React, { useEffect, useState } from 'react';
 import { X, Loader2, Check, User } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { loadProfile, saveUsername, validateUsername } from '../lib/profile.js';
+import { SettingsBody } from './Modals.jsx';
 
 export function ProfileModal({ user, onClose, onboarding = false, onSaved }) {
   const [loading, setLoading] = useState(true);
@@ -62,8 +63,11 @@ export function ProfileModal({ user, onClose, onboarding = false, onSaved }) {
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
       style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
-      <div className="w-full max-w-md flex flex-col border" style={{ background: BG, borderColor: CREAM_FAINT }}>
-        <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
+      <div
+        className="w-full max-w-xl max-h-[90vh] flex flex-col border"
+        style={{ background: BG, borderColor: CREAM_FAINT }}
+      >
+        <div className="px-5 py-4 border-b flex items-center justify-between shrink-0" style={{ borderColor: CREAM_FAINT }}>
           <div className="flex items-center gap-2">
             <User className="w-3.5 h-3.5" style={{ color: CREAM_DIM }} />
             <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
@@ -77,7 +81,7 @@ export function ProfileModal({ user, onClose, onboarding = false, onSaved }) {
           )}
         </div>
 
-        <div className="p-5 space-y-4">
+        <div className="overflow-y-auto p-5 space-y-4">
           {onboarding && (
             <p className="font-serif text-sm italic" style={{ color: CREAM_DIM }}>
               Pick a username — it shows up on any decks you share to the public gallery. You can change it later.
@@ -154,7 +158,19 @@ export function ProfileModal({ user, onClose, onboarding = false, onSaved }) {
           )}
         </div>
 
-        <div className="px-5 py-3 border-t flex items-center justify-end gap-4" style={{ borderColor: CREAM_FAINT }}>
+        {!onboarding && (
+          <div className="border-t" style={{ borderColor: CREAM_FAINT }}>
+            <div
+              className="px-5 pt-4 font-serif text-[10px] tracking-[0.3em] uppercase"
+              style={{ color: CREAM_DIM }}
+            >
+              Preferences
+            </div>
+            <SettingsBody />
+          </div>
+        )}
+
+        <div className="px-5 py-3 border-t flex items-center justify-end gap-4 shrink-0" style={{ borderColor: CREAM_FAINT }}>
           {!onboarding && (
             <button
               onClick={onClose}
@@ -171,7 +187,7 @@ export function ProfileModal({ user, onClose, onboarding = false, onSaved }) {
             className="font-serif text-[10px] tracking-[0.3em] uppercase border px-4 py-2 disabled:opacity-30"
             style={{ borderColor: CREAM, color: CREAM, background: 'rgba(var(--ink-rgb),0.06)' }}
           >
-            {busy ? 'Saving...' : 'Save →'}
+            {busy ? 'Saving...' : onboarding ? 'Save →' : 'Save username →'}
           </button>
         </div>
       </div>

@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.21.1 — Theme toggle moves into Settings + Profile
+
+The Sun/Moon/Monitor toggle was crowding the already-busy landing nav. It's now a row inside the Settings modal (footer entrypoint, available to everyone) and — for signed-in users — inside the Profile modal under a new "Preferences" section. Two entrypoints, same body.
+
+- **`src/components/Modals.jsx`** — `SettingsModal`'s body extracted into an exported `<SettingsBody />` so it can be embedded elsewhere without duplicating the rows or the `loadSettings` / `cacheSize` state. `SettingsModal` becomes a thin modal-chrome wrapper. New "Theme" row sits at the top of `<SettingsBody />` and renders `<ThemeToggle />` as the control.
+- **`src/components/ProfileModal.jsx`** — embeds `<SettingsBody />` under a "Preferences" header (skipped during onboarding so the username step stays focused). Modal widened from `max-w-md` → `max-w-xl` to fit the settings grid, with `max-h-[90vh] overflow-y-auto` on the body so it scrolls on short viewports. Save button now reads "Save username →" outside onboarding so it's unambiguous which save it triggers (settings rows auto-save on change, as before).
+- **`src/components/DeckList.jsx`** — removed `<ThemeToggle />` from both the mobile and desktop landing-nav headers. The toggle is no longer rendered there.
+
 ## v0.21.0 — Light mode
 
 Vault now ships with a light theme. On first load the palette follows the OS preference (`prefers-color-scheme`); a small Sun / Moon / Monitor icon in the header lets the user cycle through **System → Light → Dark → System**, with the choice persisted to localStorage. "System" stays live — flipping the OS appearance updates Vault without a reload.

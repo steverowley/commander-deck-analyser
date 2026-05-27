@@ -20,6 +20,7 @@ import { fetchRecommendations, topRecommendations } from '../lib/edhrec.js';
 import { buildBugReportBody } from '../lib/bugReport.js';
 import { TagPill, RuleSection } from './UI.jsx';
 import { ManaSymbol } from './ManaCost.jsx';
+import { ThemeToggle } from './ThemeToggle.jsx';
 import { BRACKETS } from '../lib/constants.js';
 
 // ───────────────────────────────────────────────────────────────────────────────
@@ -1457,7 +1458,12 @@ export function BugReportModal({ onClose }) {
  * Currently three rows: strict-default toggle, currency picker,
  * and a cache info / clear panel.
  */
-export function SettingsModal({ onClose }) {
+/**
+ * The shared settings body — same rows render inside SettingsModal
+ * (footer entrypoint, available to everyone) and embedded inside
+ * ProfileModal (signed-in users see them under their account info).
+ */
+export function SettingsBody() {
   const [settings, setSettings] = useState(loadSettings());
   const [cacheCount, setCacheCount] = useState(null);
   const [clearing, setClearing] = useState(false);
@@ -1493,29 +1499,22 @@ export function SettingsModal({ onClose }) {
   };
 
   return (
-    <div
-      className="fixed inset-0 flex items-center justify-center z-50 p-4"
-      style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
-    >
-      <div className="w-full max-w-xl flex flex-col border" style={{ background: BG, borderColor: CREAM_FAINT }}>
-        <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
-          <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold flex items-center gap-2" style={{ color: CREAM }}>
-            <SettingsIcon className="w-3.5 h-3.5" /> Settings
-          </div>
-          <button onClick={onClose} style={{ color: CREAM_DIM }}>
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        <div className="p-5 space-y-5">
-          <SettingsRow
-            label="Strict mode default"
-            description="Enable strict color-identity / banned-list blocking on every new deck. Per-deck override always available."
-          >
-            <ToggleSwitch
-              on={!!settings.strictIdentityDefault}
-              onChange={(v) => update('strictIdentityDefault', v)}
-            />
-          </SettingsRow>
+    <div className="p-5 space-y-5">
+      <SettingsRow
+        label="Theme"
+        description="Light or dark palette. System follows your OS appearance setting automatically."
+      >
+        <ThemeToggle />
+      </SettingsRow>
+      <SettingsRow
+        label="Strict mode default"
+        description="Enable strict color-identity / banned-list blocking on every new deck. Per-deck override always available."
+      >
+        <ToggleSwitch
+          on={!!settings.strictIdentityDefault}
+          onChange={(v) => update('strictIdentityDefault', v)}
+        />
+      </SettingsRow>
           <SettingsRow
             label="Price currency"
             description="The unit prices are displayed in. USD / EUR come straight from the vendor's Scryfall feed; GBP is converted from USD at an approximate rate (shown with a ~ prefix). Crossing currencies (e.g. EUR vendor → USD display) is also approximate."
@@ -1621,7 +1620,26 @@ export function SettingsModal({ onClose }) {
               )}
             </div>
           </SettingsRow>
+    </div>
+  );
+}
+
+export function SettingsModal({ onClose }) {
+  return (
+    <div
+      className="fixed inset-0 flex items-center justify-center z-50 p-4"
+      style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
+    >
+      <div className="w-full max-w-xl flex flex-col border" style={{ background: BG, borderColor: CREAM_FAINT }}>
+        <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
+          <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold flex items-center gap-2" style={{ color: CREAM }}>
+            <SettingsIcon className="w-3.5 h-3.5" /> Settings
+          </div>
+          <button onClick={onClose} style={{ color: CREAM_DIM }}>
+            <X className="w-4 h-4" />
+          </button>
         </div>
+        <SettingsBody />
         <div className="px-5 py-4 border-t flex justify-end" style={{ borderColor: CREAM_FAINT }}>
           <button onClick={onClose} className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM }}>
             Done →
