@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.stubEnv('VITE_PAYPAL_ME_URL', 'https://paypal.me/vaultmtg');
+vi.stubEnv('VITE_PAYPAL_BUTTON_ID', 'ABCDEF1234567');
+vi.stubEnv('VITE_PAYPAL_ENV', 'sandbox');
 
-const { paypalMeUrl, hasTipJar, TIP_PRESETS } = await import('./billing.js');
+const { paypalMeUrl, hasTipJar, hasDonateButton, TIP_PRESETS } = await import('./billing.js');
 
 describe('paypalMeUrl', () => {
   it('returns the base URL when no amount is given', () => {
@@ -46,6 +48,12 @@ describe('TIP_PRESETS', () => {
   });
 });
 
+describe('hasDonateButton', () => {
+  it('is true when VITE_PAYPAL_BUTTON_ID is set', () => {
+    expect(hasDonateButton()).toBe(true);
+  });
+});
+
 describe('unconfigured build', () => {
   it('hasTipJar is false and paypalMeUrl returns null when env var is empty', async () => {
     vi.resetModules();
@@ -53,5 +61,12 @@ describe('unconfigured build', () => {
     const m = await import('./billing.js');
     expect(m.hasTipJar()).toBe(false);
     expect(m.paypalMeUrl(5)).toBeNull();
+  });
+
+  it('hasDonateButton is false when VITE_PAYPAL_BUTTON_ID is empty', async () => {
+    vi.resetModules();
+    vi.stubEnv('VITE_PAYPAL_BUTTON_ID', '');
+    const m = await import('./billing.js');
+    expect(m.hasDonateButton()).toBe(false);
   });
 });

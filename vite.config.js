@@ -32,20 +32,29 @@ const connectSrc = [
   'wss://*.supabase.co',
   'https://api.scryfall.com',
   'https://json.edhrec.com',
+  // PayPal Donate SDK fires XHRs back to paypal.com / paypalobjects.com.
+  'https://www.paypal.com',
+  'https://www.sandbox.paypal.com',
+  'https://www.paypalobjects.com',
   BUG_REPORT_ORIGIN,
 ].filter(Boolean).join(' ');
 
 const CSP = [
   "default-src 'self'",
-  "script-src 'self'",
+  // paypalobjects.com hosts the Donate SDK script tag.
+  "script-src 'self' https://www.paypalobjects.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
-  "img-src 'self' data: blob: https://images.weserv.nl https://cards.scryfall.io https://img.scryfall.com https://svgs.scryfall.io",
+  // paypalobjects.com serves the donate button image (btn_donate_LG.gif).
+  "img-src 'self' data: blob: https://images.weserv.nl https://cards.scryfall.io https://img.scryfall.com https://svgs.scryfall.io https://www.paypalobjects.com",
   `connect-src ${connectSrc}`,
+  // PayPal opens its checkout popup as a new window; an iframe variant
+  // exists too, so allow framing the live + sandbox origins.
+  "frame-src https://www.paypal.com https://www.sandbox.paypal.com",
   "media-src 'self' blob:",
   "object-src 'none'",
   "base-uri 'self'",
-  "form-action 'self'",
+  "form-action 'self' https://www.paypal.com https://www.sandbox.paypal.com",
 ].join('; ');
 
 function cspPlugin() {

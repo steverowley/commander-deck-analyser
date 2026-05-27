@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.17.0 — Auto-supporter badge (PayPal Donate SDK + webhook)
+
+Tips now flip the supporter badge automatically. The TipModal renders PayPal's in-page Donate button when the build is configured for it AND the user is signed in (so the tip can be attributed to a Supabase user_id). PayPal posts to a new edge function on completion; the function verifies the signature, checks idempotency, and flips `supporter=true` for the right user.
+
+### Edge function (`supabase/functions/paypal-webhook/`)
+- Reads the raw POST body, parses headers, calls PayPal's `verify-webhook-signature` endpoint (using a cached OAuth client-credentials access token).
+- Inserts the `event_id` into `paypal_events` for idempotency — PayPal redelivers webhooks freely; the primary-key conflict on duplicates short-circuits without double-incrementing the cents total.
+- On verified `PAYMENT.SALE.COMPLETED` with a `resource.custom = <user_id>`, updates `profiles`: `supporter = true`, `supporter_total_cents += amount`, `supporter_since = coalesce(supporter_since, now())`. Service-role write — the trigger added in v0.15.0 bypasses for the service role.
+- Anonymous tips (no `custom` field) and other event types are recorded in `paypal_events` for accounting but don't flip any badge. All paths return 200 unless the signature failed (400) or a DB error happened (500).
+- Deployed as `paypal-webhook`, `verify_jwt: false` (PayPal can't send a Supabase JWT — auth happens via the signature verify call).
+
+### Client
+- **`src/lib/billing.js`** gains `loadDonateSdk()` (lazy script-tag loader) + `renderDonateButton(container, { userId })` (mounts the SDK button with `custom = userId` so the webhook can attribute). Two new tests cover `hasDonateButton` truthy / unconfigured cases.
+- **TipModal** now picks the path at render time: SDK button when `VITE_PAYPAL_BUTTON_ID` is set AND the user is signed in; PayPal.Me fallback otherwise (with a "sign in for auto-badge" hint when the button ID is set but the user isn't signed in).
+- **`?tip=thanks` URL handler** in `App.jsx` now also re-fetches the profile after a 3s delay so the badge appears without a manual reload once the webhook lands.
+
+### Config
+- **CSP** in `vite.config.js` allowlists `https://www.paypalobjects.com` (script + image), `https://www.paypal.com` + `https://www.sandbox.paypal.com` (XHR + iframe + form-action). Dev-mode HMR unaffected — the policy is build-only.
+- **`.env.example`** documents `VITE_PAYPAL_BUTTON_ID`, `VITE_PAYPAL_ENV`, and the edge-function secrets (`PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `PAYPAL_ENV` — set via `supabase secrets set`, not the Vite build).
+
+### Operator setup (one-time)
+Before the auto-flow actually fires:
+1. Create a PayPal Business app → grab `client_id` + `client_secret`.
+2. Create a Hosted Donate button in the PayPal dashboard → grab the button ID, set `VITE_PAYPAL_BUTTON_ID`.
+3. Create a webhook subscription pointing at the deployed function URL, subscribed to `PAYMENT.SALE.COMPLETED` → grab the webhook ID.
+4. `supabase secrets set PAYPAL_CLIENT_ID=… PAYPAL_CLIENT_SECRET=… PAYPAL_WEBHOOK_ID=… PAYPAL_ENV=sandbox` (then `live` when ready).
+5. Test with a sandbox tip; flip `PAYPAL_ENV=live` and re-test with a real one.
+
 ## v0.16.0 — Tip jar
 
 A new **Tip jar** link in the footer opens a small modal with preset $3 / $5 / $10 PayPal buttons (plus a custom amount). Each opens PayPal.Me in a new tab where the tipper completes payment. Tips land in Vault's PayPal account; the supporter badge added in v0.15.0 is flipped manually for now — the auto-attribution webhook lands in the next slice.
