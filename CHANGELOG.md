@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.11.2 — Security hardening for public launch
+
+- **`deleteDeck` now binds the delete to the authenticated owner_id.** Previously the call ran `.delete().eq('id', id)` and relied entirely on Supabase RLS to reject cross-tenant deletes. Same defense-in-depth shape as `loadDecks` / `saveDeck`, so an accidental RLS policy widening can't be exploited from the client.
+- **Content-Security-Policy meta tag in the production build.** Locks scripts to `'self'`, allows only the origins the app actually contacts (Supabase REST + realtime, Scryfall, EDHREC, weserv.nl, Google Fonts), and disallows `object-src` entirely. Injected via a `apply: 'build'` Vite plugin so dev-mode HMR (which needs `'unsafe-eval'`) is unaffected.
+
 ## v0.11.1 — Hero cycle: dots + always-cycle
 
 - **Position dots under the hero.** Small click-to-jump indicators show which of the four taglines is active and let you skip ahead.

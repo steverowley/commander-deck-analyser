@@ -106,7 +106,16 @@ export async function saveDeck(deck) {
 
 export async function deleteDeck(id) {
   if (!supabase) return;
-  const { error } = await supabase.from('decks').delete().eq('id', id);
+  // Bind to the authenticated owner so a stray client (or a future RLS
+  // policy that broadens delete) can't drop someone else's row by uuid.
+  // Mirrors the owner_id filter on loadDecks / saveDeck.
+  const userId = await currentUserId().catch(() => null);
+  if (!userId) return;
+  const { error } = await supabase
+    .from('decks')
+    .delete()
+    .eq('owner_id', userId)
+    .eq('id', id);
   if (error) console.warn('Supabase deleteDeck failed', error);
 }
 
