@@ -128,7 +128,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
                   style={{ color: CREAM_DIM }}
                   title="View profile"
                 >
-                  <span className="truncate">Cloud · <span style={{ color: CREAM }}>{user.email?.split('@')[0]}</span></span>
+                  <span className="truncate">Profile · <span style={{ color: CREAM }}>{user.email?.split('@')[0]}</span></span>
                   {profile?.supporter && <SupporterBadge />}
                 </button>
                 <button onClick={onSignOut} className="hover:opacity-100 shrink-0 ml-3" style={{ color: CREAM_DIM }}>
@@ -184,7 +184,7 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
                 style={{ color: CREAM_DIM }}
                 title="View profile"
               >
-                <span className="truncate">Cloud · <span style={{ color: CREAM }}>{user.email?.split('@')[0]}</span></span>
+                <span className="truncate">Profile · <span style={{ color: CREAM }}>{user.email?.split('@')[0]}</span></span>
                 {profile?.supporter && <SupporterBadge />}
               </button>
             ) : cloudEnabled ? (
