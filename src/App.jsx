@@ -14,7 +14,7 @@ import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import { OfflineIndicator } from './components/OfflineIndicator.jsx';
 import { AuthModal } from './components/AuthModal.jsx';
 import { ProfileModal } from './components/ProfileModal.jsx';
-import { BackupModal, SettingsModal } from './components/Modals.jsx';
+import { BackupModal, SettingsModal, BugReportModal } from './components/Modals.jsx';
 import { VaultPage } from './components/VaultPage.jsx';
 import { GlobalDropOverlay } from './components/GlobalDropOverlay.jsx';
 import { addToCollection } from './lib/collection.js';
@@ -34,6 +34,7 @@ export default function App() {
   const [importProgress, setImportProgress] = useState('');
   const [showBackup, setShowBackup] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showBugReport, setShowBugReport] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   // 'landing' | 'vault'. activeId (deck editor) takes precedence over both.
   const [view, setView] = useState('landing');
@@ -350,6 +351,7 @@ export default function App() {
             onSettings={() => setShowSettings(true)}
             onProfile={() => setProfileMode('edit')}
             onCollection={() => setView('vault')}
+            onReportBug={() => setShowBugReport(true)}
             collectionRev={collectionRev}
             user={auth.user}
             cloudEnabled={isCloudEnabled()}
@@ -409,6 +411,7 @@ export default function App() {
         />
       )}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      {showBugReport && <BugReportModal onClose={() => setShowBugReport(false)} />}
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       {profileMode && auth.user && (
         <ProfileModal

@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.12.0 — In-app bug reporting
+
+- **Report bug** link in the footer opens a small in-app form (title, what went wrong, optional repro steps). Submit kicks the user out to a pre-filled new-issue page on GitHub, tagged `bug`, with app version, browser user-agent, and current URL appended (toggleable). No backend, no secrets — the user clicks **Submit new issue** on GitHub to actually file it.
+- **Dropped the "MIT" and "Open Source" labels** from the site (footer chip + hero subtitle). Hero now reads "For Commander"; footer chip is just `Vault · vX.Y.Z`.
+
 ## v0.11.3 — Code-review fixes
 
 A round of correctness and efficiency cleanups surfaced by a deep code review. No new features.

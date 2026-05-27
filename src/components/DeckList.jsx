@@ -17,7 +17,7 @@ import { RandomRollsView } from './RandomRollsView.jsx';
 import { loadCollection, addToCollection } from '../lib/collection.js';
 import { ScryfallSearchPanel, SCRYFALL_DRAG_MIME } from './ScryfallSearchPanel.jsx';
 
-export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup, onSettings, onProfile, onCollection, collectionRev = 0, user, cloudEnabled, onSignIn, onSignOut, onImportFromGallery, onViewGalleryDeck, onRandomBuild }) {
+export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup, onSettings, onProfile, onCollection, onReportBug, collectionRev = 0, user, cloudEnabled, onSignIn, onSignOut, onImportFromGallery, onViewGalleryDeck, onRandomBuild }) {
   const [name, setName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showImport, setShowImport] = useState(false);
@@ -609,7 +609,6 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
         <span className="flex items-center gap-2">
           <span>Vault ·</span>
           <VersionChip version={__APP_VERSION__} align="left" />
-          <span>· MIT</span>
         </span>
         <div className="flex items-center gap-3">
           {onBackup && (
@@ -636,6 +635,14 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
               <span style={{ opacity: 0.4 }}>·</span>
               <button onClick={onCollection} className="hover:opacity-100 transition" style={{ color: CREAM_DIM }}>
                 Vault
+              </button>
+            </>
+          )}
+          {onReportBug && (
+            <>
+              <span style={{ opacity: 0.4 }}>·</span>
+              <button onClick={onReportBug} className="hover:opacity-100 transition" style={{ color: CREAM_DIM }}>
+                Report bug
               </button>
             </>
           )}
@@ -714,7 +721,7 @@ function CyclingHero() {
         className="text-[10px] md:text-[11px] tracking-[0.45em] uppercase mb-8 font-serif"
         style={{ color: CREAM_DIM }}
       >
-        For Commander · Open Source
+        For Commander
       </div>
       <div className="grid">
         {HERO_ENTRIES.map((entry, idx) => {

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Loader2, Check, BookOpen, Copy, Download, Link as LinkIcon, GitCompare, Archive, FileText, Settings as SettingsIcon, Dices, Shuffle } from 'lucide-react';
+import { X, Loader2, Check, BookOpen, Copy, Download, Link as LinkIcon, GitCompare, Archive, FileText, Settings as SettingsIcon, Dices, Shuffle, Bug, ExternalLink } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, parseDecklist, lc } from '../lib/utils.js';
 import { fetchCardsByName, fetchCardByExactName, refreshCachedCards, fetchPrintings, fetchRandomCommander, cardImageUrl } from '../lib/scryfall.js';
@@ -1196,6 +1196,136 @@ function BackupRestore({ onRestore, onClose }) {
 }
 
 // ───────────────────────────────────────────────────────────────────────────────
+
+const GITHUB_REPO = 'steverowley/commander-deck-analyser';
+
+export function BugReportModal({ onClose }) {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [steps, setSteps] = useState('');
+  const [includeEnv, setIncludeEnv] = useState(true);
+
+  const canSubmit = title.trim().length > 0 && description.trim().length > 0;
+
+  const buildBody = () => {
+    const sections = [];
+    sections.push('### What went wrong\n\n' + description.trim());
+    if (steps.trim()) {
+      sections.push('### Steps to reproduce\n\n' + steps.trim());
+    }
+    if (includeEnv) {
+      const env = [];
+      const version = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'unknown';
+      env.push(`- **Vault version:** ${version}`);
+      if (typeof navigator !== 'undefined' && navigator.userAgent) {
+        env.push(`- **User agent:** ${navigator.userAgent}`);
+      }
+      if (typeof window !== 'undefined' && window.location?.href) {
+        env.push(`- **URL:** ${window.location.href}`);
+      }
+      sections.push('### Environment\n\n' + env.join('\n'));
+    }
+    return sections.join('\n\n');
+  };
+
+  const submit = () => {
+    if (!canSubmit) return;
+    const url = new URL(`https://github.com/${GITHUB_REPO}/issues/new`);
+    url.searchParams.set('title', title.trim());
+    url.searchParams.set('body', buildBody());
+    url.searchParams.set('labels', 'bug');
+    window.open(url.toString(), '_blank', 'noopener,noreferrer');
+    onClose();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 flex items-center justify-center z-50 p-4"
+      style={{ background: 'rgba(13,22,20,0.92)', backdropFilter: 'blur(6px)' }}
+    >
+      <div className="w-full max-w-xl max-h-[90vh] flex flex-col border" style={{ background: BG, borderColor: CREAM_FAINT }}>
+        <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
+          <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold flex items-center gap-2" style={{ color: CREAM }}>
+            <Bug className="w-3.5 h-3.5" /> Report a bug
+          </div>
+          <button onClick={onClose} style={{ color: CREAM_DIM }} className="hover:opacity-100 transition">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-5 space-y-4 overflow-auto">
+          <p className="font-serif text-xs italic" style={{ color: CREAM_DIM }}>
+            Opens a pre-filled new-issue page on GitHub. You'll click <span className="not-italic">Submit new issue</span> there to publish it. A free GitHub account is required.
+          </p>
+          <div>
+            <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-1.5" style={{ color: CREAM_DIM }}>
+              Title
+            </div>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Short summary of the bug"
+              maxLength={140}
+              className="w-full px-3 py-2 bg-transparent border font-mono text-sm focus:outline-none"
+              style={{ borderColor: CREAM_FAINT, color: CREAM }}
+            />
+          </div>
+          <div>
+            <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-1.5" style={{ color: CREAM_DIM }}>
+              What went wrong
+            </div>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe what you expected to happen, and what actually happened."
+              rows={5}
+              className="w-full px-3 py-2 bg-transparent border font-mono text-sm focus:outline-none resize-none"
+              style={{ borderColor: CREAM_FAINT, color: CREAM }}
+            />
+          </div>
+          <div>
+            <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-1.5" style={{ color: CREAM_DIM }}>
+              Steps to reproduce <span style={{ opacity: 0.6 }}>· optional</span>
+            </div>
+            <textarea
+              value={steps}
+              onChange={(e) => setSteps(e.target.value)}
+              placeholder={'1. Roll a Mono-Red deck at bracket 3\n2. Click Save to my archive\n3. ...'}
+              rows={4}
+              className="w-full px-3 py-2 bg-transparent border font-mono text-sm focus:outline-none resize-none"
+              style={{ borderColor: CREAM_FAINT, color: CREAM }}
+            />
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={includeEnv}
+              onChange={(e) => setIncludeEnv(e.target.checked)}
+              className="accent-current"
+              style={{ color: CREAM }}
+            />
+            <span className="font-serif text-xs" style={{ color: CREAM_DIM }}>
+              Include app version, browser, and URL
+            </span>
+          </label>
+        </div>
+        <div className="px-5 py-4 border-t flex items-center justify-between gap-3" style={{ borderColor: CREAM_FAINT }}>
+          <button onClick={onClose} className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+            Cancel
+          </button>
+          <button
+            onClick={submit}
+            disabled={!canSubmit}
+            className="font-serif text-[10px] tracking-[0.3em] uppercase border px-4 py-2 flex items-center gap-2 disabled:opacity-40"
+            style={{ borderColor: CREAM_FAINT, color: CREAM }}
+          >
+            Open on GitHub <ExternalLink className="w-3 h-3" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /**
  * App-wide settings. Stored in localStorage via lib/settings.js.
