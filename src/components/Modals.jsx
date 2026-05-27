@@ -18,6 +18,7 @@ import { RETAILERS, RETAILER_LABEL } from '../lib/affiliate.js';
 import { cacheSize, clearIDBCache } from '../lib/idbcache.js';
 import { fetchRecommendations, topRecommendations } from '../lib/edhrec.js';
 import { buildBugReportBody } from '../lib/bugReport.js';
+import { supabase } from '../lib/supabase.js';
 import { TagPill, RuleSection } from './UI.jsx';
 import { ManaSymbol } from './ManaCost.jsx';
 import { ThemeToggle } from './ThemeToggle.jsx';
@@ -1205,7 +1206,6 @@ function BackupRestore({ onRestore, onClose }) {
 // ───────────────────────────────────────────────────────────────────────────────
 
 const GITHUB_REPO = 'steverowley/commander-deck-analyser';
-const BUG_REPORT_URL = import.meta.env.VITE_BUG_REPORT_URL || '';
 
 export function BugReportModal({ onClose }) {
   const [title, setTitle] = useState('');
@@ -1218,7 +1218,11 @@ export function BugReportModal({ onClose }) {
   const [state, setState] = useState('idle');
   const [result, setResult] = useState(null);
 
-  const hasWorker = !!BUG_REPORT_URL;
+  // The Supabase Edge Function `bug-report` files the issue on the
+  // user's behalf so reporters don't need a GitHub account. Falls
+  // back to opening the prefilled GitHub URL when the client is
+  // running fully local (no Supabase config baked into the build).
+  const hasBackend = !!supabase;
   const canSubmit =
     title.trim().length > 0 &&
     description.trim().length > 0 &&
@@ -1241,23 +1245,25 @@ export function BugReportModal({ onClose }) {
     window.open(url.toString(), '_blank', 'noopener,noreferrer');
   };
 
-  const submitToWorker = async () => {
+  const submitToBackend = async () => {
     setState('submitting');
     setResult(null);
     try {
-      const res = await fetch(BUG_REPORT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const { data, error } = await supabase.functions.invoke('bug-report', {
+        body: {
           title: title.trim(),
           body: composeBody(),
           email: email.trim() || undefined,
           website: honeypot,
-        }),
+        },
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.ok) {
-        setResult({ error: data.error || `HTTP ${res.status}` });
+      if (error) {
+        setResult({ error: error.message || 'submit failed' });
+        setState('error');
+        return;
+      }
+      if (!data?.ok) {
+        setResult({ error: data?.error || 'submit failed' });
         setState('error');
         return;
       }
@@ -1271,8 +1277,8 @@ export function BugReportModal({ onClose }) {
 
   const submit = () => {
     if (!canSubmit) return;
-    if (hasWorker) {
-      submitToWorker();
+    if (hasBackend) {
+      submitToBackend();
     } else {
       openOnGitHub();
       onClose();
@@ -1324,7 +1330,7 @@ export function BugReportModal({ onClose }) {
           <>
             <div className="p-5 space-y-4 overflow-auto">
               <p className="font-serif text-xs italic" style={{ color: CREAM_DIM }}>
-                {hasWorker
+                {hasBackend
                   ? 'Sends straight to the maintainer’s issue tracker. No account needed.'
                   : 'Opens a pre-filled new-issue page on GitHub. You’ll click Submit new issue there to publish it. A free GitHub account is required.'}
               </p>
@@ -1368,7 +1374,7 @@ export function BugReportModal({ onClose }) {
                   style={{ borderColor: CREAM_FAINT, color: CREAM }}
                 />
               </div>
-              {hasWorker && (
+              {hasBackend && (
                 <div>
                   <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-1.5" style={{ color: CREAM_DIM }}>
                     Your email <span style={{ opacity: 0.6 }}>· optional, only if you want a reply</span>
@@ -1418,7 +1424,7 @@ export function BugReportModal({ onClose }) {
                 <button onClick={onClose} className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
                   Cancel
                 </button>
-                {hasWorker && canSubmit && (
+                {hasBackend && canSubmit && (
                   <button
                     onClick={() => { openOnGitHub(); onClose(); }}
                     className="font-serif text-[10px] tracking-[0.3em] uppercase hover:opacity-100 transition"
@@ -1439,7 +1445,7 @@ export function BugReportModal({ onClose }) {
                   <>
                     <Loader2 className="w-3 h-3 animate-spin" /> Submitting...
                   </>
-                ) : hasWorker ? (
+                ) : hasBackend ? (
                   <>Submit bug</>
                 ) : (
                   <>Open on GitHub <ExternalLink className="w-3 h-3" /></>

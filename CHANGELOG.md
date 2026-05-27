@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.23.0 — Bug reports go straight to GitHub, no account required
+
+The v0.14.0 release shipped a Cloudflare-Worker-backed bug submission path, but the deploy step never happened — so prod has been falling back to "Open on GitHub" the whole time, defeating the purpose. This release moves the backend onto Supabase (which Vault already uses) so the path is wired up by default and no third-party account is in the loop.
+
+- **Edge Function `bug-report`** under `supabase/functions/bug-report/`. Holds a fine-grained PAT as a Supabase secret, validates the payload (honeypot, length caps, email format), files the issue under the existing GitHub tracker tagged `bug` + `from-app`. Source committed; deploy is one MCP call (or `supabase functions deploy bug-report`).
+- **Modal calls the function unconditionally** when the Supabase client is configured (which it always is in prod). No more `VITE_BUG_REPORT_URL` repo secret to manage. Pure-local builds (no Supabase env) still get the prefilled-GitHub-URL fallback for completeness.
+- **Removed `worker/` directory** — superseded by the edge function. Removed the `VITE_BUG_REPORT_URL` env wiring from `vite.config.js` and `deploy.yml`. CSP `connect-src` is unchanged since `*.supabase.co` is already allowed.
+- **One-time setup:** paste a fine-grained PAT (Issues: Read and write on this repo only) into Supabase → Edge Functions → Manage secrets as `GITHUB_TOKEN`. After that, every Vault user can file bugs with no GitHub account.
+
 ## v0.22.0 — Slim public-gallery queries
 
 The Public Gallery and Latest random rolls strips used to pull the full deck JSON (commander, every card, tags, notes, etc.) for every tile, on every homepage load — anonymous visitors included. At ~5–20 KB per deck × 30 tiles that's a chunk of Supabase egress spent on data nobody renders until they actually click in. This release denormalises the badge stats onto columns and slims the public selects to commander + summary fields only; the full payload is lazy-fetched when the user hits **View** or **Copy → mine**.
