@@ -1,6 +1,6 @@
 /**
  * VaultCard — single owned-card thumbnail used in both the Vault
- * grid on the homepage and the Manage Vault modal.
+ * strip on the homepage and the full Vault page grid.
  *
  * Adds the same affordances as the commander panel: rounded corners
  * (via Scryfall's PNG-with-alpha variant + a CSS borderRadius

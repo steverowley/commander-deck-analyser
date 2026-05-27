@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.10.0 — Vault is now its own page (with stats)
+
+The Vault graduates from a modal to a first-class page, sitting beside Decks. Same add / paste / scan / search affordances, plus a dashboard built for actually looking at a 1000-card inventory.
+
+### Features
+- **Dashboard.** Tiles for unique / total / total value / foil count, then four breakdown panels: colour distribution (W/U/B/R/G + multicolor + colourless), type distribution, mana curve (spells only — lands excluded), and rarity. A *Top sets* strip surfaces the sets you've collected most heavily.
+- **Most valuable.** Top 12 cards by single-copy price, with set name, quantity, foil flag, and total-value line for multi-copies. Handy for trade reference.
+- **Deck coverage.** For every saved deck, what percentage of its 100 slots you already own. Click a row to open the deck — its missing cards are still surfaced via the existing "to buy" math on the deck page.
+- **Buildable commanders.** Every legendary creature in your Vault, sorted by colour-identity size so the deepest builds appear first. The deck roller's "Vault-only" toggle picks from these.
+- **Cards on the shelf.** Surface unique cards in the Vault that aren't in any saved deck (excluding basics) — and how much that unplayed value totals to. One-click "Show me →" filters the inventory grid to just those.
+- **Inventory filters.** Filter by type (creature / instant / sorcery / artifact / enchantment / planeswalker / land), colour (W/U/B/R/G + multicolour + colourless), or "unused only". Sort by recent / name / value / quantity. Grid and list views.
+
+### Internals
+- New `src/lib/vaultStats.js` — pure, tested. 8 unit tests cover empty collections, foil tracking, deck coverage, unused exclusions, buildable-commander filtering, the lands-out-of-CMC rule, and the multicolor/colourless bucketing.
+- `rarity` added to the normalized Scryfall card cache so the rarity histogram has data. Existing cached cards fill in as they're re-resolved (no breakage).
+- `CollectionModal.jsx` deleted. `App.jsx` now has a `view` state ('landing' | 'vault'); the footer "Vault" link and the landing "Open Vault →" button switch to the page rather than opening a modal.
+- Landing-page copy updated: "Manage Vault →" → "Open Vault →", and the empty-state hint mentions the new stats page.
+
 ## v0.9.3 — Vault-only roller: visibility + diagnostics
 
 - **Visible warning** in the Roll modal when the Vault filter cut the EDHREC pool down to under 10 cards. Without this you got a deck of mostly basics with no explanation. Now the modal says "Vault filter matched only N of EDHREC's top cards for ... try widening your Vault or turning the filter off."
