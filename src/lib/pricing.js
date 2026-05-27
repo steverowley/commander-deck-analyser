@@ -92,6 +92,12 @@ export function vendorLabel(vendor) {
   return VENDOR_PRICE[vendor]?.label || 'Unknown vendor';
 }
 
+// Compact form used in narrow UI like the settings segmented-control —
+// strips the parenthetical price-tier ("(Mid)", "(Trend)") so labels fit.
+export function shortVendorLabel(vendor) {
+  return vendorLabel(vendor).replace(/\s*\(.*\)\s*$/, '');
+}
+
 export function vendorMeta(vendor) {
   return VENDOR_PRICE[vendor] || null;
 }
