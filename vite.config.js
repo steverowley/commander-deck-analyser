@@ -17,13 +17,31 @@ const SUPABASE_ANON_DEFAULT = 'sb_publishable_YyvhYAknrT5aDdzszs1E_Q_M-72jAbR';
 // Google Fonts (display fonts loaded from src/index.css). Injected via
 // <meta http-equiv> only in the build output so Vite dev-mode HMR (which
 // needs inline scripts + eval) keeps working.
+const BUG_REPORT_URL = process.env.VITE_BUG_REPORT_URL || '';
+const BUG_REPORT_ORIGIN = (() => {
+  try {
+    return BUG_REPORT_URL ? new URL(BUG_REPORT_URL).origin : '';
+  } catch {
+    return '';
+  }
+})();
+
+const connectSrc = [
+  "'self'",
+  'https://*.supabase.co',
+  'wss://*.supabase.co',
+  'https://api.scryfall.com',
+  'https://json.edhrec.com',
+  BUG_REPORT_ORIGIN,
+].filter(Boolean).join(' ');
+
 const CSP = [
   "default-src 'self'",
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
   "img-src 'self' data: blob: https://images.weserv.nl https://cards.scryfall.io https://img.scryfall.com https://svgs.scryfall.io",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.scryfall.com https://json.edhrec.com",
+  `connect-src ${connectSrc}`,
   "media-src 'self' blob:",
   "object-src 'none'",
   "base-uri 'self'",
