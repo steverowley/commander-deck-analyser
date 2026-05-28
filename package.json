@@ -1,7 +1,7 @@
 {
   "name": "vault",
   "private": true,
-  "version": "0.27.0",
+  "version": "0.28.0",
   "type": "module",
   "description": "An MTG Commander deck builder with auto-tagging, bracket assessment, and hypergeometric probability.",
   "scripts": {

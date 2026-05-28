@@ -7,7 +7,7 @@ import { renameDeck, setDeckNotes, setDeckPublic } from '../lib/deckops.js';
 import { CardsTab, PackagesTab, CurveTab, BracketTab, StagesTab, ProbabilitiesTab, RecommendationsTab } from './Tabs.jsx';
 import { deckTotalPrice, formatPrice, deckPriceTooltip } from '../lib/pricing.js';
 import { loadSettings } from '../lib/settings.js';
-import { RulesModal, ExportModal, ShareModal, CompareModal, NotesModal, PrintingPickerModal } from './Modals.jsx';
+import { RulesModal, ExportModal, ShareModal, CompareModal, NotesModal, PrintingPickerModal, RuleZeroModal } from './Modals.jsx';
 import { ScryfallSearchPanel } from './ScryfallSearchPanel.jsx';
 import { addCardsToDeck } from '../lib/deckops.js';
 import { ManaCost } from './ManaCost.jsx';
@@ -329,6 +329,7 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, onSaveTransien
   const [showRules, setShowRules] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [showRuleZero, setShowRuleZero] = useState(false);
   const [showCompare, setShowCompare] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [showScryfall, setShowScryfall] = useState(false);
@@ -515,6 +516,12 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, onSaveTransien
           label="Export"
           title="Export decklist"
         />
+        <ActionButton
+          onClick={() => setShowRuleZero(true)}
+          icon={Sparkle}
+          label="Rule Zero"
+          title="Generate a Rule Zero card (bracket, win cons, flags) to share with the pod"
+        />
         {onDuplicate && (
           <ActionButton
             onClick={onDuplicate}
@@ -597,6 +604,7 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, onSaveTransien
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}
       {showExport && <ExportModal deck={deck} onClose={() => setShowExport(false)} />}
       {showShare && <ShareModal deck={deck} onClose={() => setShowShare(false)} />}
+      {showRuleZero && <RuleZeroModal deck={deck} onClose={() => setShowRuleZero(false)} />}
       {showCompare && <CompareModal deck={deck} otherDecks={otherDecks} onClose={() => setShowCompare(false)} />}
       {showNotes && (
         <NotesModal
