@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.26.0 — Pod tracking + game log
+
+Vault now tracks what happens at the table. Create a pod, name the regulars, log games with commander + winner, and per-deck matchup stats (wins/losses vs each opponent commander) surface in the Stats tab. Owner-private — RLS on `pods.owner_id` means nobody but you sees your pods.
+
+### Database (migration `add_pods_tracking`, already applied)
+- **`public.pods`** — `(id uuid pk, owner_id uuid fk → auth.users, name text, created_at)`. Index on `owner_id`.
+- **`public.pod_members`** — `(id, pod_id fk → pods, user_id? fk → auth.users, display_name)`. `user_id` nullable because not every opponent has a Vault account.
+- **`public.games`** — `(id, pod_id fk → pods, played_at, winner_member_id? fk → pod_members, notes?)`. Index on `(pod_id, played_at desc)`.
+- **`public.game_decks`** — `(id, game_id fk → games, member_id? fk → pod_members, deck_id? fk → decks, commander_name?, placement?)`. `deck_id` is `ON DELETE SET NULL` so deleting a deck doesn't wipe matchup history; foreign-key indexes on both join columns.
+- **RLS** — every table has a single `to authenticated` policy gating on the pod's `owner_id = auth.uid()` via the appropriate chain. Members are display-name only; an opponent appears in your data without consenting to the app.
+
+### Library
+- **New `src/lib/pods.js`** — full CRUD: `listPods`, `createPod`, `deletePod`, `renamePod`, `listPodMembers`, `addPodMember`, `removePodMember`, `listGames`, `logGame` (transactional: rolls back the `games` row if the `game_decks` insert fails), `deleteGame`, `gamesForDeck`, `matchupForDeck`. Pure aggregators `aggregateMatchups` + `aggregatePodStats` are split out so the math is unit-testable.
+
+### UI
+- **New `PodsPage`** (`src/components/PodsPage.jsx`) — full-page view reached via the new **Pods** link in the homepage footer (signed-in only). List of owned pods with a create form, then per-pod detail showing members (CRUD), an inline game-log form (one row per seat: member picker, optional saved-deck dropdown that auto-fills the commander, free-text commander, free-text notes; winner is its own dropdown), and a chronological game log with delete on each row. Mobile layouts stack vertically so a quick post-game log is well under 30 seconds.
+- **`MatchupSection` in the Stats tab** — appears under Land Base when the active deck has a cloud uuid and at least one logged game. Lists opponents by games-played descending with wins-losses-pct on the right.
+- **`App.jsx`** gains a `view='pods'` route; `DeckListView` accepts an `onPods` prop and renders the link only when signed-in (Pods are RLS-gated to owners).
+
+### Tests
+- New `pods.test.js` (7 cases) covers the matchup aggregator (wins/losses per opponent, commander-name fallback to member display name, sort by games played, deck-not-seated skip, no-winner counted as a loss) and the pod-stats aggregator (winner counts per member, 30-day window). 308 tests green (up from 301).
+
 ## v0.25.0 — Decklist import: text paste + Moxfield / Archidekt URLs
 
 The Import Deck modal now accepts a public Moxfield or Archidekt URL directly — paste the link, hit **Fetch →**, and the cards drop into the paste box for review. The text parser is broken out into its own module with explicit sections, and unresolved card names get a "did you mean" picker backed by Scryfall autocomplete.

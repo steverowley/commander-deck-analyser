@@ -16,6 +16,7 @@ import { AuthModal } from './components/AuthModal.jsx';
 import { ProfileModal } from './components/ProfileModal.jsx';
 import { BackupModal, SettingsModal, BugReportModal } from './components/Modals.jsx';
 import { VaultPage } from './components/VaultPage.jsx';
+import { PodsPage } from './components/PodsPage.jsx';
 import { GlobalDropOverlay } from './components/GlobalDropOverlay.jsx';
 import { TipModal } from './components/TipModal.jsx';
 import { addToCollection } from './lib/collection.js';
@@ -424,6 +425,12 @@ export default function App() {
             onSelectDeck={(id) => { setView('landing'); selectDeck(id); }}
             onCollectionChanged={() => setCollectionRev((r) => r + 1)}
           />
+        ) : view === 'pods' ? (
+          <PodsPage
+            onBack={() => setView('landing')}
+            signedIn={!!auth.user}
+            decks={decks}
+          />
         ) : (
           <DeckListView
             decks={decks}
@@ -436,6 +443,7 @@ export default function App() {
             onSettings={() => setShowSettings(true)}
             onProfile={() => setProfileMode('edit')}
             onCollection={() => setView('vault')}
+            onPods={() => setView('pods')}
             onReportBug={() => setShowBugReport(true)}
             onTipJar={() => setTipState('open')}
             collectionRev={collectionRev}
