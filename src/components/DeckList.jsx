@@ -18,7 +18,7 @@ import { RandomRollsView } from './RandomRollsView.jsx';
 import { loadCollection, addToCollection } from '../lib/collection.js';
 import { ScryfallSearchPanel, SCRYFALL_DRAG_MIME } from './ScryfallSearchPanel.jsx';
 
-export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup, onSettings, onProfile, onCollection, onPods, onReportBug, onTipJar, collectionRev = 0, user, profile, cloudEnabled, onSignIn, onSignOut, onImportFromGallery, onViewGalleryDeck, onRandomBuild }) {
+export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup, onSettings, onProfile, onCollection, onPods, onReportBug, onTipJar, collectionRev = 0, user, profile, cloudEnabled, onSignIn, onSignOut, onImportFromGallery, onViewGalleryDeck, onRandomBuild, onViewAllGallery, onViewAllRolls }) {
   const [name, setName] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showImport, setShowImport] = useState(false);
@@ -600,8 +600,8 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
         />
       )}
 
-      {cloudEnabled && <RandomRollsView onImportFromGallery={onImportFromGallery} onViewDeck={onViewGalleryDeck} />}
-      {cloudEnabled && <GalleryView onImportFromGallery={onImportFromGallery} onViewDeck={onViewGalleryDeck} />}
+      {cloudEnabled && <RandomRollsView onImportFromGallery={onImportFromGallery} onViewDeck={onViewGalleryDeck} onViewAll={onViewAllRolls} />}
+      {cloudEnabled && <GalleryView onImportFromGallery={onImportFromGallery} onViewDeck={onViewGalleryDeck} onViewAll={onViewAllGallery} />}
 
       {/* Footer — on mobile the chip and the action row each stack and the
           action row wraps freely. Separator dots are desktop-only because on

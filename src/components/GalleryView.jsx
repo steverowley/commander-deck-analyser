@@ -13,51 +13,49 @@ import { loadPublicDecks, loadDeckById } from '../lib/storage-supabase.js';
 import { ManaSymbol } from './ManaCost.jsx';
 import { SupporterBadge } from './UI.jsx';
 
-export function GalleryView({ onImportFromGallery, onViewDeck }) {
+export function GalleryView({ onImportFromGallery, onViewDeck, onViewAll, limit = 6 }) {
   const [decks, setDecks] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    loadPublicDecks(18)
+    loadPublicDecks(limit)
       .then(setDecks)
       .catch((e) => setError(e.message));
-  }, []);
+  }, [limit]);
 
   if (error) return null; // silent on error — gallery is optional
   if (decks === null) {
     return (
-      <div className="mt-12 fade-up" style={{ animationDelay: '300ms' }}>
-        <div className="flex items-baseline gap-4 mb-3">
-          <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
-            <Globe className="w-3.5 h-3.5 inline mr-2" style={{ verticalAlign: 'baseline' }} />
-            Public Gallery
-          </div>
-          <div className="flex-1 border-t" style={{ borderColor: CREAM_FAINT }} />
-        </div>
+      <Header onViewAll={null}>
         <div className="border p-8 flex items-center justify-center gap-3" style={{ borderColor: CREAM_FAINT }}>
           <Loader2 className="w-4 h-4 animate-spin" style={{ color: CREAM_DIM }} />
           <span className="font-mono text-xs" style={{ color: CREAM_DIM }}>Loading public decks...</span>
         </div>
-      </div>
+      </Header>
     );
   }
   if (decks.length === 0) {
     return (
-      <div className="mt-12 fade-up" style={{ animationDelay: '300ms' }}>
-        <div className="flex items-baseline gap-4 mb-3">
-          <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
-            <Globe className="w-3.5 h-3.5 inline mr-2" style={{ verticalAlign: 'baseline' }} />
-            Public Gallery
-          </div>
-          <div className="flex-1 border-t" style={{ borderColor: CREAM_FAINT }} />
-        </div>
+      <Header onViewAll={null}>
         <div className="border border-dashed p-8 text-center font-serif text-sm italic" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
           No public decks yet. Sign in and toggle a deck public to seed the gallery.
         </div>
-      </div>
+      </Header>
     );
   }
 
+  return (
+    <Header onViewAll={onViewAll}>
+      <div className="grid grid-cols-1 md:grid-cols-3 border-t border-l" style={{ borderColor: CREAM_FAINT }}>
+        {decks.map((d) => (
+          <GalleryCard key={d.id} deck={d} onImport={onImportFromGallery} onView={onViewDeck} />
+        ))}
+      </div>
+    </Header>
+  );
+}
+
+function Header({ children, onViewAll }) {
   return (
     <div className="mt-12 fade-up" style={{ animationDelay: '300ms' }}>
       <div className="flex items-baseline gap-4 mb-3">
@@ -66,15 +64,18 @@ export function GalleryView({ onImportFromGallery, onViewDeck }) {
           Public Gallery
         </div>
         <div className="flex-1 border-t" style={{ borderColor: CREAM_FAINT }} />
-        <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
-          {pad(decks.length)} on file
-        </div>
+        {onViewAll && (
+          <button
+            onClick={onViewAll}
+            className="font-serif text-[10px] tracking-[0.3em] uppercase hover:opacity-100 transition"
+            style={{ color: CREAM_DIM }}
+            title="Browse, search, and sort every public deck"
+          >
+            View all →
+          </button>
+        )}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 border-t border-l" style={{ borderColor: CREAM_FAINT }}>
-        {decks.map((d) => (
-          <GalleryCard key={d.id} deck={d} onImport={onImportFromGallery} onView={onViewDeck} />
-        ))}
-      </div>
+      {children}
     </div>
   );
 }
@@ -92,7 +93,7 @@ function relativeTime(ms) {
   return new Date(ms).toLocaleDateString();
 }
 
-function GalleryCard({ deck, onImport, onView }) {
+export function GalleryCard({ deck, onImport, onView }) {
   const [busy, setBusy] = useState(null); // null | 'view' | 'import'
   const bracket = deck.bracket ?? null;
   const healthScore = deck.health_score ?? null;

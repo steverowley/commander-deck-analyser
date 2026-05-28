@@ -17,6 +17,8 @@ import { ProfileModal } from './components/ProfileModal.jsx';
 import { BackupModal, SettingsModal, BugReportModal } from './components/Modals.jsx';
 import { VaultPage } from './components/VaultPage.jsx';
 import { PodsPage } from './components/PodsPage.jsx';
+import { GalleryAllView } from './components/GalleryAllView.jsx';
+import { RandomRollsAllView } from './components/RandomRollsAllView.jsx';
 import { GlobalDropOverlay } from './components/GlobalDropOverlay.jsx';
 import { TipModal } from './components/TipModal.jsx';
 import { addToCollection } from './lib/collection.js';
@@ -63,7 +65,8 @@ export default function App() {
   // further. Using a ref keeps this out of the effect's dep list.
   const autoPromptHandled = useRef(false);
   const [showAuth, setShowAuth] = useState(false);
-  // 'landing' | 'vault'. activeId (deck editor) takes precedence over both.
+  // 'landing' | 'vault' | 'pods' | 'gallery-all' | 'rolls-all'.
+  // activeId (deck editor) takes precedence over all of them.
   const [view, setView] = useState('landing');
   // Bumped whenever the user's collection mutates from outside the
   // VaultSection (e.g. via the global drop overlay or the Vault page).
@@ -316,6 +319,31 @@ export default function App() {
     markEngagement();
   };
 
+  // Copy a public gallery / random-roll deck into the user's archive.
+  // Shared by the landing-page tiles AND the full Gallery / Rolls pages
+  // so all entry points stay in sync.
+  const handleImportFromGallery = async (deck) => {
+    const copy = duplicateDeck(deck);
+    copy.is_public = false;
+    copy.name = `${deck.name} (copy)`;
+    await saveDeck(copy);
+    const reloaded = await loadDecks();
+    setDecks(reloaded);
+  };
+
+  // Open a gallery deck in a transient read-only session — slot it into
+  // `viewingDeck`, NOT into `decks`. The archive list never shows it;
+  // navigating back clears it.
+  const handleViewGalleryDeck = (deck) => {
+    const viewerDeck = {
+      ...deck,
+      id: `view:${deck.id}`,
+      __readonly: true,
+    };
+    setViewingDeck(viewerDeck);
+    selectDeck(viewerDeck.id);
+  };
+
   const acceptShare = async () => {
     if (!pendingShare) return;
     setImportingShare(true);
@@ -431,6 +459,18 @@ export default function App() {
             signedIn={!!auth.user}
             decks={decks}
           />
+        ) : view === 'gallery-all' ? (
+          <GalleryAllView
+            onBack={() => setView('landing')}
+            onImportFromGallery={handleImportFromGallery}
+            onViewDeck={handleViewGalleryDeck}
+          />
+        ) : view === 'rolls-all' ? (
+          <RandomRollsAllView
+            onBack={() => setView('landing')}
+            onImportFromGallery={handleImportFromGallery}
+            onViewDeck={handleViewGalleryDeck}
+          />
         ) : (
           <DeckListView
             decks={decks}
@@ -452,27 +492,10 @@ export default function App() {
             cloudEnabled={isCloudEnabled()}
             onSignIn={() => setShowAuth(true)}
             onSignOut={handleSignOut}
-            onImportFromGallery={async (deck) => {
-              // Copy a public gallery deck into the user's archive.
-              const copy = duplicateDeck(deck);
-              copy.is_public = false;
-              copy.name = `${deck.name} (copy)`;
-              await saveDeck(copy);
-              const reloaded = await loadDecks();
-              setDecks(reloaded);
-            }}
-            onViewGalleryDeck={(deck) => {
-              // Open a gallery deck in a transient session — slot it into
-              // `viewingDeck`, NOT into `decks`. The archive list never
-              // shows it; navigating back clears it.
-              const viewerDeck = {
-                ...deck,
-                id: `view:${deck.id}`,
-                __readonly: true,
-              };
-              setViewingDeck(viewerDeck);
-              selectDeck(viewerDeck.id);
-            }}
+            onImportFromGallery={handleImportFromGallery}
+            onViewGalleryDeck={handleViewGalleryDeck}
+            onViewAllGallery={() => setView('gallery-all')}
+            onViewAllRolls={() => setView('rolls-all')}
             onRandomBuild={(payload) => {
               // Rolled decks open in a transient session — they
               // don't clutter the archive unless the user explicitly
