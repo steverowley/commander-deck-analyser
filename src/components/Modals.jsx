@@ -11,6 +11,8 @@ import { loadCollection, uniqueCount } from '../lib/collection.js';
 import { saveRandomRoll } from '../lib/storage-supabase.js';
 import { exportDecklist } from '../lib/deckops.js';
 import { buildShareUrl } from '../lib/share.js';
+import { buildRuleZeroCard, asMarkdown as ruleZeroAsMarkdown, BRACKET_LABELS, flagsLine } from '../lib/ruleZero.js';
+import { downloadRuleZeroPng } from '../lib/ruleZeroImage.js';
 import { deckTotalPrice, formatPrice, isConverted, deckPriceTooltip, PRICE_VENDORS, vendorLabel, shortVendorLabel } from '../lib/pricing.js';
 import { compareDecks } from '../lib/compare.js';
 import { buildBackup, parseBackup, backupFilename } from '../lib/backup.js';
@@ -736,6 +738,191 @@ function CardCol({ title, cards }) {
 }
 
 // ───────────────────────────────────────────────────────────────────────────────
+
+export function RuleZeroModal({ deck, onClose }) {
+  const card = useMemo(() => buildRuleZeroCard(deck), [deck]);
+  const markdown = useMemo(() => ruleZeroAsMarkdown(card), [card]);
+  const shareUrl = useMemo(() => buildShareUrl(deck), [deck]);
+  const [copied, setCopied] = useState(null); // 'md' | 'url' | null
+  const [pngError, setPngError] = useState(null);
+
+  const copy = async (kind, text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(kind);
+      setTimeout(() => setCopied(null), 1500);
+    } catch {
+      // Fallback for non-secure contexts
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch {}
+      document.body.removeChild(ta);
+      setCopied(kind);
+      setTimeout(() => setCopied(null), 1500);
+    }
+  };
+
+  const downloadPng = () => {
+    setPngError(null);
+    try {
+      const safeName = (deck.name || 'rule-zero').toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
+      const ok = downloadRuleZeroPng(card, `${safeName || 'rule-zero'}.png`);
+      if (!ok) setPngError('PNG export needs a browser — try the markdown copy instead.');
+    } catch (e) {
+      setPngError(e.message || 'PNG export failed.');
+    }
+  };
+
+  if (!card) return null;
+  const bracketName = BRACKET_LABELS[card.bracket] || '';
+  return (
+    <div
+      className="fixed inset-0 flex items-center justify-center z-50 p-4"
+      style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
+    >
+      <div className="w-full max-w-2xl max-h-[90vh] flex flex-col border" style={{ background: BG, borderColor: CREAM_FAINT }}>
+        <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
+          <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold flex items-center gap-2" style={{ color: CREAM }}>
+            <FileText className="w-3.5 h-3.5" /> Rule Zero Card
+          </div>
+          <button onClick={onClose} style={{ color: CREAM_DIM }}>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="p-5 flex-1 overflow-auto space-y-4">
+          <p className="font-serif text-xs italic" style={{ color: CREAM_DIM }}>
+            Pre-game summary — flags are auto-derived from your deck so a teammate can read the card and know what to expect.
+          </p>
+
+          {/* The card preview */}
+          <div className="border p-5 space-y-4" style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.02)' }}>
+            <div>
+              <div className="font-mono text-[10px] tracking-wider mb-1" style={{ color: CREAM_DIM }}>
+                VAULT · RULE ZERO CARD
+              </div>
+              <div className="font-serif font-black uppercase tracking-tight text-2xl" style={{ color: CREAM }}>
+                {card.deckName}
+              </div>
+              {card.commanderName && (
+                <div className="font-serif text-sm" style={{ color: CREAM_DIM }}>
+                  {card.commanderName} · {card.colors || 'C'}
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 border-t border-b py-4" style={{ borderColor: CREAM_FAINT }}>
+              <Stat label="Bracket" value={`${card.bracket}${bracketName ? ` ${bracketName}` : ''}`} />
+              <Stat label="Archetype" value={card.archetype?.name || '—'} />
+              <Stat label="Avg CMC" value={Number.isFinite(card.avgCmc) ? card.avgCmc.toFixed(2) : '—'} />
+              <Stat label="Threat turn" value={Number.isFinite(card.fastestWinTurn) ? `T${card.fastestWinTurn}` : '—'} />
+            </div>
+            <div>
+              <div className="font-mono text-[10px] tracking-wider mb-2" style={{ color: CREAM_DIM }}>
+                WIN CONDITIONS
+              </div>
+              <ul className="font-serif text-sm space-y-1" style={{ color: CREAM }}>
+                {card.winCons.map((w, i) => (
+                  <li key={i} className="flex gap-2">
+                    <span style={{ color: CREAM_DIM }}>·</span>
+                    <span>{w}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <div className="font-mono text-[10px] tracking-wider mb-2" style={{ color: CREAM_DIM }}>
+                AUTO-DERIVED FLAGS
+              </div>
+              <div className="font-serif text-sm font-bold" style={{ color: ACCENT }}>
+                {flagsLine(card.flags)}
+              </div>
+            </div>
+            {card.bracketReasons?.length > 0 && (
+              <div>
+                <div className="font-mono text-[10px] tracking-wider mb-2" style={{ color: CREAM_DIM }}>
+                  BRACKET NOTES
+                </div>
+                <ul className="font-serif text-xs space-y-0.5" style={{ color: CREAM }}>
+                  {card.bracketReasons.map((r, i) => (
+                    <li key={i} className="flex gap-2">
+                      <span style={{ color: CREAM_DIM }}>·</span>
+                      <span>{r}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          {/* Markdown preview */}
+          <div>
+            <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-2" style={{ color: CREAM_DIM }}>
+              Markdown
+            </div>
+            <textarea
+              value={markdown}
+              readOnly
+              onClick={(e) => e.currentTarget.select()}
+              className="w-full h-32 p-3 border bg-transparent focus:outline-none font-mono text-[10px] leading-relaxed"
+              style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(var(--ink-rgb),0.02)' }}
+            />
+          </div>
+
+          {pngError && (
+            <div className="px-3 py-2 border" style={{ borderColor: ACCENT, color: CREAM }}>
+              {pngError}
+            </div>
+          )}
+        </div>
+
+        <div className="px-5 py-4 border-t flex flex-wrap justify-end gap-3" style={{ borderColor: CREAM_FAINT }}>
+          <button onClick={onClose} className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+            Close
+          </button>
+          <button
+            onClick={() => copy('url', shareUrl)}
+            className="font-serif text-[10px] tracking-[0.3em] uppercase flex items-center gap-2 border px-3 py-1.5"
+            style={{ borderColor: CREAM_FAINT, color: CREAM }}
+          >
+            {copied === 'url' ? <Check className="w-3 h-3" /> : <LinkIcon className="w-3 h-3" />}
+            {copied === 'url' ? 'Copied' : 'Copy link'}
+          </button>
+          <button
+            onClick={downloadPng}
+            className="font-serif text-[10px] tracking-[0.3em] uppercase flex items-center gap-2 border px-3 py-1.5"
+            style={{ borderColor: CREAM_FAINT, color: CREAM }}
+          >
+            <Download className="w-3 h-3" />
+            Save PNG
+          </button>
+          <button
+            onClick={() => copy('md', markdown)}
+            className="font-serif text-[10px] tracking-[0.3em] uppercase flex items-center gap-2"
+            style={{ color: CREAM }}
+          >
+            {copied === 'md' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+            {copied === 'md' ? 'Copied' : 'Copy markdown →'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value }) {
+  return (
+    <div>
+      <div className="font-mono text-[10px] tracking-wider" style={{ color: CREAM_DIM }}>
+        {label.toUpperCase()}
+      </div>
+      <div className="font-serif font-bold text-base mt-1" style={{ color: CREAM }}>
+        {value}
+      </div>
+    </div>
+  );
+}
 
 export function ShareModal({ deck, onClose }) {
   const url = buildShareUrl(deck);

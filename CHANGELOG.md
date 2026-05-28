@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.28.0 — Rule Zero card
+
+The DeckEditor toolbar gains a **Rule Zero** action that opens a one-page pre-game summary — bracket, archetype, win conditions (combos from v0.24, alt-win cards, commander damage), auto-derived flags (GC / MLD / fast mana / tutors / extra turns / stax / combos), realistic-threat turn from a goldfish playout. Export as markdown for Discord/Slack, as a PNG for chat thumbnails, or as a shareable link.
+
+### Library
+- **`src/lib/ruleZero.js`** — `buildRuleZeroCard(deck)` aggregates bracket (`analyzers.assessBracket`), archetype (`strategy.classifyArchetype`), assembled combos (`combos.detectCombos`), and a `fastestWinTurn` heuristic that runs 20 goldfish playouts and returns the median turn at which cumulative non-land CMC on the battlefield crosses 10 — a rough proxy for "threat density". Win conditions blend combos + a curated alt-win list (Approach / Maze's End / Biovisionary / Felidar Sovereign / Helix Pinnacle / Coalition Victory / …) + a commander-damage heuristic (power ≥ 5 + evasion or explicit "commander damage" oracle text). `asMarkdown(card)` renders Discord/Slack-friendly markdown.
+- **`src/lib/ruleZeroImage.js`** — `downloadRuleZeroPng(card)` paints the card onto a 768-wide canvas at 2× device pixels (zero deps — pure 2D context, word-wrapping, the existing cream-on-charcoal palette) and triggers a download. The markdown path stays zero-dep regardless.
+
+### UI
+- **`RuleZeroModal`** in `Modals.jsx` shows a live-rendered preview of the card, the markdown source in a copy textarea, and three actions in the footer: Copy link (existing share URL), Save PNG (canvas export), Copy markdown.
+- **DeckEditor toolbar** gets a `Rule Zero` action button (sparkle icon) right after Export.
+
+### Tests
+- **`ruleZero.test.js`** (13 cases): bracket / deck size / flag aggregation; Thoracle + Consultation surfaces as the combo win; Approach of the Second Sun flagged as alt-win; commander damage heuristic on Skithiryx; stax counted from the tag list; commander color identity carried; null deck safe; markdown render; `flagsLine` formatter; multi-win-cond ordering. 338 tests green (up from 325).
+
 ## v0.27.0 — Token sheet generator
 
 The Stats tab now lists every token the deck creates with the cards that make them — so you know which dice / cardboard tokens to bring to a game. Token doublers (Anointed Procession, Parallel Lives, Mondrak) are flagged on every row in the accent colour. A "Copy sheet" button drops the whole thing as plain text into the clipboard.
