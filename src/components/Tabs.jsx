@@ -4,6 +4,7 @@ import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, hypergeom } from '../lib/utils.js';
 import { assessBracket } from '../lib/analyzers.js';
 import { detectCombos } from '../lib/combos.js';
+import { extractTokens, extractResources, tokensAsText } from '../lib/tokens.js';
 import { computeHealth } from '../lib/health.js';
 import { buildStagePlans, synergyHubs, packageWeight, classifyArchetype } from '../lib/strategy.js';
 import { BRACKETS } from '../lib/constants.js';
@@ -912,7 +913,103 @@ export function CurveTab({ deck }) {
       </div>
 
       <LandBaseSection deck={deck} />
+      <TokensSection deck={deck} />
       <MatchupSection deck={deck} />
+    </div>
+  );
+}
+
+function TokensSection({ deck }) {
+  const tokens = useMemo(() => extractTokens(deck), [deck.cards, deck.commander]);
+  const resources = useMemo(() => extractResources(deck), [deck.cards, deck.commander]);
+  const [copied, setCopied] = useState(false);
+
+  if (tokens.length === 0 && resources.length === 0) return null;
+
+  const handleCopy = async () => {
+    const text = tokensAsText({ tokens, resources, deckName: deck.name });
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Older browsers — fall back to a textarea selection.
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
+  };
+
+  return (
+    <div className="border" style={{ borderColor: CREAM_FAINT }}>
+      <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
+        <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold flex items-center gap-2" style={{ color: CREAM }}>
+          Tokens · {pad(tokens.length)}
+          <HelpTip>
+            Every token the deck creates plus non-token resources it cares about (energy, monarch, day/night, etc.). Token doublers — Anointed Procession, Parallel Lives, Mondrak — are listed as a source on every token row.
+          </HelpTip>
+        </div>
+        <button
+          onClick={handleCopy}
+          className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-1.5"
+          style={{ borderColor: CREAM_FAINT, color: CREAM }}
+        >
+          {copied ? 'Copied ✓' : 'Copy sheet'}
+        </button>
+      </div>
+      <div className="divide-y" style={{ borderColor: CREAM_FAINT }}>
+        {tokens.map((t) => (
+          <div key={t.label} className="p-4 space-y-1" style={{ borderColor: CREAM_FAINT }}>
+            <div className="font-serif font-bold uppercase tracking-tight" style={{ color: CREAM }}>
+              {t.label}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {t.sources.map((s) => {
+                const isDoubler = t.doublerSources.includes(s);
+                return (
+                  <span
+                    key={s}
+                    className="font-mono text-[11px] px-2 py-0.5 border tracking-wide"
+                    style={{
+                      borderColor: isDoubler ? ACCENT : CREAM_FAINT,
+                      color: isDoubler ? ACCENT : CREAM_DIM,
+                    }}
+                    title={isDoubler ? 'Token doubler — affects every token' : undefined}
+                  >
+                    {s}{isDoubler ? ' · doubles' : ''}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+        {resources.length > 0 && (
+          <div className="p-4" style={{ borderColor: CREAM_FAINT }}>
+            <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-2" style={{ color: CREAM_DIM }}>
+              Non-token resources
+            </div>
+            <ul className="space-y-1.5">
+              {resources.map((r) => (
+                <li key={r.id}>
+                  <div className="font-serif font-bold" style={{ color: CREAM }}>{r.label}</div>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {r.sources.map((s) => (
+                      <span key={s} className="font-mono text-[11px] px-2 py-0.5 border" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

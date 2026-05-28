@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.27.0 — Token sheet generator
+
+The Stats tab now lists every token the deck creates with the cards that make them — so you know which dice / cardboard tokens to bring to a game. Token doublers (Anointed Procession, Parallel Lives, Mondrak) are flagged on every row in the accent colour. A "Copy sheet" button drops the whole thing as plain text into the clipboard.
+
+### Library
+- **New `src/lib/tokens.js`** with `parseTokensFromOracle(text)`, `extractTokens(deck)`, `extractResources(deck)`, and `tokensAsText({ tokens, resources, deckName })`.
+  - Parser walks `create [N] … token(s)` clauses, extracts P/T (`(\*|x|\d+)\/(\*|x|\d+)`), color words, and the subtype block between the P/T and the literal "creature" keyword. Strips trailing `with X` ability clauses and `named Y` flavour text. Falls back to a list of known artifact-token types (Treasure / Food / Clue / Blood / Gold / Powerstone / Map / Incubator / Junk / Shard) when there's no P/T.
+  - Doublers detected via a separate regex (`twice that many | double the number of … tokens`) and appended as `doublerSources` to every aggregated token, since they affect every token the deck makes.
+  - `extractResources` flags energy / experience / monarch / initiative / day-night / dungeons / Ring tempts you / plot via dedicated patterns so the same printable sheet covers non-token state that's easy to forget at the table.
+
+### UI
+- **`TokensSection` in the Stats tab** appears whenever the deck creates any token or interacts with a non-token resource. Each token row shows the canonical label (e.g. `Goblin 1/1 R`) followed by its source-card chips; doubler chips render in the accent color with a `· doubles` suffix. Resources get their own block below the token list.
+- Copy button uses `navigator.clipboard.writeText` with a textarea fallback for older browsers; success flips the button text to `Copied ✓` for 1.5 seconds.
+
+### Tests
+- **New `tokens.test.js`** (17 cases) — Krenko + Anointed Procession produces Goblin 1/1 R with both as sources (the issue's named acceptance check); Elspeth's Soldier; Treasure parsing; multiple tokens per card; "with abilities" / "named X" trailing-clause stripping; commander counted as a source; sort order (creatures before artifact tokens, alphabetical); non-token resource detection (monarch / initiative / energy / day-night); empty-state copy text. 325 tests green (up from 308).
+
 ## v0.26.0 — Pod tracking + game log
 
 Vault now tracks what happens at the table. Create a pod, name the regulars, log games with commander + winner, and per-deck matchup stats (wins/losses vs each opponent commander) surface in the Stats tab. Owner-private — RLS on `pods.owner_id` means nobody but you sees your pods.
