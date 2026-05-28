@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.30.0 — Browse-all pages for Public Gallery + Random Rolls
+
+The landing-page Public Gallery and Latest Random Rolls sections were each loading the most recent ~12–18 entries inline, which crowded the home page once the gallery started filling up and left no way to dig past the newest few. Both sections now cap to the 6 most-recent on the home page and gain a **View all →** link that opens a dedicated browse page with search + sort.
+
+### UI
+- **Home page** — `GalleryView` and `RandomRollsView` now load only 6 entries each (was 18 + 12). A `View all →` link appears in each section header when a callback is wired.
+- **`GalleryAllView`** (new) — full Public Gallery browse page. Loads up to 200 public decks; client-side search across deck name / commander / `@owner`; sort by most recent / deck name / commander / bracket / health.
+- **`RandomRollsAllView`** (new) — full Latest random rolls browse page. Loads up to 200 rolls; search across commander / `@owner` / archetype; sort by most recent / commander / bracket / budget (low→high or high→low) / archetype.
+- **Routing** — `App.jsx` gains two new view states (`'gallery-all'`, `'rolls-all'`) wired through `DeckListView` via new `onViewAllGallery` / `onViewAllRolls` callbacks. Both new pages mirror `VaultPage`'s top nav (ChevronLeft back button + title chip + total / shown counters + version chip).
+- **Card-tile reuse** — `GalleryCard` and `RollCard` are now exported from their source files so the new browse pages render identical tiles to the home page (commander thumb, badges, `@user · 5m ago`, View / Copy → mine). Behavior stays in lockstep — one place to change a tile.
+
+### Refactor
+- `App.jsx` — extracted `handleImportFromGallery` and `handleViewGalleryDeck` from the inline `DeckListView` props into named functions on the App component so the new browse pages share the same implementation. Single source of truth for "copy → mine" and "view in transient session".
+
 ## v0.29.3 — Vault stats now use the chosen printing's price + set
 
 - **Fix: `Total value`, `Foil value`, `Most valuable`, `Top sets`, and `Cards on the shelf → unplayed value` now reflect the user's chosen printing.** They were always reading from the canonical Scryfall printing returned by `fetchCardsByName`, so a Beta Sol Ring (~$4000) reported as the Commander Anthology reprint (~$2). `VaultPage` now merges `printingCards` over `cardData` and hands the merged map to `computeVaultStats`. Oracle-level fields (type/colors/CMC) are identical across printings; printing-level fields (set, rarity, price, image) now follow the user's choice. (closes #152)

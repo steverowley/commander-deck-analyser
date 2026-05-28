@@ -32,20 +32,20 @@ function relativeTime(ms) {
   return new Date(ms).toLocaleDateString();
 }
 
-export function RandomRollsView({ onImportFromGallery, onViewDeck }) {
+export function RandomRollsView({ onImportFromGallery, onViewDeck, onViewAll, limit = 6 }) {
   const [decks, setDecks] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    loadRandomRolls(12)
+    loadRandomRolls(limit)
       .then(setDecks)
       .catch((e) => setError(e.message));
-  }, []);
+  }, [limit]);
 
   if (error) return null;
   if (decks === null) {
     return (
-      <Header>
+      <Header onViewAll={null}>
         <div className="border p-8 flex items-center justify-center gap-3" style={{ borderColor: CREAM_FAINT }}>
           <Loader2 className="w-4 h-4 animate-spin" style={{ color: CREAM_DIM }} />
           <span className="font-mono text-xs" style={{ color: CREAM_DIM }}>Loading recent rolls...</span>
@@ -55,7 +55,7 @@ export function RandomRollsView({ onImportFromGallery, onViewDeck }) {
   }
   if (decks.length === 0) {
     return (
-      <Header>
+      <Header onViewAll={null}>
         <div className="border border-dashed p-8 text-center font-serif text-sm italic" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
           No rolls shared yet. Hit Roll a deck above — your build can be the first.
         </div>
@@ -64,7 +64,7 @@ export function RandomRollsView({ onImportFromGallery, onViewDeck }) {
   }
 
   return (
-    <Header count={decks.length}>
+    <Header onViewAll={onViewAll}>
       <div className="grid grid-cols-1 md:grid-cols-3 border-t border-l" style={{ borderColor: CREAM_FAINT }}>
         {decks.map((d) => (
           <RollCard key={d.id} deck={d} onImport={onImportFromGallery} onView={onViewDeck} />
@@ -74,7 +74,7 @@ export function RandomRollsView({ onImportFromGallery, onViewDeck }) {
   );
 }
 
-function Header({ children, count }) {
+function Header({ children, onViewAll }) {
   return (
     <div className="mt-12 fade-up" style={{ animationDelay: '270ms' }}>
       <div className="flex items-baseline gap-4 mb-3">
@@ -83,10 +83,15 @@ function Header({ children, count }) {
           Latest random rolls
         </div>
         <div className="flex-1 border-t" style={{ borderColor: CREAM_FAINT }} />
-        {count != null && (
-          <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
-            {pad(count)} on file
-          </div>
+        {onViewAll && (
+          <button
+            onClick={onViewAll}
+            className="font-serif text-[10px] tracking-[0.3em] uppercase hover:opacity-100 transition"
+            style={{ color: CREAM_DIM }}
+            title="Browse, search, and sort every random roll"
+          >
+            View all →
+          </button>
         )}
       </div>
       {children}
@@ -94,7 +99,7 @@ function Header({ children, count }) {
   );
 }
 
-function RollCard({ deck, onImport, onView }) {
+export function RollCard({ deck, onImport, onView }) {
   const [busy, setBusy] = useState(null);
   const meta = deck.seedMeta || {};
   const archetype = archetypeById(meta.archetype);
