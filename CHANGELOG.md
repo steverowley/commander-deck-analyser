@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.33.0 — Per-deck swap log
+
+Every add / cut / count-change you make in the deck editor now lands in a per-deck swap log so six months from now you remember why you cut Sol Ring. Per-card notes were already supported; this release adds the chronological log + optional "why?" notes per entry.
+
+### Library
+- **`src/lib/deckops.js`** picks up `diffCards(prev, next)`, `recordSwap(deck, change)`, `applyWithLog(prev, next, note?)`, `setSwapNote(deck, ts, note)`, `deleteSwapEntry(deck, ts)`. The log is trimmed to `SWAP_LOG_CAP = 100` newest entries; notes are trimmed + capped at `SWAP_NOTE_MAX = 280`. The whole log is plain JSON so it survives backup / restore through `lib/backup.js` unchanged.
+
+### UI
+- **`DeckEditor`** wraps the incoming `onUpdate` prop in `applyWithLog(deck, next)`, so every editor-driven mutation is captured automatically. Imports (`App.handleImport`), random rolls, and share-acceptance keep using the bare `addCardsToDeck` path so they don't pollute the log.
+- **`SwapLogPanel` at the bottom of the Cards tab** collapses by default. Open it to see chronological entries (newest first) with the added / removed cards as chips, a timestamp, and an inline "+ Note" affordance to add a "why?" retroactively. A `Only show entries with my notes` checkbox filters out the auto-noise. Each row has a delete button for trimming an accidental editor click.
+
+### Tests
+- 11 new cases in `deckops.test.js` covering `diffCards` (add / remove / count change), `recordSwap` (no-op for empty diffs, trims long notes, caps log size), `applyWithLog` (captures changes + notes, skips no-ops), `setSwapNote` / `deleteSwapEntry`, and a JSON round-trip to confirm backup safety.
+
 ## v0.32.0 — Build Advisor: anti-pattern warnings + curve-aware land label
 
 The Stats tab gains a **Build Advisor** panel that surfaces structural problems the health-score fundamentals don't catch. Two checks ship in this release: Karsten-formula underland detection (the #1 casual deckbuilding mistake per Frank Karsten) and top-heavy-curve-without-compensating-ramp. The static "Rec: 36-38" land label is also retired in favour of the curve-aware target.

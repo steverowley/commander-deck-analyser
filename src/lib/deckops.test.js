@@ -14,6 +14,13 @@ import {
   removeFromWishlist,
   promoteFromWishlist,
   demoteToWishlist,
+  diffCards,
+  recordSwap,
+  applyWithLog,
+  setSwapNote,
+  deleteSwapEntry,
+  SWAP_LOG_CAP,
+  SWAP_NOTE_MAX,
 } from './deckops.js';
 
 const baseDeck = () => ({
@@ -230,5 +237,98 @@ describe('wishlist', () => {
     d = promoteFromWishlist(d, 'Bloodghast');
     expect(d.cards.length).toBe(1);
     expect(d.wishlist).toEqual([]);
+  });
+});
+
+describe('swap log', () => {
+  it('diffCards: detects an add', () => {
+    const a = baseDeck();
+    const b = addCardsToDeck(a, [sampleCard('Sol Ring')]);
+    const d = diffCards(a, b);
+    expect(d.added).toEqual([{ name: 'Sol Ring', count: 1 }]);
+    expect(d.removed).toEqual([]);
+  });
+
+  it('diffCards: detects a remove', () => {
+    const a = addCardsToDeck(baseDeck(), [sampleCard('Sol Ring')]);
+    const b = removeCardFromDeck(a, 'Sol Ring');
+    const d = diffCards(a, b);
+    expect(d.added).toEqual([]);
+    expect(d.removed).toEqual([{ name: 'Sol Ring', count: 1 }]);
+  });
+
+  it('diffCards: detects a count change as a partial add or remove', () => {
+    const a = addCardsToDeck(baseDeck(), [sampleCard('Forest', { type_line: 'Basic Land — Forest' })]);
+    const b = { ...a, cards: a.cards.map((c) => ({ ...c, count: 3 })) };
+    expect(diffCards(a, b).added).toEqual([{ name: 'Forest', count: 2 }]);
+    const c = { ...a, cards: a.cards.map((c) => ({ ...c, count: 0 })).filter((c) => c.count > 0) };
+    expect(diffCards(a, c).removed).toEqual([{ name: 'Forest', count: 1 }]);
+  });
+
+  it('recordSwap: appends an entry with timestamp and is a no-op for empty diffs', () => {
+    const a = baseDeck();
+    expect(recordSwap(a, {}).swap_log).toBeUndefined();
+    const b = recordSwap(a, { added: [{ name: 'Sol Ring', count: 1 }] });
+    expect(b.swap_log.length).toBe(1);
+    expect(b.swap_log[0].added[0]).toMatchObject({ name: 'Sol Ring', count: 1 });
+    expect(typeof b.swap_log[0].ts).toBe('number');
+  });
+
+  it('recordSwap: caps note length and trims whitespace', () => {
+    const longNote = 'x'.repeat(SWAP_NOTE_MAX + 50);
+    const out = recordSwap(baseDeck(), { added: [{ name: 'Sol Ring', count: 1 }], note: `   ${longNote}   ` });
+    expect(out.swap_log[0].note.length).toBe(SWAP_NOTE_MAX);
+  });
+
+  it('recordSwap: trims the log to the cap', () => {
+    let d = baseDeck();
+    for (let i = 0; i < SWAP_LOG_CAP + 5; i++) {
+      d = recordSwap(d, { added: [{ name: `Card ${i}`, count: 1 }] });
+    }
+    expect(d.swap_log.length).toBe(SWAP_LOG_CAP);
+    expect(d.swap_log[0].added[0].name).toBe(`Card 5`); // oldest 5 dropped
+  });
+
+  it('applyWithLog: captures editor changes including notes', () => {
+    const a = baseDeck();
+    const b = addCardsToDeck(a, [sampleCard('Sol Ring')]);
+    const c = applyWithLog(a, b, 'rocks are good');
+    expect(c.swap_log[0].added[0].name).toBe('Sol Ring');
+    expect(c.swap_log[0].note).toBe('rocks are good');
+  });
+
+  it('applyWithLog: skips logging when nothing changed', () => {
+    const a = addCardsToDeck(baseDeck(), [sampleCard('Sol Ring')]);
+    const b = applyWithLog(a, a);
+    expect(b.swap_log).toBeUndefined();
+  });
+
+  it('setSwapNote: edits the note on an existing entry', () => {
+    let d = recordSwap(baseDeck(), { added: [{ name: 'Sol Ring', count: 1 }] });
+    const ts = d.swap_log[0].ts;
+    d = setSwapNote(d, ts, 'replaced Mana Vault');
+    expect(d.swap_log[0].note).toBe('replaced Mana Vault');
+  });
+
+  it('setSwapNote: removes the note when given an empty string', () => {
+    let d = recordSwap(baseDeck(), { added: [{ name: 'Sol Ring', count: 1 }], note: 'old note' });
+    const ts = d.swap_log[0].ts;
+    d = setSwapNote(d, ts, '');
+    expect(d.swap_log[0].note).toBeUndefined();
+  });
+
+  it('deleteSwapEntry: removes a swap entry by timestamp', () => {
+    let d = recordSwap(baseDeck(), { added: [{ name: 'Sol Ring', count: 1 }] });
+    const ts = d.swap_log[0].ts;
+    d = deleteSwapEntry(d, ts);
+    expect(d.swap_log).toEqual([]);
+  });
+
+  it('survives JSON round-trip (backup/restore)', () => {
+    const a = baseDeck();
+    const b = applyWithLog(a, addCardsToDeck(a, [sampleCard('Sol Ring')]), 'why not');
+    const restored = JSON.parse(JSON.stringify(b));
+    expect(restored.swap_log[0].added[0]).toMatchObject({ name: 'Sol Ring', count: 1 });
+    expect(restored.swap_log[0].note).toBe('why not');
   });
 });

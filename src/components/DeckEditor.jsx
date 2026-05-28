@@ -3,7 +3,7 @@ import { ChevronLeft, BookOpen, Loader2, Crown, Sparkles, Tag, BarChart3, Target
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { lc, pad } from '../lib/utils.js';
 import { searchCardAutocomplete, fetchCardByExactName, cardImageUrl } from '../lib/scryfall.js';
-import { renameDeck, setDeckNotes, setDeckPublic } from '../lib/deckops.js';
+import { renameDeck, setDeckNotes, setDeckPublic, applyWithLog } from '../lib/deckops.js';
 import { CardsTab, PackagesTab, CurveTab, BracketTab, StagesTab, ProbabilitiesTab, RecommendationsTab } from './Tabs.jsx';
 import { deckTotalPrice, formatPrice, deckPriceTooltip } from '../lib/pricing.js';
 import { loadSettings } from '../lib/settings.js';
@@ -324,7 +324,7 @@ function CommanderPicker({ deck, onSet, onCycleFoil }) {
 
 // ───────────────────────────────────────────────────────────────────────────────
 
-export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, onSaveTransient, otherDecks = [], initialTab }) {
+export function DeckEditor({ deck, onUpdate: rawOnUpdate, onBack, onDuplicate, onSaveTransient, otherDecks = [], initialTab }) {
   const [tab, setTab] = useState(initialTab || 'cards');
   const [showRules, setShowRules] = useState(false);
   const [showExport, setShowExport] = useState(false);
@@ -335,6 +335,12 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, onSaveTransien
   const [showScryfall, setShowScryfall] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(deck.name);
+
+  // Every editor-driven update flows through this wrapper so add / cut /
+  // count-change operations are captured in the deck's swap_log. Imports
+  // (App.handleImport, Roll, Share) call the bare addCardsToDeck directly
+  // and don't pollute the log.
+  const onUpdate = (next) => rawOnUpdate(applyWithLog(deck, next));
 
   const setCommander = (card) => {
     if (!card) {
