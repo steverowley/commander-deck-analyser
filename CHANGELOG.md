@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.34.0 — Region-aware currency, buy links + Cardmarket referral pop-up
+
+First-time visitors now get prices and shopping links that match where they are, and UK/EU players get a dedicated nudge toward the Cardmarket referral that funds Vault. No setup, no override of anyone who's already chosen their own settings.
+
+### Library
+- **New `src/lib/geo.js`** detects a visitor's region (`uk` / `eu` / `us`). `detectRegion()` tries IP geolocation first (keyless `ipapi.co`, 2s timeout) and falls back to browser timezone + locale; both signals run through `regionForCountry()`. `REGION_DEFAULTS` maps each region to its currency / buy-link retailer / price source (UK → GBP + Cardmarket, EU → EUR + Cardmarket, US → USD + TCGplayer). All detection helpers take injectable inputs so they're testable.
+- **`src/lib/settings.js`** gains a `region` field (informational), `applyRegionDefaults(region)` to seed the existing currency / `prefRetailer` / `prefPriceSource` settings, and `hasStoredSettings()` so auto-detection never overrides a user who's already saved preferences.
+- **New `src/lib/referralPrompt.js`** mirrors the tip-jar prompt's show-once / maybe-later (~30 day) / dismiss-forever gate. `isReferralEligible()` only passes for UK/EU players when a Cardmarket referrer username is configured.
+
+### UI
+- **`App.jsx`** runs region detection once per device (gated by a `vault:geoApplied` flag) and seeds the settings on a brand-new visitor's first load. The engagement-gated auto-prompt now coordinates two CTAs: the **Cardmarket referral pop-up** (UK/EU) takes priority, everyone else still gets the tip jar — only one fires per session.
+- **New `src/components/ReferralModal.jsx`** — a Cardmarket-first refer-a-friend pop-up reusing the tip-jar modal shell, with copy-username + signup-link affordances from `affiliate.js`.
+- **Settings** shows a "Detected region" note above the currency / buy-link controls so users know why their defaults were set, with a reminder they can change anything.
+- **CSP `connect-src`** now allows `https://ipapi.co` for the region lookup.
+
+### Tests
+- **New `geo.test.js`** (country mapping, timezone/locale fallback, IP path with mocked fetch, IP-first-then-fallback ordering) and **`referralPrompt.test.js`** (region gating, referrer gating, dismissed / remind-window logic, writers). 416 tests green (up from 382).
+
 ## v0.33.0 — Per-deck swap log
 
 Every add / cut / count-change you make in the deck editor now lands in a per-deck swap log so six months from now you remember why you cut Sol Ring. Per-card notes were already supported; this release adds the chronological log + optional "why?" notes per entry.
