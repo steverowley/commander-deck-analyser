@@ -10,7 +10,7 @@ import { buildStagePlans, synergyHubs, packageWeight, classifyArchetype } from '
 import { BRACKETS } from '../lib/constants.js';
 import { addCardsToDeck, safeAddCards, setCardCount, removeCardFromDeck, setCardTags, setCardNote, setStrictIdentity, promoteFromWishlist, demoteToWishlist, removeFromWishlist, addToWishlist } from '../lib/deckops.js';
 import { simulateOpeners, simulatePlayout, simulateMulliganTree } from '../lib/goldfish.js';
-import { analyzeLandBase } from '../lib/landbase.js';
+import { analyzeLandBase, analyzeColorSources } from '../lib/landbase.js';
 import { fetchRecommendations, topRecommendations, recommendationsByTheme, themesForArchetype, suggestCuts } from '../lib/edhrec.js';
 import { fetchCardByExactName, resolveScryfallUrl, extractDroppedScryfallUrl } from '../lib/scryfall.js';
 import { checkDeckLegality } from '../lib/legality.js';
@@ -913,8 +913,56 @@ export function CurveTab({ deck }) {
       </div>
 
       <LandBaseSection deck={deck} />
+      <ColorSourcesSection deck={deck} />
       <TokensSection deck={deck} />
       <MatchupSection deck={deck} />
+    </div>
+  );
+}
+
+const COLOR_LABEL = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' };
+
+function ColorSourcesSection({ deck }) {
+  const rows = useMemo(() => analyzeColorSources(deck), [deck.cards, deck.commander]);
+  if (rows.length === 0) return null;
+  const anyDeficit = rows.some((r) => r.deficit > 0);
+  return (
+    <div className="border" style={{ borderColor: CREAM_FAINT }}>
+      <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
+        <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold flex items-center gap-2" style={{ color: CREAM }}>
+          Color Sources
+          <HelpTip>
+            Per Karsten's 90%-on-curve table. For each color the deck plays, this is the highest source count any single spell needs (most pip-heavy, lowest CMC wins). Fetch lands and any-color rocks count as sources for every color they can produce.
+          </HelpTip>
+        </div>
+        <div className="font-mono text-[10px]" style={{ color: anyDeficit ? ACCENT : CREAM_DIM }}>
+          {anyDeficit ? 'deficit detected' : 'all colors met'}
+        </div>
+      </div>
+      <div className="divide-y" style={{ borderColor: CREAM_FAINT }}>
+        {rows.map((r) => {
+          const status = r.deficit === 0 ? 'ok' : r.deficit <= 3 ? 'warn' : 'bad';
+          const statusColor = status === 'ok' ? '#a3c98a' : status === 'warn' ? '#d8b35a' : ACCENT;
+          return (
+            <div key={r.color} className="p-4 space-y-1.5" style={{ borderColor: CREAM_FAINT }}>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="font-serif font-bold uppercase tracking-tight" style={{ color: CREAM }}>
+                  {COLOR_LABEL[r.color]} · {r.color}
+                </span>
+                <span className="font-mono text-[11px]" style={{ color: statusColor }}>
+                  {r.actualSources} / {r.requiredSources}
+                  {r.deficit > 0 ? ` · short ${r.deficit}` : ' · ok'}
+                </span>
+              </div>
+              {r.exampleSpells.length > 0 && (
+                <div className="font-serif text-xs italic" style={{ color: CREAM_DIM }}>
+                  Driven by {r.exampleSpells.map((s) => `${s.name} (${s.pips}×, T${Math.ceil(s.cmc)})`).join(' · ')}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
