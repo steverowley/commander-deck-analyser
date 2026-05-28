@@ -10,6 +10,7 @@ import { ARCHETYPES } from '../lib/archetypes.js';
 import { loadCollection, uniqueCount } from '../lib/collection.js';
 import { saveRandomRoll } from '../lib/storage-supabase.js';
 import { exportDecklist } from '../lib/deckops.js';
+import { exportAs, EXPORT_FORMATS, MOXFIELD_IMPORT_URL, ARCHIDEKT_IMPORT_URL } from '../lib/deckExport.js';
 import { buildShareUrl } from '../lib/share.js';
 import { buildRuleZeroCard, asMarkdown as ruleZeroAsMarkdown, BRACKET_LABELS, flagsLine } from '../lib/ruleZero.js';
 import { downloadRuleZeroPng } from '../lib/ruleZeroImage.js';
@@ -342,8 +343,10 @@ export function RulesModal({ onClose }) {
 // ───────────────────────────────────────────────────────────────────────────────
 
 export function ExportModal({ deck, onClose }) {
-  const text = exportDecklist(deck);
+  const [format, setFormat] = useState('text');
+  const text = useMemo(() => exportAs(deck, format), [deck, format]);
   const [copied, setCopied] = useState(false);
+  const [sending, setSending] = useState(null); // 'moxfield' | 'archidekt' | null
 
   const copy = async () => {
     try {
@@ -367,6 +370,20 @@ export function ExportModal({ deck, onClose }) {
     URL.revokeObjectURL(url);
   };
 
+  /**
+   * Moxfield and Archidekt don't accept the list via URL params. Copy
+   * to clipboard first, then open the import page in a new tab so the
+   * user can paste straight in. The button flashes "Copied → opening"
+   * for a beat so they know what just happened.
+   */
+  const sendTo = async (target) => {
+    try { await navigator.clipboard.writeText(text); } catch {}
+    setSending(target);
+    setTimeout(() => setSending(null), 2000);
+    const url = target === 'archidekt' ? ARCHIDEKT_IMPORT_URL : MOXFIELD_IMPORT_URL;
+    if (typeof window !== 'undefined') window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
@@ -383,8 +400,24 @@ export function ExportModal({ deck, onClose }) {
         </div>
         <div className="p-5 flex-1 overflow-auto">
           <p className="font-serif text-sm mb-3 italic" style={{ color: CREAM_DIM }}>
-            Moxfield/MTGA-compatible text. Paste this into any deck builder that accepts plain decklists.
+            Pick a target format. The Vault paste-import accepts all three so an export round-trips back in.
           </p>
+          <div className="inline-flex border mb-3" style={{ borderColor: CREAM_FAINT }}>
+            {EXPORT_FORMATS.map((f, i) => (
+              <button
+                key={f.id}
+                onClick={() => setFormat(f.id)}
+                className="px-3 py-1.5 font-serif text-[10px] tracking-[0.25em] uppercase whitespace-nowrap"
+                style={{
+                  color: format === f.id ? CREAM : CREAM_DIM,
+                  background: format === f.id ? 'rgba(var(--ink-rgb),0.06)' : 'transparent',
+                  borderLeft: i > 0 ? `1px solid ${CREAM_FAINT}` : 'none',
+                }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
           {(() => {
             const currency = loadSettings().currency || 'usd';
             const price = deckTotalPrice(deck, currency);
@@ -412,9 +445,27 @@ export function ExportModal({ deck, onClose }) {
             style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(var(--ink-rgb),0.02)' }}
           />
         </div>
-        <div className="px-5 py-4 border-t flex justify-end gap-4" style={{ borderColor: CREAM_FAINT }}>
+        <div className="px-5 py-4 border-t flex flex-wrap justify-end gap-3" style={{ borderColor: CREAM_FAINT }}>
           <button onClick={onClose} className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
             Close
+          </button>
+          <button
+            onClick={() => sendTo('moxfield')}
+            className="font-serif text-[10px] tracking-[0.3em] uppercase flex items-center gap-2 border px-3 py-1.5"
+            style={{ borderColor: CREAM_FAINT, color: CREAM }}
+            title="Copy decklist and open Moxfield's import page in a new tab"
+          >
+            <ExternalLink className="w-3 h-3" />
+            {sending === 'moxfield' ? 'Copied → opening' : 'Send to Moxfield'}
+          </button>
+          <button
+            onClick={() => sendTo('archidekt')}
+            className="font-serif text-[10px] tracking-[0.3em] uppercase flex items-center gap-2 border px-3 py-1.5"
+            style={{ borderColor: CREAM_FAINT, color: CREAM }}
+            title="Copy decklist and open Archidekt's new-deck page in a new tab"
+          >
+            <ExternalLink className="w-3 h-3" />
+            {sending === 'archidekt' ? 'Copied → opening' : 'Send to Archidekt'}
           </button>
           <button
             onClick={download}

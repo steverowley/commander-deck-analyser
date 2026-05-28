@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.35.0 — Decklist export: plain text / Moxfield / Archidekt + send-to buttons
+
+The Export modal now exposes three target formats and one-click handoff to the major deckbuilders. The same paste-import path that landed in #111 now round-trips with the export, so a deck exported here drops back in untouched.
+
+### Library
+- **New `src/lib/deckExport.js`** with `toPlainText`, `toMoxfield`, `toArchidekt`, `exportAs(deck, formatId)`, and an `EXPORT_FORMATS` registry. All three formats sort non-basics alphabetically with basics grouped at the bottom (matches Moxfield's own export convention). Plain text uses `// Commander` + `// Deck` comment headers so a re-parse correctly routes the body into the mainboard; Moxfield uses explicit `Commander` / `Deck` / `Maybeboard` section blocks; Archidekt adds `(SET) <num>` printing tags when the card has them so the importer can pin the exact printing.
+- Constants `MOXFIELD_IMPORT_URL` and `ARCHIDEKT_IMPORT_URL` expose the upstream import endpoints for the send-to flow.
+
+### UI
+- **`ExportModal` overhaul** in `Modals.jsx`:
+  - Segmented format picker (Plain text / Moxfield / Archidekt) above the preview textarea — switching format re-renders the text in place.
+  - Footer gains **Send to Moxfield** and **Send to Archidekt** buttons. Each copies the current format to the clipboard, then opens the upstream import page in a new tab (their importers require a paste — there's no URL-prefill scheme).
+
+### Tests
+- 12 new cases in `deckExport.test.js` covering plain-text layout + basics-at-bottom + alphabetical basics, plain-text round-trip through `parseTextDecklist`, Moxfield header round-trip + commander-less variant, Archidekt printing tags + bare-name fallback + round-trip with tags stripped, `exportAs` dispatch + fallback.
+
 ## v0.34.0 — Region-aware currency, buy links + Cardmarket referral pop-up
 
 First-time visitors now get prices and shopping links that match where they are, and UK/EU players get a dedicated nudge toward the Cardmarket referral that funds Vault. No setup, no override of anyone who's already chosen their own settings.
