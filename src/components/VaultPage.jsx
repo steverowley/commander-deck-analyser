@@ -96,9 +96,26 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
     onCollectionChanged?.();
   };
 
+  // Stats should reflect the user's chosen printings (price, set, rarity,
+  // thumbnail) — not the canonical printing. Merge printingCards over
+  // cardData so computeVaultStats reads the picked printing per entry.
+  const effectiveCardData = useMemo(() => {
+    if (!collection) return cardData;
+    let merged = null;
+    for (const entry of Object.values(collection)) {
+      const pid = entry.meta?.printing_id;
+      if (!pid) continue;
+      const printing = printingCards[lc(entry.name)];
+      if (!printing || printing.id !== pid) continue;
+      if (!merged) merged = { ...cardData };
+      merged[lc(entry.name)] = printing;
+    }
+    return merged || cardData;
+  }, [collection, cardData, printingCards]);
+
   const stats = useMemo(
-    () => collection ? computeVaultStats(collection, cardData, decks, currency, vendor) : null,
-    [collection, cardData, decks, currency, vendor]
+    () => collection ? computeVaultStats(collection, effectiveCardData, decks, currency, vendor) : null,
+    [collection, effectiveCardData, decks, currency, vendor]
   );
 
   // Names already in a deck (set form for the unused filter).
@@ -117,7 +134,7 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
     const q = filter.trim().toLowerCase();
     let out = list.filter((entry) => {
       if (q && !entry.name.toLowerCase().includes(q)) return false;
-      const card = cardData[lc(entry.name)];
+      const card = effectiveCardData[lc(entry.name)];
       if (typeFilter) {
         if (!card?.type_line) return false;
         if (typeFilter === 'Land' && !/Land/i.test(card.type_line)) return false;
@@ -143,8 +160,8 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
     else if (sort === 'quantity') out = out.slice().sort((a, b) => (b.quantity || 0) - (a.quantity || 0));
     else if (sort === 'value') {
       out = out.slice().sort((a, b) => {
-        const ca = cardData[lc(a.name)];
-        const cb = cardData[lc(b.name)];
+        const ca = effectiveCardData[lc(a.name)];
+        const cb = effectiveCardData[lc(b.name)];
         const pa = cardPrice(ca, currency, vendor) || 0;
         const pb = cardPrice(cb, currency, vendor) || 0;
         return pb - pa;
@@ -153,7 +170,7 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
       out = out.slice().sort((a, b) => (b.added_at || 0) - (a.added_at || 0));
     }
     return out;
-  }, [collection, cardData, filter, typeFilter, colorFilter, showOnlyUnused, usedNames, sort, currency, vendor]);
+  }, [collection, effectiveCardData, filter, typeFilter, colorFilter, showOnlyUnused, usedNames, sort, currency, vendor]);
 
   const hasFilter = !!(filter.trim() || typeFilter || colorFilter || showOnlyUnused);
 
