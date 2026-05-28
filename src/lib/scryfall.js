@@ -563,6 +563,95 @@ export function cardImageUrl(card, version = 'small') {
 }
 
 /**
+ * Find deck cards whose `scryfall.oracle_text` is missing or empty,
+ * re-fetch them from Scryfall (bypassing the cache), and return a new
+ * cards array with `oracle_text` (and `card_faces`, `type_line`) merged
+ * back into each card's `scryfall` object. Other fields — image_uris,
+ * id, set, etc. — are preserved so a manually-chosen printing isn't
+ * clobbered.
+ *
+ * This is the recovery path behind the Packages tab's "Re-detect tags"
+ * empty-state button: if a deck was tagged once with empty oracle text
+ * (stale cache, partial autoseed fetch, very old Supabase row), this
+ * pulls the missing text so a subsequent `retag()` can populate tags.
+ *
+ * Reports per-batch progress via onProgress({ done, total }). Returns
+ * { cards, rehydrated, failed } — `rehydrated` is the number of cards
+ * whose scryfall object was updated, `failed` is the number Scryfall
+ * could not resolve.
+ */
+export async function rehydrateMissingOracleText(cards, onProgress) {
+  const needsRefresh = (cards || []).filter((c) => {
+    if (!c?.scryfall) return false;
+    const text =
+      (c.scryfall.oracle_text || '') +
+      (c.scryfall.card_faces || []).map((f) => f?.oracle_text || '').join('');
+    return !text.trim();
+  });
+
+  if (needsRefresh.length === 0) {
+    onProgress?.({ done: 0, total: 0 });
+    return { cards, rehydrated: 0, failed: 0 };
+  }
+
+  const names = [...new Set(needsRefresh.map((c) => c.name))];
+  const byName = {};
+  let failed = 0;
+
+  const BATCH = 75;
+  for (let i = 0; i < names.length; i += BATCH) {
+    const batch = names.slice(i, i + BATCH);
+    onProgress?.({ done: i, total: names.length });
+    try {
+      const res = await fetch(`${SCRYFALL}/cards/collection`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifiers: batch.map((name) => ({ name })) }),
+      });
+      if (!res.ok) {
+        failed += batch.length;
+        continue;
+      }
+      const data = await res.json();
+      for (const card of data.data || []) {
+        const norm = cacheCard(card);
+        byName[lc(norm.name)] = norm;
+      }
+      failed += (data.not_found || []).length;
+    } catch {
+      failed += batch.length;
+    }
+    if (i + BATCH < names.length) await sleep(REQUEST_DELAY_MS);
+  }
+
+  onProgress?.({ done: names.length, total: names.length });
+
+  let rehydrated = 0;
+  const updatedCards = cards.map((c) => {
+    const fresh = c?.name ? byName[lc(c.name)] : null;
+    if (!fresh || !c.scryfall) return c;
+    const oldText = (c.scryfall.oracle_text || '').trim();
+    const newText = (fresh.oracle_text || '').trim();
+    // Only touch the card when fresh data actually adds oracle text we
+    // didn't have. Preserve every other field (image_uris, id, set,
+    // collector_number) so a user-chosen printing override survives.
+    if (!newText || newText === oldText) return c;
+    rehydrated++;
+    return {
+      ...c,
+      scryfall: {
+        ...c.scryfall,
+        oracle_text: newText,
+        card_faces: c.scryfall.card_faces || fresh.card_faces,
+        type_line: c.scryfall.type_line || fresh.type_line,
+      },
+    };
+  });
+
+  return { cards: updatedCards, rehydrated, failed };
+}
+
+/**
  * Re-fetch every card currently in the cache from Scryfall and overwrite
  * the cached entry. Useful for refreshing prices + oracle text after a
  * Scryfall update without rebuilding the cache from zero.
