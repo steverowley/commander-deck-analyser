@@ -1,6 +1,6 @@
 import {
   TAG_PATTERNS, TYPE_TAGS, GAME_CHANGERS, MLD_CARDS,
-  EXTRA_TURN_CARDS,
+  EXTRA_TURN_CARDS, WIN_CONDITION_CARDS,
 } from './constants.js';
 import { COMBO_INDEX } from './combos.js';
 import { lc } from './utils.js';
@@ -42,6 +42,7 @@ export function detectTags(card, deckCardNames = new Set()) {
   if (GAME_CHANGERS.has(name)) tags.add('Game Changer');
   if (MLD_CARDS.has(name)) tags.add('Mass Land Destruction');
   if (EXTRA_TURN_CARDS.has(name)) tags.add('Extra Turn');
+  if (WIN_CONDITION_CARDS.has(name)) tags.add('Win condition');
 
   for (const combo of COMBO_INDEX) {
     const lcCards = combo.cards.map((n) => lc(n));
@@ -52,6 +53,9 @@ export function detectTags(card, deckCardNames = new Set()) {
     const partnersPresent = lcCards.every((n, i) => i === idx || deckCardNames.has(n));
     if (partnersPresent) {
       tags.add('Combo piece');
+      // Assembled combo pieces are wincons by definition — every entry
+      // in COMBO_INDEX has a `results` block that ends the game.
+      tags.add('Win condition');
       break;
     }
   }
@@ -77,5 +81,5 @@ export const AUTO_TAGS = new Set([
   ...Object.keys(TAG_PATTERNS),
   ...TYPE_TAGS,
   'Game Changer', 'Combo piece', 'Mass Land Destruction', 'Extra Turn',
-  'Equipment', 'Aura', 'Vehicle',
+  'Win condition', 'Equipment', 'Aura', 'Vehicle',
 ]);
