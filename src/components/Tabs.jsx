@@ -5,7 +5,7 @@ import { pad, hypergeom } from '../lib/utils.js';
 import { assessBracket } from '../lib/analyzers.js';
 import { detectCombos } from '../lib/combos.js';
 import { extractTokens, extractResources, tokensAsText } from '../lib/tokens.js';
-import { computeHealth } from '../lib/health.js';
+import { computeHealth, recommendByCurve } from '../lib/health.js';
 import { buildStagePlans, synergyHubs, packageWeight, classifyArchetype } from '../lib/strategy.js';
 import { BRACKETS } from '../lib/constants.js';
 import { addCardsToDeck, safeAddCards, setCardCount, removeCardFromDeck, setCardTags, setCardNote, setStrictIdentity, promoteFromWishlist, demoteToWishlist, removeFromWishlist, addToWishlist, retag } from '../lib/deckops.js';
@@ -14,6 +14,7 @@ import { analyzeLandBase, analyzeColorSources } from '../lib/landbase.js';
 import { fetchRecommendations, topRecommendations, recommendationsByTheme, themesForArchetype, suggestCuts } from '../lib/edhrec.js';
 import { fetchCardByExactName, resolveScryfallUrl, extractDroppedScryfallUrl, rehydrateMissingOracleText } from '../lib/scryfall.js';
 import { checkDeckLegality } from '../lib/legality.js';
+import { runAntipatternChecks } from '../lib/antipatterns.js';
 import { CardSearchBar, CardRow, TagPill, CardThumb, StatBox, FlagBox, ProbCard, EmptyState, HelpTip } from './UI.jsx';
 import { ScryfallSearchPanel, SCRYFALL_DRAG_MIME } from './ScryfallSearchPanel.jsx';
 import { ManaSymbol } from './ManaCost.jsx';
@@ -892,6 +893,12 @@ export function CurveTab({ deck }) {
 
   const maxCurve = Math.max(...stats.curve, 1);
   const curveLabels = ['0', '1', '2', '3', '4', '5', '6', '7+'];
+  // Curve-aware land target — was hardcoded "36-38", but the underlying
+  // recommendation already scales 32-42 based on avg CMC. Surface the
+  // actual band so a 2.0-CMC aggro deck sees "32-34" and a 4.5-CMC
+  // top-heavy deck sees "40-42".
+  const landBand = recommendByCurve(stats.avgCmc).land.ideal;
+  const landInRange = stats.landCount >= landBand[0] && stats.landCount <= landBand[1];
 
   return (
     <div className="space-y-6">
@@ -900,7 +907,7 @@ export function CurveTab({ deck }) {
         <StatBox
           label="Lands"
           value={pad(stats.landCount)}
-          sub={stats.landCount >= 36 && stats.landCount <= 38 ? 'Within recommended' : 'Rec: 36-38'}
+          sub={landInRange ? 'Within recommended' : `Rec: ${landBand[0]}–${landBand[1]}`}
         />
         <StatBox label="Spells" value={pad(stats.nonLandCount)} />
         <div className="border p-4" style={{ borderColor: CREAM_FAINT }}>
@@ -986,10 +993,52 @@ export function CurveTab({ deck }) {
         </div>
       </div>
 
+      <BuildAdvisorSection deck={deck} />
       <LandBaseSection deck={deck} />
       <ColorSourcesSection deck={deck} />
       <TokensSection deck={deck} />
       <MatchupSection deck={deck} />
+    </div>
+  );
+}
+
+function BuildAdvisorSection({ deck }) {
+  const warnings = useMemo(() => runAntipatternChecks(deck), [deck.cards, deck.commander]);
+  if (warnings.length === 0) return null;
+  return (
+    <div className="border" style={{ borderColor: CREAM_FAINT }}>
+      <div className="px-5 py-3 border-b" style={{ borderColor: CREAM_FAINT }}>
+        <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold flex items-center gap-2" style={{ color: CREAM }}>
+          Build Advisor
+          <HelpTip>
+            Anti-pattern checks beyond the health-score fundamentals. Surfaces only when something concrete is off. Fix the suggestion or override your judgement — these are heuristics, not rules.
+          </HelpTip>
+        </div>
+      </div>
+      <div className="divide-y" style={{ borderColor: CREAM_FAINT }}>
+        {warnings.map((w) => {
+          const tone =
+            w.severity === 'major' ? ACCENT :
+            w.severity === 'warn' ? '#d8b35a' :
+            CREAM_DIM;
+          return (
+            <div key={w.id} className="p-5 flex flex-col gap-1" style={{ borderTopColor: CREAM_FAINT }}>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[9px] uppercase tracking-[0.3em]" style={{ color: tone }}>
+                  {w.severity}
+                </span>
+                <div className="font-serif text-sm" style={{ color: CREAM }}>{w.title}</div>
+              </div>
+              <div className="text-[12px]" style={{ color: CREAM_DIM }}>{w.detail}</div>
+              {w.formula && (
+                <div className="font-mono text-[11px] mt-1" style={{ color: CREAM_DIM }}>
+                  Karsten · {w.formula}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
