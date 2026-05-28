@@ -592,7 +592,7 @@ export function DeckEditor({ deck, onUpdate, onBack, onDuplicate, onSaveTransien
       <div className="py-8 fade-up" style={{ animationDelay: '180ms' }}>
         <ErrorBoundary key={tab} label={`${tab} tab crashed`}>
           {tab === 'cards' && <CardsTab deck={deck} onUpdate={onUpdate} />}
-          {tab === 'packages' && <PackagesTab deck={deck} />}
+          {tab === 'packages' && <PackagesTab deck={deck} onUpdate={onUpdate} />}
           {tab === 'stages' && <StagesTab deck={deck} />}
           {tab === 'recs' && <RecommendationsTab deck={deck} onUpdate={onUpdate} />}
           {tab === 'curve' && <CurveTab deck={deck} />}

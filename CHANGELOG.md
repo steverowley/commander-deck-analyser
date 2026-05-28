@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.30.1 — Packages tab: one-click "Re-detect tags" recovery
+
+The Packages tab's "No auto-tags detected" empty state was a dead end — it pointed at Settings → Refresh card prices + text, but that path only updates the card cache, not the open deck. Users had to manually add/remove a card to trigger a re-tag. This release replaces the dead-end message with an actionable button.
+
+- **`PackagesTab` empty state now exposes a "Re-detect tags" button** that finds cards whose `scryfall.oracle_text` is missing or empty, force-fetches them from Scryfall's `/cards/collection` endpoint (bypassing the cache so we always get fresh oracle text), and re-runs `retag()` over the whole deck — all in one click. Reports per-batch progress while running and a status line afterwards ("Refreshed N cards — tags should now populate", "Tags already up to date", "Couldn't reach Scryfall…"). User-chosen printing fields (id, set, collector_number, image_uris) are preserved across the refresh.
+- **`rehydrateMissingOracleText(cards, onProgress)`** added to `lib/scryfall.js`. Scoped helper that only touches cards actually missing oracle text — no-op when everything is already populated, treats double-faced cards as present when at least one face has text, surfaces Scryfall `not_found` and network errors via the `failed` count. 5 new tests in `scryfall.test.js`. (closes #154)
+
 ## v0.30.0 — Browse-all pages for Public Gallery + Random Rolls
 
 The landing-page Public Gallery and Latest Random Rolls sections were each loading the most recent ~12–18 entries inline, which crowded the home page once the gallery started filling up and left no way to dig past the newest few. Both sections now cap to the 6 most-recent on the home page and gain a **View all →** link that opens a dedicated browse page with search + sort.

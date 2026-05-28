@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // `cacheCard` and the rest of scryfall.js are real — only the network
 // call inside fetchCardsByName is mocked through global.fetch.
 
-import { pickRandomCommanderFromCollection } from './scryfall.js';
+import { pickRandomCommanderFromCollection, rehydrateMissingOracleText } from './scryfall.js';
 
 function makeCard({ name, type_line = 'Legendary Creature — Human', color_identity = [], oracle_text = '' }) {
   return { name, type_line, color_identity, oracle_text, cmc: 3 };
@@ -153,5 +153,106 @@ describe('pickRandomCommanderFromCollection', () => {
       partner: false,
     });
     expect(result).toBeNull();
+  });
+});
+
+describe('rehydrateMissingOracleText', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  const deckCard = (name, scryfall) => ({ name, count: 1, tags: [], scryfall });
+
+  it('is a no-op when every card already has oracle text', async () => {
+    const fetchSpy = vi.fn();
+    global.fetch = fetchSpy;
+    const cards = [
+      deckCard('Sol Ring', {
+        name: 'Sol Ring',
+        type_line: 'Artifact',
+        oracle_text: '{T}: Add {C}{C}.',
+      }),
+    ];
+    const result = await rehydrateMissingOracleText(cards);
+    expect(result.rehydrated).toBe(0);
+    expect(result.failed).toBe(0);
+    expect(result.cards).toBe(cards);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('fills missing oracle text from Scryfall and preserves printing fields', async () => {
+    mockScryfallBatch([
+      {
+        name: 'Cultivate',
+        type_line: 'Sorcery',
+        oracle_text: 'Search your library for up to two basic land cards…',
+        cmc: 3,
+        color_identity: ['G'],
+      },
+    ]);
+    const cards = [
+      deckCard('Cultivate', {
+        name: 'Cultivate',
+        type_line: 'Sorcery',
+        oracle_text: '',
+        // User-chosen printing details that must survive the rehydrate.
+        id: 'user-picked-printing-id',
+        set: 'cmm',
+        collector_number: '0123',
+        image_uris: { normal: 'https://example.com/alt-art.jpg' },
+      }),
+    ];
+    const result = await rehydrateMissingOracleText(cards);
+    expect(result.rehydrated).toBe(1);
+    expect(result.failed).toBe(0);
+    expect(result.cards[0].scryfall.oracle_text).toMatch(/basic land/);
+    expect(result.cards[0].scryfall.id).toBe('user-picked-printing-id');
+    expect(result.cards[0].scryfall.set).toBe('cmm');
+    expect(result.cards[0].scryfall.collector_number).toBe('0123');
+    expect(result.cards[0].scryfall.image_uris.normal).toBe('https://example.com/alt-art.jpg');
+  });
+
+  it('treats card_faces oracle text as present (DFCs are not missing)', async () => {
+    const fetchSpy = vi.fn();
+    global.fetch = fetchSpy;
+    const cards = [
+      deckCard('Delver of Secrets', {
+        name: 'Delver of Secrets',
+        type_line: 'Creature — Human Wizard // Creature — Human Insect',
+        oracle_text: '',
+        card_faces: [
+          { oracle_text: 'At the beginning of your upkeep, look at the top card…' },
+          { oracle_text: 'Flying' },
+        ],
+      }),
+    ];
+    const result = await rehydrateMissingOracleText(cards);
+    expect(result.rehydrated).toBe(0);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('counts Scryfall not_found entries as failures', async () => {
+    global.fetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ data: [], not_found: [{ name: 'Bogus Card' }] }),
+    }));
+    const cards = [
+      deckCard('Bogus Card', { name: 'Bogus Card', type_line: 'Creature', oracle_text: '' }),
+    ];
+    const result = await rehydrateMissingOracleText(cards);
+    expect(result.rehydrated).toBe(0);
+    expect(result.failed).toBe(1);
+    expect(result.cards[0].scryfall.oracle_text).toBe('');
+  });
+
+  it('handles a network failure by reporting failed without throwing', async () => {
+    global.fetch = vi.fn(async () => { throw new Error('network down'); });
+    const cards = [
+      deckCard('Cultivate', { name: 'Cultivate', type_line: 'Sorcery', oracle_text: '' }),
+    ];
+    const result = await rehydrateMissingOracleText(cards);
+    expect(result.rehydrated).toBe(0);
+    expect(result.failed).toBe(1);
   });
 });

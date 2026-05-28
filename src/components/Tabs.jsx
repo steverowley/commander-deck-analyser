@@ -8,11 +8,11 @@ import { extractTokens, extractResources, tokensAsText } from '../lib/tokens.js'
 import { computeHealth } from '../lib/health.js';
 import { buildStagePlans, synergyHubs, packageWeight, classifyArchetype } from '../lib/strategy.js';
 import { BRACKETS } from '../lib/constants.js';
-import { addCardsToDeck, safeAddCards, setCardCount, removeCardFromDeck, setCardTags, setCardNote, setStrictIdentity, promoteFromWishlist, demoteToWishlist, removeFromWishlist, addToWishlist } from '../lib/deckops.js';
+import { addCardsToDeck, safeAddCards, setCardCount, removeCardFromDeck, setCardTags, setCardNote, setStrictIdentity, promoteFromWishlist, demoteToWishlist, removeFromWishlist, addToWishlist, retag } from '../lib/deckops.js';
 import { simulateOpeners, simulatePlayout, simulateMulliganTree } from '../lib/goldfish.js';
 import { analyzeLandBase, analyzeColorSources } from '../lib/landbase.js';
 import { fetchRecommendations, topRecommendations, recommendationsByTheme, themesForArchetype, suggestCuts } from '../lib/edhrec.js';
-import { fetchCardByExactName, resolveScryfallUrl, extractDroppedScryfallUrl } from '../lib/scryfall.js';
+import { fetchCardByExactName, resolveScryfallUrl, extractDroppedScryfallUrl, rehydrateMissingOracleText } from '../lib/scryfall.js';
 import { checkDeckLegality } from '../lib/legality.js';
 import { CardSearchBar, CardRow, TagPill, CardThumb, StatBox, FlagBox, ProbCard, EmptyState, HelpTip } from './UI.jsx';
 import { ScryfallSearchPanel, SCRYFALL_DRAG_MIME } from './ScryfallSearchPanel.jsx';
@@ -549,8 +549,25 @@ export function CardsTab({ deck, onUpdate }) {
 // PACKAGES TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export function PackagesTab({ deck }) {
+export function PackagesTab({ deck, onUpdate }) {
   const [focusTag, setFocusTag] = useState(null);
+  const [retagState, setRetagState] = useState({ running: false, status: null });
+
+  const runRetag = async () => {
+    if (retagState.running || !onUpdate) return;
+    setRetagState({ running: true, status: { phase: 'fetching', done: 0, total: 0 } });
+    const { cards: rehydratedCards, rehydrated, failed } = await rehydrateMissingOracleText(
+      deck.cards,
+      (p) => setRetagState({ running: true, status: { phase: 'fetching', ...p } }),
+    );
+    const retagged = retag(rehydratedCards);
+    const totalTags = retagged.reduce((n, c) => n + (c.tags?.length || 0), 0);
+    onUpdate({ ...deck, cards: retagged });
+    setRetagState({
+      running: false,
+      status: { phase: 'done', rehydrated, failed, totalTags },
+    });
+  };
 
   const packages = useMemo(() => {
     const map = {};
@@ -664,9 +681,12 @@ export function PackagesTab({ deck }) {
           </div>
         </div>
         {packages.length === 0 ? (
-          <div className="border border-dashed p-6 font-serif text-sm italic" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
-            No auto-tags detected on this deck's cards — the strategy engine matches oracle-text patterns (Ramp, Card draw, Token producer, etc.) and type lines. If you're seeing this on a rolled or imported deck, the Scryfall metadata may be missing oracle_text; try re-rolling or running Settings → Refresh card prices + text.
-          </div>
+          <NoTagsEmptyState
+            onRetag={runRetag}
+            running={retagState.running}
+            status={retagState.status}
+            canRetag={!!onUpdate}
+          />
         ) : (
           <div className="space-y-2">
             {packages
@@ -683,6 +703,60 @@ export function PackagesTab({ deck }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function NoTagsEmptyState({ onRetag, running, status, canRetag }) {
+  const statusLine = (() => {
+    if (status?.phase === 'fetching') {
+      const { done = 0, total = 0 } = status;
+      if (total === 0) return 'Scanning deck…';
+      return `Fetching oracle text from Scryfall — ${done} / ${total}`;
+    }
+    if (status?.phase === 'done') {
+      const { rehydrated, failed, totalTags } = status;
+      if (rehydrated > 0 && totalTags > 0) {
+        return `Refreshed ${rehydrated} card${rehydrated === 1 ? '' : 's'} — tags should now populate.`;
+      }
+      if (rehydrated > 0 && totalTags === 0) {
+        return `Refreshed ${rehydrated} card${rehydrated === 1 ? '' : 's'}, but no tags matched. The deck may genuinely lack tag-able oracle text.`;
+      }
+      if (failed > 0) {
+        return `Couldn't reach Scryfall for ${failed} card${failed === 1 ? '' : 's'}. Check connection and try again.`;
+      }
+      return 'Tags already up to date — no changes.';
+    }
+    return null;
+  })();
+
+  return (
+    <div className="border border-dashed p-6" style={{ borderColor: CREAM_FAINT }}>
+      <div className="font-serif text-sm italic mb-4" style={{ color: CREAM_DIM }}>
+        No auto-tags detected on this deck's cards. The strategy engine matches oracle-text patterns (Ramp, Card draw, Token producer, etc.) and type lines — usually this means the Scryfall metadata on one or more cards is missing oracle text.
+      </div>
+      {canRetag && (
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={onRetag}
+            disabled={running}
+            className="px-4 py-2 border font-serif text-[10px] tracking-[0.3em] uppercase font-bold transition"
+            style={{
+              borderColor: CREAM_FAINT,
+              color: running ? CREAM_DIM : CREAM,
+              background: running ? 'transparent' : 'rgba(var(--ink-rgb),0.04)',
+              cursor: running ? 'wait' : 'pointer',
+            }}
+          >
+            {running ? 'Working…' : 'Re-detect tags'}
+          </button>
+          {statusLine && (
+            <span className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>
+              {statusLine}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
