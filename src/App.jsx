@@ -7,7 +7,8 @@ import { useAuthState, isCloudEnabled, signOut, consumeOAuthParams } from './lib
 import { loadCardCache, fetchCardsByName } from './lib/scryfall.js';
 import { duplicateDeck, addCardsToDeck } from './lib/deckops.js';
 import { decodeDeckUrl } from './lib/share.js';
-import { loadSettings } from './lib/settings.js';
+import { loadSettings, applyRegionDefaults, hasStoredSettings } from './lib/settings.js';
+import { detectRegion } from './lib/geo.js';
 import { DeckListView } from './components/DeckList.jsx';
 import { DeckEditor } from './components/DeckEditor.jsx';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
@@ -21,9 +22,11 @@ import { GalleryAllView } from './components/GalleryAllView.jsx';
 import { RandomRollsAllView } from './components/RandomRollsAllView.jsx';
 import { GlobalDropOverlay } from './components/GlobalDropOverlay.jsx';
 import { TipModal } from './components/TipModal.jsx';
+import { ReferralModal } from './components/ReferralModal.jsx';
 import { addToCollection } from './lib/collection.js';
 import { loadProfile } from './lib/profile.js';
 import { hasTipJar } from './lib/billing.js';
+import { cardmarketReferrerUsername } from './lib/affiliate.js';
 import {
   isPromptEligible,
   dismissTipPrompt,
@@ -31,6 +34,12 @@ import {
   markPromptShown,
   DEFAULT_ENGAGEMENT_DELAY_MS,
 } from './lib/tipPrompt.js';
+import {
+  isReferralEligible,
+  dismissReferralPrompt,
+  referralRemindLater,
+  markReferralShown,
+} from './lib/referralPrompt.js';
 
 export default function App() {
   const [decks, setDecks] = useState([]);
@@ -60,10 +69,21 @@ export default function App() {
   const markEngagement = () => {
     setEngagementAt((prev) => prev || Date.now());
   };
-  // Once the tip modal has opened for any reason this session, we
-  // don't auto-prompt again — even if the user closes it and engages
-  // further. Using a ref keeps this out of the effect's dep list.
+  // Cardmarket referral pop-up for UK/EU players. 'closed' | 'open-auto'
+  // (auto-only — there's no manual open path; the tip jar carries the
+  // manual referral CTA). Coordinated with `tipState` so only one of the
+  // two auto-prompts fires per session.
+  const [referralState, setReferralState] = useState('closed');
+  // Once the tip OR referral modal has opened for any reason this
+  // session, we don't auto-prompt again — even if the user closes it and
+  // engages further. Using a ref keeps this out of the effect's dep list.
   const autoPromptHandled = useRef(false);
+  // Auto-detected region ('uk' | 'eu' | 'us' | null). Seeds currency +
+  // buy-link defaults on first visit and routes the referral pop-up.
+  const [region, setRegion] = useState(() => loadSettings().region || null);
+  // Bumped after region auto-detection rewrites settings, to re-render
+  // the tree so price displays / cart links pick up the new currency.
+  const [, setSettingsRev] = useState(0);
   const [showAuth, setShowAuth] = useState(false);
   // 'landing' | 'vault' | 'pods' | 'gallery-all' | 'rolls-all'.
   // activeId (deck editor) takes precedence over all of them.
@@ -191,40 +211,80 @@ export default function App() {
     })();
   }, [auth.user?.id, auth.loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Engagement-gated tip-jar CTA. Once the user has done something
-  // meaningful, wait DEFAULT_ENGAGEMENT_DELAY_MS, then auto-open the
-  // tip modal — but only if tipping is configured, they're not already
-  // a supporter, and they haven't dismissed / deferred the prompt
-  // before. Manually opening the tip jar (or seeing the ?tip=thanks
-  // banner) suppresses the auto-prompt for the rest of the session.
+  // First-visit region detection. Runs once per device: seeds currency /
+  // buy-link / price-source defaults from the user's region. Never
+  // overrides a user who has already saved settings, and the
+  // `vault:geoApplied` flag stops it re-running on later visits.
+  useEffect(() => {
+    let alive = true;
+    let already = false;
+    try {
+      if (typeof localStorage === 'undefined') return;
+      if (localStorage.getItem('vault:geoApplied')) already = true;
+    } catch {
+      return;
+    }
+    if (already) return;
+
+    // Existing user — respect their explicit settings, just mark done.
+    if (hasStoredSettings()) {
+      try { localStorage.setItem('vault:geoApplied', '1'); } catch {}
+      return;
+    }
+
+    detectRegion().then((r) => {
+      if (!alive) return;
+      try { localStorage.setItem('vault:geoApplied', '1'); } catch {}
+      if (!r) return;
+      applyRegionDefaults(r);
+      setRegion(r);
+      setSettingsRev((n) => n + 1); // re-render so prices/links pick up the new currency
+    });
+    return () => { alive = false; };
+  }, []);
+
+  // Engagement-gated auto-prompt. Once the user has done something
+  // meaningful, wait DEFAULT_ENGAGEMENT_DELAY_MS, then auto-open ONE of
+  // two CTAs: the Cardmarket referral pop-up (UK/EU players) takes
+  // priority, otherwise the tip jar. Each has its own dismiss/defer
+  // state, so a UK user who defers the referral gets the tip jar a later
+  // session — but never both at once. Manually opening either (or the
+  // ?tip=thanks banner) suppresses the auto-prompt for the session.
   useEffect(() => {
     if (autoPromptHandled.current) return;
     if (!engagementAt) return;
-    // Modal opened by any other path this session — count it as handled.
-    if (tipState !== 'closed') {
+    // A modal opened by any other path this session — count it as handled.
+    if (tipState !== 'closed' || referralState !== 'closed') {
       autoPromptHandled.current = true;
       return;
     }
-    if (!isPromptEligible({
+    const referrerConfigured = !!cardmarketReferrerUsername();
+    const referralOk = () => isReferralEligible({ region, referrerConfigured });
+    const tipOk = () => isPromptEligible({
       supporter: !!profile?.supporter,
       tipsConfigured: hasTipJar(),
-    })) return;
+    });
+    if (!referralOk() && !tipOk()) return;
 
     const elapsed = Date.now() - engagementAt;
     const remaining = Math.max(0, DEFAULT_ENGAGEMENT_DELAY_MS - elapsed);
     const id = setTimeout(() => {
-      // Re-check eligibility at fire time — supporter status may have
-      // landed via the realtime profile refresh in between.
-      if (!isPromptEligible({
-        supporter: !!profile?.supporter,
-        tipsConfigured: hasTipJar(),
-      })) return;
+      // Re-check at fire time — supporter status may have landed via the
+      // realtime profile refresh, or region detection may have resolved.
+      const ref = referralOk();
+      const tip = tipOk();
+      if (!ref && !tip) return;
       autoPromptHandled.current = true;
-      markPromptShown();
-      setTipState('open-auto');
+      if (ref) {
+        markReferralShown();
+        setReferralState('open-auto');
+      } else {
+        markPromptShown();
+        setTipState('open-auto');
+      }
     }, remaining);
     return () => clearTimeout(id);
-  }, [engagementAt, tipState, profile?.supporter]);
+  }, [engagementAt, tipState, referralState, profile?.supporter, region]);
 
   const activeDeck = decks.find((d) => d.id === activeId)
     || (viewingDeck && viewingDeck.id === activeId ? viewingDeck : null);
@@ -545,6 +605,21 @@ export default function App() {
           onRemindLater={tipState === 'open-auto' ? () => {
             remindLater();
             setTipState('closed');
+          } : null}
+        />
+      )}
+      {referralState !== 'closed' && (
+        <ReferralModal
+          autoPrompted={referralState === 'open-auto'}
+          onClose={() => {
+            // Closing the auto-prompt means "don't bug me again on this
+            // device".
+            if (referralState === 'open-auto') dismissReferralPrompt();
+            setReferralState('closed');
+          }}
+          onRemindLater={referralState === 'open-auto' ? () => {
+            referralRemindLater();
+            setReferralState('closed');
           } : null}
         />
       )}
