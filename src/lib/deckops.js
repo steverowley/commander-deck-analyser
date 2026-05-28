@@ -215,3 +215,88 @@ export function exportDecklist(deck) {
   }
   return lines.join('\n');
 }
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Swap log — chronological record of editor-driven card adds / cuts / count
+// changes. Captured automatically by `applyWithLog` so the user doesn't have
+// to remember six months later why they cut Sol Ring (they cut it because
+// they had too many rocks; the log will say so).
+// ───────────────────────────────────────────────────────────────────────────────
+
+export const SWAP_LOG_CAP = 100;
+export const SWAP_NOTE_MAX = 280;
+
+/**
+ * Compute the per-card delta between `prev` and `next` decks.
+ * Returns `{ added, removed }` where each list is `[{ name, count }]`
+ * — positive counts in `added`, positive counts in `removed`.
+ */
+export function diffCards(prev, next) {
+  const prevMap = new Map();
+  for (const c of prev?.cards || []) prevMap.set(lc(c.name), { name: c.name, count: c.count });
+  const nextMap = new Map();
+  for (const c of next?.cards || []) nextMap.set(lc(c.name), { name: c.name, count: c.count });
+
+  const keys = new Set([...prevMap.keys(), ...nextMap.keys()]);
+  const added = [];
+  const removed = [];
+  for (const k of keys) {
+    const a = prevMap.get(k)?.count || 0;
+    const b = nextMap.get(k)?.count || 0;
+    const name = nextMap.get(k)?.name || prevMap.get(k)?.name;
+    if (b > a) added.push({ name, count: b - a });
+    else if (b < a) removed.push({ name, count: a - b });
+  }
+  return { added, removed };
+}
+
+/**
+ * Append a swap-log entry to a deck. No-op when the change set is empty.
+ * The log is trimmed to the last `SWAP_LOG_CAP` entries so very long-
+ * lived decks don't grow unbounded.
+ */
+export function recordSwap(deck, { added = [], removed = [], note = '' } = {}) {
+  if (added.length === 0 && removed.length === 0) return deck;
+  const entry = {
+    ts: Date.now(),
+    added: added.map((a) => ({ name: a.name, count: a.count })),
+    removed: removed.map((r) => ({ name: r.name, count: r.count })),
+  };
+  const trimmedNote = (note || '').trim().slice(0, SWAP_NOTE_MAX);
+  if (trimmedNote) entry.note = trimmedNote;
+  const log = (deck.swap_log || []).concat([entry]).slice(-SWAP_LOG_CAP);
+  return { ...deck, swap_log: log };
+}
+
+/**
+ * Editor-friendly wrapper: diffs `prev → next`, records a swap entry
+ * if anything changed. Imports and rolls call the raw `addCardsToDeck`
+ * / `removeCardFromDeck` so they don't pollute the swap log; explicit
+ * editor actions (CardsTab, RecommendationsTab cuts) go through this.
+ */
+export function applyWithLog(prev, next, note = '') {
+  const diff = diffCards(prev, next);
+  return recordSwap(next, { ...diff, note });
+}
+
+/**
+ * Edit the note on an existing swap-log entry by timestamp.
+ */
+export function setSwapNote(deck, ts, note) {
+  const log = (deck.swap_log || []).map((e) =>
+    e.ts === ts
+      ? (note && note.trim()
+          ? { ...e, note: note.trim().slice(0, SWAP_NOTE_MAX) }
+          : (() => { const { note: _, ...rest } = e; return rest; })())
+      : e
+  );
+  return { ...deck, swap_log: log };
+}
+
+/**
+ * Drop a swap-log entry by timestamp — useful when a user wants to
+ * trim noise from imports they made through the editor by accident.
+ */
+export function deleteSwapEntry(deck, ts) {
+  return { ...deck, swap_log: (deck.swap_log || []).filter((e) => e.ts !== ts) };
+}

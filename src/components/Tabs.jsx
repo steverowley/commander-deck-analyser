@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Upload, BookOpen, Search } from 'lucide-react';
+import { Upload, BookOpen, Search, Trash2 } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, hypergeom } from '../lib/utils.js';
 import { assessBracket } from '../lib/analyzers.js';
@@ -8,7 +8,7 @@ import { extractTokens, extractResources, tokensAsText } from '../lib/tokens.js'
 import { computeHealth, recommendByCurve } from '../lib/health.js';
 import { buildStagePlans, synergyHubs, packageWeight, classifyArchetype } from '../lib/strategy.js';
 import { BRACKETS } from '../lib/constants.js';
-import { addCardsToDeck, safeAddCards, setCardCount, removeCardFromDeck, setCardTags, setCardNote, setStrictIdentity, promoteFromWishlist, demoteToWishlist, removeFromWishlist, addToWishlist, retag } from '../lib/deckops.js';
+import { addCardsToDeck, safeAddCards, setCardCount, removeCardFromDeck, setCardTags, setCardNote, setStrictIdentity, promoteFromWishlist, demoteToWishlist, removeFromWishlist, addToWishlist, retag, setSwapNote, deleteSwapEntry } from '../lib/deckops.js';
 import { simulateOpeners, simulatePlayout, simulateMulliganTree } from '../lib/goldfish.js';
 import { analyzeLandBase, analyzeColorSources } from '../lib/landbase.js';
 import { fetchRecommendations, topRecommendations, recommendationsByTheme, themesForArchetype, suggestCuts } from '../lib/edhrec.js';
@@ -541,6 +541,147 @@ export function CardsTab({ deck, onUpdate }) {
           onClose={() => setEditingTags(null)}
           onSave={(payload) => saveCardDetails(editingTags, payload)}
         />
+      )}
+
+      <SwapLogPanel deck={deck} onUpdate={onUpdate} />
+    </div>
+  );
+}
+
+function SwapLogPanel({ deck, onUpdate }) {
+  const log = deck.swap_log || [];
+  const [open, setOpen] = useState(false);
+  const [filterMine, setFilterMine] = useState(false);
+  const [editingTs, setEditingTs] = useState(null);
+  const [editingNote, setEditingNote] = useState('');
+
+  const visible = useMemo(() => {
+    const ordered = log.slice().reverse(); // newest first
+    return filterMine ? ordered.filter((e) => e.note) : ordered;
+  }, [log, filterMine]);
+
+  if (log.length === 0) {
+    return (
+      <div className="border" style={{ borderColor: CREAM_FAINT }}>
+        <div className="px-5 py-3 font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM_DIM }}>
+          Swap log · empty
+        </div>
+        <div className="px-5 pb-4 font-serif text-xs italic" style={{ color: CREAM_DIM }}>
+          Edits made here in the editor get recorded — add or cut a card and you'll see the entry appear.
+        </div>
+      </div>
+    );
+  }
+
+  const saveNote = (ts) => {
+    onUpdate(setSwapNote(deck, ts, editingNote));
+    setEditingTs(null);
+    setEditingNote('');
+  };
+
+  return (
+    <div className="border" style={{ borderColor: CREAM_FAINT }}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="w-full px-5 py-3 border-b flex items-center justify-between"
+        style={{ borderColor: open ? CREAM_FAINT : 'transparent', color: CREAM }}
+      >
+        <span className="font-serif text-sm tracking-[0.3em] uppercase font-bold flex items-center gap-2">
+          Swap log · {pad(log.length)}
+          <HelpTip>
+            Every add / cut / count-change made from the editor lands here. Imports and random rolls don't pollute the log. The latest 100 entries are kept; click a row to add a "why?" note retroactively.
+          </HelpTip>
+        </span>
+        <span className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>
+          {open ? 'hide ▲' : 'show ▼'}
+        </span>
+      </button>
+
+      {open && (
+        <div className="divide-y" style={{ borderColor: CREAM_FAINT }}>
+          <div className="p-3 flex items-center gap-3" style={{ borderColor: CREAM_FAINT }}>
+            <label className="font-mono text-[11px] flex items-center gap-2" style={{ color: CREAM_DIM }}>
+              <input
+                type="checkbox"
+                checked={filterMine}
+                onChange={(e) => setFilterMine(e.target.checked)}
+              />
+              Only show entries with my notes
+            </label>
+          </div>
+          {visible.length === 0 ? (
+            <div className="p-4 font-serif text-xs italic" style={{ color: CREAM_DIM }}>
+              No notes recorded yet. Click an entry below to add one.
+            </div>
+          ) : (
+            visible.map((e) => (
+              <div key={e.ts} className="p-3 space-y-1" style={{ borderColor: CREAM_FAINT }}>
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="font-mono text-[10px] tracking-wider" style={{ color: CREAM_DIM }}>
+                    {new Date(e.ts).toLocaleString()}
+                  </span>
+                  <div className="flex items-center gap-3">
+                    {editingTs !== e.ts && (
+                      <button
+                        onClick={() => { setEditingTs(e.ts); setEditingNote(e.note || ''); }}
+                        className="font-serif text-[10px] tracking-[0.3em] uppercase"
+                        style={{ color: CREAM_DIM }}
+                      >
+                        {e.note ? 'Edit note' : '+ Note'}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => onUpdate(deleteSwapEntry(deck, e.ts))}
+                      style={{ color: CREAM_DIM }}
+                      title="Delete entry"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5 font-mono text-[11px]">
+                  {e.added.map((a, i) => (
+                    <span key={`a${i}`} className="px-2 py-0.5 border" style={{ borderColor: CREAM_FAINT, color: CREAM }}>
+                      + {a.count} {a.name}
+                    </span>
+                  ))}
+                  {e.removed.map((r, i) => (
+                    <span key={`r${i}`} className="px-2 py-0.5 border" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
+                      − {r.count} {r.name}
+                    </span>
+                  ))}
+                </div>
+                {editingTs === e.ts ? (
+                  <div className="flex flex-col md:flex-row gap-2 mt-1">
+                    <input
+                      value={editingNote}
+                      onChange={(ev) => setEditingNote(ev.target.value)}
+                      placeholder="why? (e.g. swapped for Cyclonic Rift)"
+                      maxLength={280}
+                      autoFocus
+                      className="flex-1 border px-3 py-1.5 bg-transparent font-mono text-xs"
+                      style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(var(--ink-rgb),0.02)' }}
+                      onKeyDown={(ev) => { if (ev.key === 'Enter') saveNote(e.ts); if (ev.key === 'Escape') setEditingTs(null); }}
+                    />
+                    <button
+                      onClick={() => saveNote(e.ts)}
+                      className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-1.5"
+                      style={{ borderColor: CREAM_FAINT, color: CREAM }}
+                    >
+                      Save
+                    </button>
+                  </div>
+                ) : (
+                  e.note && (
+                    <p className="font-serif text-xs italic mt-1" style={{ color: CREAM }}>
+                      {e.note}
+                    </p>
+                  )
+                )}
+              </div>
+            ))
+          )}
+        </div>
       )}
     </div>
   );
