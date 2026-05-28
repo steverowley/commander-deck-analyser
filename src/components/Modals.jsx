@@ -331,7 +331,7 @@ export function RulesModal({ onClose }) {
             <li>Fast mana beyond Sol Ring and Arcane Signet</li>
             <li>Chained extra-turn effects</li>
             <li>Two-card infinite combos, especially uninteractive ones</li>
-            <li>High tutor density (4+)</li>
+            <li>Very high tutor density (6+) — cEDH-grade signal</li>
           </RuleSection>
         </div>
       </div>

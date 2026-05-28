@@ -10,8 +10,8 @@ import { lc } from './utils.js';
  *
  * Bracket ladder:
  *   1 Exhibition  — themed/casual; no power tools, lean curve, often <99 cards
- *   2 Core        — precon power level; no Game Changers, no MLD, no 2-card combos
- *   3 Upgraded    — focused builds; up to 3 Game Changers, ≤3 tutors, no MLD
+ *   2 Core        — average power; no Game Changers, no MLD, no 2-card combos
+ *   3 Upgraded    — focused builds; up to 3 Game Changers, no MLD
  *   4 Optimized   — high-power; GC/MLD/fast-mana/combos all allowed
  *   5 cEDH        — tournament-grade; ≥6 GC, ≥3 fast mana, multiple combos, low avg CMC
  */
@@ -72,11 +72,12 @@ export function assessBracket(deck) {
     bracket = Math.max(bracket, 4);
     reasons.push(`${flags.extraTurns.length} extra-turn spells — Bracket 4+`);
   }
-  if (flags.tutors.length > 3) {
-    bracket = Math.max(bracket, 4);
-    reasons.push(`${flags.tutors.length} tutors — heavy tutoring, Bracket 4+`);
-  } else if (flags.tutors.length > 0) {
-    reasons.push(`${flags.tutors.length} tutor(s) — fits Bracket 3`);
+  // Tutor count is informational only — WotC removed the tutor cap from
+  // Brackets 1-3 in their Oct 21, 2025 update. The Game Changers list now
+  // catches the warping tutors (Demonic, Vampiric, Imperial Seal, etc.)
+  // directly. Volume still feeds the cEDH (Bracket 5) signal below.
+  if (flags.tutors.length > 0) {
+    reasons.push(`${flags.tutors.length} tutor(s) — informational, no bracket penalty`);
   }
   if (flags.fastMana.length > 0) {
     bracket = Math.max(bracket, 4);
