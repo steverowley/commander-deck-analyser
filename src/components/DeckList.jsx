@@ -1101,6 +1101,7 @@ function EmptyArchive({ onCreate, onImport }) {
 function VaultSection({ collection, onOpen, onSearch, onAddCard, onChanged }) {
   const [dragOver, setDragOver] = useState(false);
   const [cardData, setCardData] = useState({});
+  const [printingCards, setPrintingCards] = useState({});
   const entries = Object.values(collection || {});
   const unique = entries.length;
   const total = entries.reduce((s, e) => s + (e.quantity || 0), 0);
@@ -1120,6 +1121,22 @@ function VaultSection({ collection, onOpen, onSearch, onAddCard, onChanged }) {
       setCardData((cur) => ({ ...cur, ...results }));
     });
   }, [recent.map((e) => e.name).join(',')]);
+
+  // Resolve user-picked printings so the homepage strip reflects the
+  // chosen art, matching the Vault grid.
+  useEffect(() => {
+    for (const entry of recent) {
+      const pid = entry.meta?.printing_id;
+      if (!pid) continue;
+      const key = entry.name.toLowerCase();
+      const cached = printingCards[key];
+      if (cached && cached.id === pid) continue;
+      fetchCardById(pid).then((c) => {
+        if (!c) return;
+        setPrintingCards((cur) => ({ ...cur, [key]: c }));
+      });
+    }
+  }, [recent.map((e) => `${e.name}:${e.meta?.printing_id || ''}`).join(',')]);
 
   // Accept any external drag — we'll figure out at drop time whether
   // we can resolve it to a card. Some browsers (Safari, Firefox in
@@ -1211,7 +1228,8 @@ function VaultSection({ collection, onOpen, onSearch, onAddCard, onChanged }) {
             </div>
             <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-10 lg:grid-cols-12 gap-2">
               {recent.map((e) => {
-                const card = cardData[e.name.toLowerCase()];
+                const key = e.name.toLowerCase();
+                const card = printingCards[key] || cardData[key];
                 return (
                   <VaultCard
                     key={e.name}
