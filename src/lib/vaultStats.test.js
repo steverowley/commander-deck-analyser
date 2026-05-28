@@ -144,4 +144,63 @@ describe('computeVaultStats', () => {
     expect(stats.colorHistogram.M).toBe(1);
     expect(stats.colorHistogram.C).toBe(1);
   });
+
+  // The caller (VaultPage) is responsible for substituting the chosen
+  // printing into cardData before invoking. These cases prove that the
+  // substitution reaches totals, topValuable, topSets, and unusedValue —
+  // the four price/set-sensitive surfaces — so a Beta Sol Ring valued
+  // at $4000 reports as such instead of the canonical $2 reprint.
+  describe('printing-aware pricing (caller substitutes chosen printing)', () => {
+    test('totalValue uses the chosen printing price', () => {
+      const collection = {
+        'sol ring': entry('Sol Ring', 1, { printing_id: 'beta-id' }),
+      };
+      const cardData = {
+        'sol ring': card('Sol Ring', {
+          type_line: 'Artifact',
+          colors: [],
+          set: 'lea',
+          set_name: 'Limited Edition Alpha',
+          prices: { usd: '4000.00' },
+        }),
+      };
+      const stats = computeVaultStats(collection, cardData, []);
+      expect(stats.totalValue).toBe(4000);
+      expect(stats.topValuable[0].unitValue).toBe(4000);
+      expect(stats.topValuable[0].set).toBe('Limited Edition Alpha');
+    });
+
+    test('unusedValue reflects the chosen printing price', () => {
+      const collection = {
+        'sol ring': entry('Sol Ring', 1, { printing_id: 'beta-id' }),
+      };
+      const cardData = {
+        'sol ring': card('Sol Ring', {
+          type_line: 'Artifact',
+          colors: [],
+          prices: { usd: '4000.00' },
+        }),
+      };
+      // No decks reference Sol Ring → it's an unused card.
+      const stats = computeVaultStats(collection, cardData, []);
+      expect(stats.unusedValue).toBe(4000);
+      expect(stats.unusedCards[0].value).toBe(4000);
+    });
+
+    test('topSets reflects the chosen printing set', () => {
+      const collection = {
+        'sol ring': entry('Sol Ring', 1, { printing_id: 'beta-id' }),
+      };
+      const cardData = {
+        'sol ring': card('Sol Ring', {
+          type_line: 'Artifact',
+          colors: [],
+          set: 'lea',
+          set_name: 'Limited Edition Alpha',
+        }),
+      };
+      const stats = computeVaultStats(collection, cardData, []);
+      expect(stats.topSets[0]).toMatchObject({ code: 'lea', name: 'Limited Edition Alpha', count: 1 });
+    });
+  });
 });

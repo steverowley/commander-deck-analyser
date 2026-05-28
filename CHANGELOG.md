@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.29.3 — Vault stats now use the chosen printing's price + set
+
+- **Fix: `Total value`, `Foil value`, `Most valuable`, `Top sets`, and `Cards on the shelf → unplayed value` now reflect the user's chosen printing.** They were always reading from the canonical Scryfall printing returned by `fetchCardsByName`, so a Beta Sol Ring (~$4000) reported as the Commander Anthology reprint (~$2). `VaultPage` now merges `printingCards` over `cardData` and hands the merged map to `computeVaultStats`. Oracle-level fields (type/colors/CMC) are identical across printings; printing-level fields (set, rarity, price, image) now follow the user's choice. (closes #152)
+- **Fix: the value sort in the Inventory filter bar** is now printing-aware for the same reason — sorting by value puts your Beta Sol Ring at the top.
+
 ## v0.29.2 — Vault: chosen card art now actually displays
 
 - **Fix: changing a card's printing in the Vault now updates the displayed image.** The picker was correctly saving `meta.printing_id` to `public.collection.meta`, but both `VaultPage` and the homepage Vault strip only ever fetched the canonical printing by name — so the user's chosen art never rendered. Both surfaces now resolve `meta.printing_id` via `fetchCardById` and prefer that printing when present. The Printing Picker modal's "active" highlight also now correctly indicates the saved choice. (closes #150)
