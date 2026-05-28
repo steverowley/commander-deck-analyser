@@ -2,7 +2,10 @@
 //
 // Game Changers list is sourced from WotC's official Commander bracket
 // definitions (commander.wizards.com). The list updates roughly twice a year;
-// keep this file in sync. Last refreshed against the late-2024 bracket update.
+// keep this file in sync. Last refreshed against the Feb 9, 2026 update —
+// 53 cards. Oct 21, 2025 dropped 10 cards (Deflecting Swat, Expropriate,
+// Food Chain, Jin-Gitaxias, Kinnan, Sway of the Stars, Urza, Vorinclex,
+// Winota, Yuriko); Feb 9, 2026 added Farewell and Biorhythm.
 
 export const GAME_CHANGERS = new Set([
   // Tutors
@@ -20,16 +23,16 @@ export const GAME_CHANGERS = new Set([
   "trouble in pairs", "orcish bowmasters", "trinisphere", "winter orb",
   "stasis", "blood moon", "back to basics", "humility",
   // Strong commanders / payoffs
-  "winota, joiner of forces", "yuriko, the tiger's shadow",
-  "kinnan, bonder prodigy", "tergrid, god of fright", "thassa's oracle",
-  "jin-gitaxias, core augur", "urza, lord high artificer",
+  "tergrid, god of fright", "thassa's oracle",
   // Strong staples
   "cyclonic rift", "rhystic study", "mystic remora", "smothering tithe",
   "the one ring", "seedborn muse", "consecrated sphinx",
   "bolas's citadel", "underworld breach", "aetherflux reservoir",
   "coalition victory", "ad nauseam", "necropotence",
   "mana drain", "force of will", "fierce guardianship",
-  "armageddon", "expropriate",
+  "armageddon",
+  // Feb 9, 2026 additions
+  "farewell", "biorhythm",
 ]);
 
 export const MLD_CARDS = new Set([
@@ -62,7 +65,7 @@ export const BANNED_CARDS = new Set([
   "library of alexandria", "channel", "fastbond",
   // Commander-format perennials
   "karakas", "lutri, the spellchaser", "shahrazad",
-  "sway of the stars", "panoptic mirror", "biorhythm",
+  "sway of the stars", "panoptic mirror",
   "coalition victory", "limited resources", "primeval titan",
   "sundering titan", "upheaval", "worldfire",
   "yawgmoth's bargain", "tinker", "iona, shield of emeria",
@@ -145,7 +148,7 @@ export const ALT_NAMES = {
 
 export const BRACKETS = [
   { n: 1, name: "Exhibition", desc: "Ultra-casual / showcase decks. Often themed and intentionally weak." },
-  { n: 2, name: "Core",       desc: "Average precon-level power. No Game Changers, no MLD, no 2-card infinite combos, ≤3 tutors." },
+  { n: 2, name: "Core",       desc: "Average power. No Game Changers, no MLD, no 2-card infinite combos. (WotC removed the tutor cap in Oct 2025.)" },
   { n: 3, name: "Upgraded",   desc: "Beyond precon, focused builds. Up to 3 Game Changers, no MLD, no early-game infinite combos." },
   { n: 4, name: "Optimized",  desc: "High-power. Game Changers, MLD, fast mana, and 2-card combos all on the table." },
   { n: 5, name: "cEDH",       desc: "Tournament-level. Built to win as fast and consistently as possible." }

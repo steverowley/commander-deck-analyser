@@ -1378,7 +1378,7 @@ export function BracketTab({ deck, onUpdate }) {
         <FlagBox title="Game Changers" items={assessment.flags.gameChangers} desc="WotC's curated list. ≤3 fine for Bracket 3." />
         <FlagBox title="Mass Land Destruction" items={assessment.flags.mld} desc="Push to Bracket 4+." />
         <FlagBox title="Extra Turn Spells" items={assessment.flags.extraTurns} desc="Single copies fine; multiples imply higher power." />
-        <FlagBox title="Tutors" items={assessment.flags.tutors} desc="≤3 appropriate for Bracket 3." />
+        <FlagBox title="Tutors" items={assessment.flags.tutors} desc="Informational only — WotC removed the tutor cap in Oct 2025. Game Changers catch the worst." />
         <FlagBox title="Fast Mana" items={assessment.flags.fastMana} desc="Beyond Sol Ring & Arcane Signet — Bracket 4." />
         <FlagBox title="Infinite Combos" items={assessment.flags.combos} desc="Early uninteractive combos push to Bracket 4." />
       </div>

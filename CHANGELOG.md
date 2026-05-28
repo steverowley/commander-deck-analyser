@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.29.1 — Sync Game Changers list + tutor rules to Feb 2026 WotC update
+
+WotC has shipped two bracket updates since this codebase was last refreshed against the late-2024 Game Changers list. The list is now 53 cards (was 58), the tutor cap is gone from Brackets 1–3, and Biorhythm is no longer banned. This release brings Vault back in sync.
+
+### Bracket data
+- **`GAME_CHANGERS` refreshed to Feb 9, 2026 (53 cards).** Dropped six cards WotC removed in their Oct 21, 2025 update — Winota, Yuriko, Kinnan, Jin-Gitaxias, Urza, and Expropriate. Added the two Feb 9, 2026 additions — **Farewell** and **Biorhythm**. (closes #123)
+- **`BANNED_CARDS` no longer lists Biorhythm.** Biorhythm was unbanned and moved onto the Game Changers list — it now flags as Bracket 3 power rather than a hard format violation. (closes #123)
+- **`MLD_CARDS` and `EXTRA_TURN_CARDS` unchanged** (those lists are stable).
+
+### Tutor rule (closes #124)
+- **`analyzers.js` no longer pushes 4+ tutor decks to Bracket 4.** WotC removed the tutor restriction from Brackets 1–3 in their Oct 21, 2025 beta update — the Game Changers list now catches the warping tutors (Demonic, Vampiric, Imperial Seal, Mystical, Enlightened, etc.) directly, so the secondary penalty was double-counting. Tutor count still feeds the cEDH (Bracket 5) signal at high density.
+- **UI: tutor `FlagBox` now reads "Informational only — WotC removed the tutor cap in Oct 2025."** Was "≤3 appropriate for Bracket 3."
+- **Modals.jsx `What Escalates a Deck` list** now reads "Very high tutor density (6+) — cEDH-grade signal" (was "High tutor density (4+)").
+- **Bracket reference for B2** no longer says "≤3 tutors."
+
+### Tests
+- New `analyzers.test.js` cases: 5-tutor mono-W value deck stays at Bracket 2 (no longer pushed to Bracket 4); Farewell flags as Game Changer; Winota/Urza/Yuriko/Kinnan/Expropriate are no longer Game Changers.
+
 ## v0.29.0 — Color-source hypergeometric (Karsten check)
 
 The Stats tab gains a **Color Sources** panel that walks every non-land in the deck, looks up the required source count per color from Frank Karsten's 90%-on-curve table, and reports deficits against actual sources. Now you'll see "30 W required for `{1}{W}{W}` at CMC 3, you have 26 → short 4" instead of having to do the math yourself.
@@ -85,6 +103,7 @@ The Import Deck modal now accepts a public Moxfield or Archidekt URL directly �
 ### Tests
 - **New `deckImport.test.js`** (23 cases) — every format variant (`1 Card`, `1x Card`, bare names), section headers (`Commander`, `Deck`, `// Commander`, `Maybeboard`, `SB:`), Sideboard / Tokens skipped, MTGA printing tags stripped, alias table applied, empty/non-string input safe, count clamping. Plus URL extraction for both sources, dispatch via mocked `fetch`, and the upstream-error path.
 - All 301 tests green (up from 278).
+- New `analyzers.test.js` cases: 5-tutor mono-W value deck stays at Bracket 2 (no longer pushed to Bracket 4); Farewell flags as Game Changer; Winota/Urza/Yuriko/Kinnan/Expropriate are no longer Game Changers. All vitest cases pass.
 
 ## v0.24.0 — Combo detection (Commander Spellbook)
 

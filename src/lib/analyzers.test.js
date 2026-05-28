@@ -61,6 +61,45 @@ describe('assessBracket', () => {
     expect(a.flags.combos.length).toBeGreaterThan(0);
   });
 
+  it('does NOT push to Bracket 4 for 5 tutors alone (Oct 2025 rule change)', () => {
+    // WotC removed the tutor cap from Brackets 1-3 in their Oct 21, 2025
+    // bracket update — the Game Changers list now catches the worst
+    // tutors directly. A casual deck with 5 modest tutors (e.g. Idyllic
+    // Tutor, Heliod's Pilgrim, Steelshaper's Gift) should sit at Bracket 2.
+    const cards = [
+      card('Idyllic Tutor', { oracle_text: 'Search your library for an enchantment card.' }),
+      card('Heliod\'s Pilgrim', { oracle_text: 'When this enters, you may search your library for an Aura card.' }),
+      card('Steelshaper\'s Gift', { oracle_text: 'Search your library for an Equipment card.' }),
+      card('Open the Armory', { oracle_text: 'Search your library for an Aura or Equipment card.' }),
+      card('Stoneforge Mystic', { oracle_text: 'When this enters, you may search your library for an Equipment card.' }),
+    ];
+    for (let i = 0; i < 60; i++) cards.push(card(`Filler ${i}`));
+    const a = assessBracket({ cards });
+    expect(a.flags.tutors.length).toBe(5);
+    expect(a.bracket).toBe(2);
+  });
+
+  it('flags Farewell as a Game Changer (Feb 2026 addition)', () => {
+    const cards = [card('Farewell')];
+    for (let i = 0; i < 60; i++) cards.push(card(`Filler ${i}`));
+    const a = assessBracket({ cards });
+    expect(a.flags.gameChangers.map((s) => s.toLowerCase())).toContain('farewell');
+    expect(a.bracket).toBeGreaterThanOrEqual(3);
+  });
+
+  it('does NOT flag Winota/Urza/Yuriko as Game Changers (Oct 2025 removals)', () => {
+    const cards = [
+      card('Winota, Joiner of Forces'),
+      card('Urza, Lord High Artificer'),
+      card('Yuriko, the Tiger\'s Shadow'),
+      card('Kinnan, Bonder Prodigy'),
+      card('Expropriate'),
+    ];
+    for (let i = 0; i < 60; i++) cards.push(card(`Filler ${i}`));
+    const a = assessBracket({ cards });
+    expect(a.flags.gameChangers.length).toBe(0);
+  });
+
   it('returns Bracket 5 when cEDH signals stack', () => {
     const cards = [
       // 6 Game Changers
