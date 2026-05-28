@@ -6,6 +6,8 @@
  * lives on the deck itself.
  */
 
+import { REGION_DEFAULTS } from './geo.js';
+
 const KEY = 'vault:settings-v1';
 
 const DEFAULTS = {
@@ -13,6 +15,7 @@ const DEFAULTS = {
   currency: 'usd',              // 'usd' | 'eur' | 'gbp' — affects price display
   prefRetailer: 'cardkingdom',  // 'cardkingdom' | 'tcgplayer' | 'cardmarket' — affiliate buy links / cart icon
   prefPriceSource: 'tcgplayer', // 'tcgplayer' | 'cardmarket' — where displayed prices come from
+  region: null,                 // 'uk' | 'eu' | 'us' — auto-detected once; informational (drives Settings note)
 };
 
 let cache = null;
@@ -51,6 +54,24 @@ export function saveSettings(next) {
 export function updateSetting(key, value) {
   const settings = loadSettings();
   return saveSettings({ ...settings, [key]: value });
+}
+
+/** True once the user has ever persisted settings (used to avoid
+ *  overriding their explicit choices with region auto-detection). */
+export function hasStoredSettings() {
+  try {
+    return !!(typeof localStorage !== 'undefined' && localStorage.getItem(KEY));
+  } catch {
+    return false;
+  }
+}
+
+/** Seed currency / buy-link / price-source from a detected region and
+ *  stamp the region for the Settings note. No-op for an unknown region. */
+export function applyRegionDefaults(region) {
+  const defaults = REGION_DEFAULTS[region];
+  if (!defaults) return loadSettings();
+  return saveSettings({ ...loadSettings(), ...defaults, region });
 }
 
 export const SETTING_DEFAULTS = DEFAULTS;

@@ -1824,6 +1824,15 @@ export function SettingsBody() {
           onChange={(v) => update('strictIdentityDefault', v)}
         />
       </SettingsRow>
+          {settings.region && (
+            <p className="font-serif text-[11px] italic leading-snug px-1" style={{ color: CREAM_DIM }}>
+              Detected region:{' '}
+              <span style={{ color: CREAM }}>
+                {{ uk: 'UK', eu: 'EU', us: 'US' }[settings.region] || settings.region.toUpperCase()}
+              </span>
+              {' '}— we set your currency and buy links to match. Change anything below anytime.
+            </p>
+          )}
           <SettingsRow
             label="Price currency"
             description="The unit prices are displayed in. USD / EUR come straight from the vendor's Scryfall feed; GBP is converted from USD at an approximate rate (shown with a ~ prefix). Crossing currencies (e.g. EUR vendor → USD display) is also approximate."

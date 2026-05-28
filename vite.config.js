@@ -23,6 +23,8 @@ const connectSrc = [
   'wss://*.supabase.co',
   'https://api.scryfall.com',
   'https://json.edhrec.com',
+  // First-visit region detection (currency + buy-link defaults).
+  'https://ipapi.co',
   // PayPal Donate SDK fires XHRs back to paypal.com / paypalobjects.com.
   'https://www.paypal.com',
   'https://www.sandbox.paypal.com',
