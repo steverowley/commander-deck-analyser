@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.31.0 — Separate spot removal from board wipes (Command Zone Ep. 658)
+
+The Command Zone deckbuilding template was updated in Ep. 658: targeted removal doubled from 5 to **10-12**, board wipes dropped from 5 to **3-4**, and card draw bumped to **~10**. Vault's health score and auto-seed still treated them as one combined "removal" bucket, which let a deck of nine wipes and zero spot removal score full points. This release splits them so the score reflects the new template.
+
+### Health score (closes #127, #128)
+- **`COMPONENTS.removal` (15 pts) split into `targetedRemoval` (10 pts) + `boardWipes` (5 pts).** Total still sums to 100. Health panel now shows two rows. (closes #127)
+- **`computeHealth`** counts `Targeted removal` and `Board wipe` separately. Spot-removal scoring: 10+ → full, 7-9 → 6, 4-6 → 3. Wipes scoring: 3+ → full, 1-2 → partial, 0 → 0. Wipes don't penalise extras (Aristocrats decks legitimately want more).
+- **Card draw target bumped from 9 to 10-12** per the same update. Full points at 10+, partial 7-9. Hint copy reads "aim for 10-12" (was "aim for 8-10"). (closes #128)
+
+### Auto-seed
+- **`autoseed.js` adds a `wipe` bucket** alongside `removal`, with `TARGETED_REMOVAL_TARGET = 10` and `BOARD_WIPE_TARGET = 3`. `DRAW_TARGET` bumped 9 → 10. `categorize()` routes `Board wipe`-tagged cards to the wipe bucket before checking `Targeted removal` so overload-style cards land in the right place.
+- **Summary** carries `summary.wipe` alongside `summary.removal`; the deck-notes breakdown in Modals.jsx now reads `"…spot removal N, wipes M…"`.
+
+### UI
+- **Health panel** renders Spot removal + Board wipes as separate rows via the existing `Object.entries(breakdown).map` — no component changes needed.
+- **Help text** for the Health tab: "0-100 composite of legality + lands + ramp (8-12) + draw (10-12) + spot removal (10-12) + board wipes (3-4) + curve. Tracks the Command Zone 'New Era' template."
+
+### Tests
+- **`health.test.js`** — textbook deck now includes 3 wipes (Ep. 658 baseline) and asserts both `targetedRemoval.points === 10` and `boardWipes.points === 5`. New case verifies the split: 9 wipes + 0 spot removal scores full wipe but zero spot points (the anti-pattern the old combined score missed). New draw-hint test asserts the 10-12 target.
+- **`autoseed.test.js`** — new case asserts the wipe bucket fills to ≥3 when the pool contains "Destroy all creatures" cards, and that spot removal stays at ≥7 separately.
+
 ## v0.30.1 — Packages tab: one-click "Re-detect tags" recovery
 
 The Packages tab's "No auto-tags detected" empty state was a dead end — it pointed at Settings → Refresh card prices + text, but that path only updates the card cache, not the open deck. Users had to manually add/remove a card to trigger a re-tag. This release replaces the dead-end message with an actionable button.

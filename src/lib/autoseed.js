@@ -26,8 +26,14 @@ import { lc } from './utils.js';
 // pruning expensive cards / off-bracket cards.
 const POOL_SIZE = 180;
 const POOL_SIZE_FILTERED = 260;
-const DRAW_TARGET = 9;
-const REMOVAL_TARGET = 9;
+// Targets follow the Command Zone "New Era" template (Ep. 658): bumped
+// draw to 10 (was 9), split removal into 10 spot removal + 3 wipes
+// (was 9 mixed). The targets are still upper-end of the curve-aware ramp/
+// land bands — we want the auto-seed to deliver a deck that scores high
+// on Health right out of the gate.
+const DRAW_TARGET = 10;
+const TARGETED_REMOVAL_TARGET = 10;
+const BOARD_WIPE_TARGET = 3;
 const DECK_TOTAL = 99;
 
 // Tags that signal a card is too high-power for casual / precon
@@ -62,7 +68,11 @@ function categorize(card) {
   const tags = new Set(detectTags(card));
   if (tags.has('Ramp') || tags.has('Mana rock')) return 'ramp';
   if (tags.has('Card draw') || tags.has('Tutor')) return 'draw';
-  if (tags.has('Targeted removal') || tags.has('Board wipe')) return 'removal';
+  // Wipes checked before spot removal so a card with both tags (e.g.
+  // overload spells in their bigger mode) lands in the right bucket
+  // for the post-Ep. 658 split targets.
+  if (tags.has('Board wipe')) return 'wipe';
+  if (tags.has('Targeted removal')) return 'removal';
   return 'other';
 }
 
@@ -213,7 +223,7 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
 
   // Bucket by role. Each bucket stays in (possibly archetype-promoted)
   // synergy order so `.shift()` picks the most relevant candidate first.
-  const buckets = { land: [], ramp: [], draw: [], removal: [], other: [] };
+  const buckets = { land: [], ramp: [], draw: [], removal: [], wipe: [], other: [] };
   for (const card of pool) buckets[categorize(card)].push(card);
 
   // Curve-aware targets.
@@ -224,20 +234,21 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
     lands: curve.land.ideal[1],
     ramp: curve.ramp.ideal[1],
     draw: DRAW_TARGET,
-    removal: REMOVAL_TARGET,
+    removal: TARGETED_REMOVAL_TARGET,
+    wipe: BOARD_WIPE_TARGET,
   };
 
-  onProgress?.(`Balancing — target ${targets.lands} lands, ${targets.ramp} ramp, ${targets.draw} draw, ${targets.removal} removal...`);
+  onProgress?.(`Balancing — target ${targets.lands} lands, ${targets.ramp} ramp, ${targets.draw} draw, ${targets.removal} spot removal, ${targets.wipe} wipes...`);
 
   const entries = [];
   // Summary keys deliberately match the bucket keys (`land`, `ramp`,
-  // `draw`, `removal`, `other`) so `summary[key]` works inside the
-  // priority-fill loop. `basics` is separate because basics are
+  // `draw`, `removal`, `wipe`, `other`) so `summary[key]` works inside
+  // the priority-fill loop. `basics` is separate because basics are
   // distributed below; the modal sums lands + basics for the display.
   // ownedPool surfaces how many cards survived the ownedOnly filter
   // so the UI can warn when the Vault overlap is too thin.
   const summary = {
-    land: 0, ramp: 0, draw: 0, removal: 0, other: 0, basics: 0,
+    land: 0, ramp: 0, draw: 0, removal: 0, wipe: 0, other: 0, basics: 0,
     ownedPool: ownedOnly ? pool.length : null,
     vaultSize: collection ? Object.keys(collection).length : 0,
   };
@@ -263,6 +274,7 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
   addFromBucket('ramp', targets.ramp);
   addFromBucket('draw', targets.draw);
   addFromBucket('removal', targets.removal);
+  addFromBucket('wipe', targets.wipe);
 
   // Fill remaining slots with synergy / strategy cards. Pull from
   // `other` first (the actual strategy fillers), then dip into the
@@ -275,6 +287,7 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
     ...buckets.ramp,
     ...buckets.draw,
     ...buckets.removal,
+    ...buckets.wipe,
   ];
   while (totalSlots(entries) < DECK_TOTAL && overflow.length > 0) {
     const card = overflow.shift();

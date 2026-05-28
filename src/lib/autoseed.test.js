@@ -109,6 +109,26 @@ describe('buildSeededDeck', () => {
     expect(summary.removal).toBeGreaterThanOrEqual(7);
   });
 
+  it('fills the wipe bucket separately from spot removal (Ep. 658 split)', async () => {
+    const makeWipe = (i) => ({ name: `Wipe ${i}`, type_line: 'Sorcery', cmc: 4, oracle_text: 'Destroy all creatures.' });
+    const pool = [
+      ...Array.from({ length: 40 }, (_, i) => makeLand(i)),
+      ...Array.from({ length: 15 }, (_, i) => makeRamp(i)),
+      ...Array.from({ length: 15 }, (_, i) => makeDraw(i)),
+      ...Array.from({ length: 15 }, (_, i) => makeRemoval(i)),
+      ...Array.from({ length: 10 }, (_, i) => makeWipe(i)),
+      ...Array.from({ length: 60 }, (_, i) => makeCreature(i)),
+    ];
+    fetchRecommendations.mockResolvedValue(pool.map((c) => ({ name: c.name })));
+    fetchCardsByName.mockResolvedValue({ results: buildResults(pool), notFound: [], errors: [] });
+
+    const commander = { name: 'Wipe Cmdr', color_identity: ['W'] };
+    const { cards, summary } = await buildSeededDeck(commander);
+    expect(totalCount(cards)).toBe(99);
+    expect(summary.wipe).toBeGreaterThanOrEqual(3); // BOARD_WIPE_TARGET = 3
+    expect(summary.removal).toBeGreaterThanOrEqual(7); // spot removal stays separate
+  });
+
   it('low-bracket targets drop Game Changer / Combo piece cards from the pool', async () => {
     // Cyclonic Rift is in GAME_CHANGERS but not BANNED_CARDS — a clean
     // test that bracket ≤ 2 filtering excludes the GC list specifically.

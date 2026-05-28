@@ -16,14 +16,19 @@
 
 import { checkDeckLegality } from './legality.js';
 
+// Component weights track the Command Zone "New Era" template (Ep. 658):
+// targeted removal doubled from 5 to 10-12 while board wipes dropped
+// from 5 to 3-4. Splitting them in the health score reflects that a
+// deck of nine wipes and zero spot removal is broken, not balanced.
 const COMPONENTS = {
-  legality: { weight: 20, label: 'Legality' },
-  size:     { weight: 5,  label: 'Size' },
-  lands:    { weight: 15, label: 'Lands' },
-  ramp:     { weight: 15, label: 'Ramp' },
-  draw:     { weight: 15, label: 'Card draw' },
-  removal:  { weight: 15, label: 'Removal' },
-  curve:    { weight: 15, label: 'Curve' },
+  legality:         { weight: 20, label: 'Legality' },
+  size:             { weight: 5,  label: 'Size' },
+  lands:            { weight: 15, label: 'Lands' },
+  ramp:             { weight: 15, label: 'Ramp' },
+  draw:             { weight: 15, label: 'Card draw' },
+  targetedRemoval:  { weight: 10, label: 'Spot removal' },
+  boardWipes:       { weight: 5,  label: 'Board wipes' },
+  curve:            { weight: 15, label: 'Curve' },
 };
 
 function countByTag(deck, ...tagsAny) {
@@ -86,7 +91,8 @@ export function computeHealth(deck) {
 
   const rampCount = countByTag(deck, 'Ramp', 'Mana rock');
   const drawCount = countByTag(deck, 'Card draw');
-  const removalCount = countByTag(deck, 'Targeted removal', 'Board wipe');
+  const spotRemovalCount = countByTag(deck, 'Targeted removal');
+  const boardWipeCount = countByTag(deck, 'Board wipe');
 
   // Curve-aware land + ramp targets.
   const rec = recommendByCurve(avgCmc);
@@ -140,13 +146,18 @@ export function computeHealth(deck) {
     },
     draw: {
       ...COMPONENTS.draw,
-      points: bandScore(drawCount, [[10, 99, 15], [7, 99, 10], [4, 99, 5]]),
-      note: `${drawCount} draw effects` + (drawCount < 7 ? ' — thin, aim for 8-10' : ''),
+      points: bandScore(drawCount, [[10, 99, 15], [7, 9, 10], [4, 6, 5]]),
+      note: `${drawCount} draw effects` + (drawCount < 10 ? ' — aim for 10-12' : ''),
     },
-    removal: {
-      ...COMPONENTS.removal,
-      points: bandScore(removalCount, [[10, 99, 15], [7, 99, 10], [4, 99, 5]]),
-      note: `${removalCount} removal pieces` + (removalCount < 7 ? ' — thin, aim for 8-10 mixed' : ''),
+    targetedRemoval: {
+      ...COMPONENTS.targetedRemoval,
+      points: bandScore(spotRemovalCount, [[10, 99, 10], [7, 9, 6], [4, 6, 3]]),
+      note: `${spotRemovalCount} spot removal` + (spotRemovalCount < 10 ? ' — aim for 10-12' : ''),
+    },
+    boardWipes: {
+      ...COMPONENTS.boardWipes,
+      points: bandScore(boardWipeCount, [[3, 99, 5], [1, 2, 3]]),
+      note: `${boardWipeCount} board wipes` + (boardWipeCount === 0 ? ' — aim for 3-4' : boardWipeCount < 3 ? ' — light' : ''),
     },
     curve: {
       ...COMPONENTS.curve,
