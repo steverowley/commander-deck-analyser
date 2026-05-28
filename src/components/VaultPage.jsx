@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, parseDecklist, lc } from '../lib/utils.js';
-import { fetchCardsByName } from '../lib/scryfall.js';
+import { fetchCardsByName, fetchCardById } from '../lib/scryfall.js';
 import { CardSearchBar, VersionChip } from './UI.jsx';
 import { VaultCard } from './VaultCard.jsx';
 import { ManaSymbol } from './ManaCost.jsx';
@@ -52,6 +52,9 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
   const [confirmClear, setConfirmClear] = useState(false);
   const [view, setView] = useState('grid');
   const [cardData, setCardData] = useState({});
+  // Printing-specific cards for entries whose meta.printing_id is set.
+  // Keyed by lc(name) so render-time lookup mirrors cardData.
+  const [printingCards, setPrintingCards] = useState({});
 
   const settings = loadSettings();
   const currency = settings.currency || 'usd';
@@ -70,6 +73,22 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
     fetchCardsByName(missing).then(({ results }) => {
       setCardData((cur) => ({ ...cur, ...results }));
     });
+  }, [collection]);
+
+  // Resolve user-picked printings (meta.printing_id) to specific cards
+  // so the grid renders the chosen art instead of the default printing.
+  useEffect(() => {
+    if (!collection) return;
+    for (const entry of Object.values(collection)) {
+      const pid = entry.meta?.printing_id;
+      if (!pid) continue;
+      const cached = printingCards[lc(entry.name)];
+      if (cached && cached.id === pid) continue;
+      fetchCardById(pid).then((c) => {
+        if (!c) return;
+        setPrintingCards((cur) => ({ ...cur, [lc(entry.name)]: c }));
+      });
+    }
   }, [collection]);
 
   const refresh = async () => {
@@ -310,6 +329,7 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
           <InventorySection
             entries={filteredEntries}
             cardData={cardData}
+            printingCards={printingCards}
             collection={collection}
             view={view} setView={setView}
             filter={filter} setFilter={setFilter}
@@ -633,7 +653,7 @@ function UnusedSection({ stats, approx, onShowUnused, priceSourceTip }) {
 }
 
 function InventorySection({
-  entries, cardData, collection, view, setView,
+  entries, cardData, printingCards = {}, collection, view, setView,
   filter, setFilter, typeFilter, setTypeFilter, colorFilter, setColorFilter,
   sort, setSort, showOnlyUnused, setShowOnlyUnused, hasFilter,
   confirmClear, setConfirmClear, clearAll, busy,
@@ -765,7 +785,7 @@ function InventorySection({
       ) : view === 'grid' ? (
         <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {entries.map((entry) => {
-            const card = cardData[lc(entry.name)];
+            const card = printingCards[lc(entry.name)] || cardData[lc(entry.name)];
             return (
               <div key={entry.name} className="flex flex-col gap-2">
                 <VaultCard entry={entry} card={card} onChanged={refresh} />

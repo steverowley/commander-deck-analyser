@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.29.2 — Vault: chosen card art now actually displays
+
+- **Fix: changing a card's printing in the Vault now updates the displayed image.** The picker was correctly saving `meta.printing_id` to `public.collection.meta`, but both `VaultPage` and the homepage Vault strip only ever fetched the canonical printing by name — so the user's chosen art never rendered. Both surfaces now resolve `meta.printing_id` via `fetchCardById` and prefer that printing when present. The Printing Picker modal's "active" highlight also now correctly indicates the saved choice. (closes #150)
+
 ## v0.29.1 — Sync Game Changers list + tutor rules to Feb 2026 WotC update
 
 WotC has shipped two bracket updates since this codebase was last refreshed against the late-2024 Game Changers list. The list is now 53 cards (was 58), the tutor cap is gone from Brackets 1–3, and Biorhythm is no longer banned. This release brings Vault back in sync.
