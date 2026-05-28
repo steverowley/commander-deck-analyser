@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.32.0 — Build Advisor: anti-pattern warnings + curve-aware land label
+
+The Stats tab gains a **Build Advisor** panel that surfaces structural problems the health-score fundamentals don't catch. Two checks ship in this release: Karsten-formula underland detection (the #1 casual deckbuilding mistake per Frank Karsten) and top-heavy-curve-without-compensating-ramp. The static "Rec: 36-38" land label is also retired in favour of the curve-aware target.
+
+### Library
+- **New `src/lib/antipatterns.js`** with `checkUnderland(deck)`, `checkCurveRampImbalance(deck)`, and `runAntipatternChecks(deck)`. Each check returns `null` when fine or `{ id, severity, title, detail, formula? }` when something looks off. The orchestrator sorts non-null warnings by severity (`major` → `warn` → `info`).
+  - **`checkUnderland`** computes `target = round(28 + 2×colors + avg_MV - 1)` and warns when the deck is below BOTH the Karsten floor and the curve-aware ok-low band. The dual condition keeps the warning from firing on a low-curve aggro deck that's correctly running 32 lands. Severity escalates to `major` when the gap is ≥3 lands. Surfaces the formula in the warning so users see *why* (closes #135).
+  - **`checkCurveRampImbalance`** fires when avg MV ≥ 3.8 with <11 ramp pieces, escalating to `major` when avg MV ≥ 4.2 with <8 ramp. Action-oriented detail: "add N more or trim a high-MV card" (closes #140).
+
+### UI
+- **`BuildAdvisorSection`** in `Tabs.jsx` Stats view, rendered above Land Base. Only mounts when there's at least one warning. Each warning row shows severity chip (color-coded — accent red for `major`, amber for `warn`, dim for `info`), title, detail, and the formula on its own monospace line when present.
+- **`Lands` summary card now shows the curve-aware target** instead of the hardcoded "Rec: 36-38" — a 2.0-CMC aggro deck sees "Rec: 32–34", a 4.5-CMC top-heavy deck sees "Rec: 40–42". Pulls from the same `recommendByCurve(avgCmc)` the Health panel already uses (closes #143).
+
+### Tests
+- **New `antipatterns.test.js`** (10 cases): Karsten underland fires for a 3-color 3.5-MV deck with 32 lands (gap = 5, major); skipped when at target; skipped for a low-curve aggro deck at 32 lands; curve-ramp imbalance fires at 4.0 MV / 8 ramp; compensated by 12 ramp; skipped on a 3.0-MV deck regardless; severity sort puts the major warning first; healthy deck returns empty.
+- 382 tests green (up from 372).
+
 ## v0.31.0 — Separate spot removal from board wipes (Command Zone Ep. 658)
 
 The Command Zone deckbuilding template was updated in Ep. 658: targeted removal doubled from 5 to **10-12**, board wipes dropped from 5 to **3-4**, and card draw bumped to **~10**. Vault's health score and auto-seed still treated them as one combined "removal" bucket, which let a deck of nine wipes and zero spot removal score full points. This release splits them so the score reflects the new template.
