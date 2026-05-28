@@ -287,3 +287,150 @@ function utilityLandsFor(colors) {
 }
 
 export const SHARD_OR_WEDGE_NAME = (colors) => SHARDS_AND_WEDGES[key3(colors)] || null;
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Color-source hypergeometric check (Karsten table)
+// ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Frank Karsten's "How Many Sources Do You Need to Consistently Cast Your
+ * Spells" table, abridged for the Commander 99-card format. Values are
+ * the number of sources of a given color needed to cast a spell of that
+ * CMC with N colored pips on curve, 90%+ of the time.
+ *
+ * Source: Karsten 2022 update for Commander, rounded to whole sources.
+ * The table is intentionally conservative — it assumes no scry / draw /
+ * fetch, so real consistency is usually slightly higher.
+ *
+ * Shape: { cmc: { pips: requiredSources } }.
+ */
+export const KARSTEN_TABLE = {
+  1: { 1: 14 },
+  2: { 1: 13, 2: 21 },
+  3: { 1: 12, 2: 18, 3: 23 },
+  4: { 1: 12, 2: 16, 3: 20 },
+  5: { 1: 11, 2: 15, 3: 19 },
+  6: { 1: 11, 2: 14, 3: 18 },
+  7: { 1: 10, 2: 14, 3: 17 },
+};
+
+const COLOR_TO_SUBTYPE = {
+  W: 'Plains', U: 'Island', B: 'Swamp', R: 'Mountain', G: 'Forest',
+};
+
+/**
+ * Look up required sources for a spell of `cmc` with `pips` colored
+ * pips in a single color. CMC is clamped to the [1, 7] range Karsten
+ * publishes; pips are clamped to [1, 3] (the table doesn't go higher
+ * and four-pip costs are rare enough that we conservatively treat them
+ * as 3 — caller can layer their own override if needed).
+ */
+export function requiredSourcesFor(cmc, pips) {
+  if (!Number.isFinite(cmc) || !Number.isFinite(pips) || pips < 1) return 0;
+  const cmcKey = Math.min(7, Math.max(1, Math.ceil(cmc)));
+  const pipKey = Math.min(3, Math.max(1, pips));
+  return KARSTEN_TABLE[cmcKey]?.[pipKey] || 0;
+}
+
+/**
+ * Number of colored pips of each color in a card's mana cost. Hybrid
+ * mana ({W/U}, {2/B}) contributes to both colors — the spell can be
+ * paid as either, so the deck needs both.
+ */
+export function spellPipsByColor(card) {
+  const out = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+  const cost = card?.mana_cost || '';
+  const groups = cost.match(/\{[^}]+\}/g) || [];
+  for (const g of groups) {
+    const inner = g.slice(1, -1);
+    for (const c of ['W', 'U', 'B', 'R', 'G']) {
+      if (inner.includes(c)) out[c] += 1;
+    }
+  }
+  return out;
+}
+
+/**
+ * Does this card produce mana of `color`? Counted as a source if any of:
+ *   - It's a land with the relevant basic-land subtype (Plains / Island / …)
+ *   - Oracle says "Add {<color>}"
+ *   - Oracle says "add one mana of any color" / "add mana of any color"
+ *   - It's a land that fetches the relevant basic
+ *
+ * This is the same heuristic Karsten's article uses — it treats fetch
+ * lands as sources for whichever colors their target basics produce,
+ * and any-color rocks (Chromatic Lantern, Prismatic Geoscope) as
+ * sources for every color.
+ */
+export function producesColor(card, color) {
+  if (!card) return false;
+  const tl = card.type_line || '';
+  const oracle = card.oracle_text || '';
+  const sub = COLOR_TO_SUBTYPE[color];
+  if (tl.includes('Land') && sub && new RegExp(`\\b${sub}\\b`).test(tl)) return true;
+  if (new RegExp(`add[^.]{0,40}\\{${color}\\}`, 'i').test(oracle)) return true;
+  if (/add (one |two |x |\d+ )?mana of any (one )?color/i.test(oracle)) return true;
+  if (sub && new RegExp(`search[^.]*${sub}`, 'i').test(oracle)) return true;
+  return false;
+}
+
+/**
+ * Tally actual color sources across the deck (counted, so 8 Plains = 8 W).
+ */
+export function actualSourcesByColor(deck) {
+  const out = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+  for (const c of deck.cards || []) {
+    if (!c.scryfall) continue;
+    for (const color of ['W', 'U', 'B', 'R', 'G']) {
+      if (producesColor(c.scryfall, color)) out[color] += c.count;
+    }
+  }
+  return out;
+}
+
+/**
+ * For every spell in the deck, compute the per-color source requirement
+ * via the Karsten table and report deficits.
+ *
+ * Returns an array — one row per color the deck cares about — with
+ *   { color, requiredSources, actualSources, deficit, exampleSpells }.
+ * `exampleSpells` cites up to three of the spells driving the
+ * requirement (the ones that hit the highest Karsten row for that color).
+ */
+export function analyzeColorSources(deck) {
+  const actual = actualSourcesByColor(deck);
+  const reqByColor = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+  const examples = { W: [], U: [], B: [], R: [], G: [] };
+
+  for (const c of deck.cards || []) {
+    if (!c.scryfall) continue;
+    const sf = c.scryfall;
+    if (sf.type_line?.includes('Land')) continue;
+    const pips = spellPipsByColor(sf);
+    for (const color of ['W', 'U', 'B', 'R', 'G']) {
+      if (pips[color] === 0) continue;
+      const req = requiredSourcesFor(sf.cmc || 0, pips[color]);
+      if (req === 0) continue;
+      const entry = { name: sf.name, cmc: sf.cmc || 0, pips: pips[color], required: req };
+      if (req > reqByColor[color]) {
+        reqByColor[color] = req;
+        examples[color] = [entry];
+      } else if (req === reqByColor[color]) {
+        examples[color].push(entry);
+      }
+    }
+  }
+
+  const out = [];
+  for (const color of ['W', 'U', 'B', 'R', 'G']) {
+    if (reqByColor[color] === 0) continue;
+    out.push({
+      color,
+      requiredSources: reqByColor[color],
+      actualSources: actual[color],
+      deficit: Math.max(0, reqByColor[color] - actual[color]),
+      exampleSpells: examples[color].slice(0, 3),
+    });
+  }
+  return out;
+}

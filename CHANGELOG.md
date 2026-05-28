@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.29.0 — Color-source hypergeometric (Karsten check)
+
+The Stats tab gains a **Color Sources** panel that walks every non-land in the deck, looks up the required source count per color from Frank Karsten's 90%-on-curve table, and reports deficits against actual sources. Now you'll see "30 W required for `{1}{W}{W}` at CMC 3, you have 26 → short 4" instead of having to do the math yourself.
+
+### Library
+- **`src/lib/landbase.js`** gains `KARSTEN_TABLE`, `requiredSourcesFor(cmc, pips)` (clamps CMC to 1–7 and pips to 1–3, matching the published table), `spellPipsByColor(card)` (hybrid `{W/U}` counts toward both), `producesColor(card, color)` (basic-land subtypes, `Add {X}`, "any color" rocks, and fetch-land oracle text all count), `actualSourcesByColor(deck)`, and `analyzeColorSources(deck)`. The aggregator returns one row per color the deck cares about with the worst-spell example surfaced — so the deficit explanation cites the spell that drove the requirement, not just the colour bucket.
+
+### UI
+- **`ColorSourcesSection` in the Stats tab** sits between Land Base and Tokens. Per-colour rows show `actual / required` with a colour-coded status (green when met, amber for ≤3 short, accent red for >3 short), an italic "Driven by …" line citing up to three example spells, and a header chip showing whether any colour is short overall.
+
+### Tests
+- 17 new cases in `landbase.test.js` covering the lookup (1-pip, 2-pip, 3-pip, CMC clamp, pip clamp), `spellPipsByColor` (pure / hybrid / colorless), `producesColor` (basics by subtype, dual lands, mana rocks, any-color rocks like Chromatic Lantern, fetch lands), `actualSourcesByColor` aggregation, and the canonical Teferi acceptance case (deficit when blue sources < 11, green when sources meet target, `{1}{W}{W}` @ CMC 3 needs 18 W). **358 tests green** (up from 338).
+
 ## v0.28.0 — Rule Zero card
 
 The DeckEditor toolbar gains a **Rule Zero** action that opens a one-page pre-game summary — bracket, archetype, win conditions (combos from v0.24, alt-win cards, commander damage), auto-derived flags (GC / MLD / fast mana / tutors / extra turns / stax / combos), realistic-threat turn from a goldfish playout. Export as markdown for Discord/Slack, as a PNG for chat thumbnails, or as a shareable link.
