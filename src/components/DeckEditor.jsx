@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, BookOpen, Loader2, Crown, Sparkles, Tag, BarChart3, Target, Clock, Calculator, Lightbulb, Pencil, Copy, Download, Link as LinkIcon, GitCompare, FileText, Globe, Images, Sparkle, Save, Search } from 'lucide-react';
+import { ChevronLeft, BookOpen, Loader2, Crown, Sparkles, Tag, BarChart3, Target, Clock, Calculator, Lightbulb, Pencil, Copy, Download, Link as LinkIcon, GitCompare, FileText, Globe, Images, Sparkle, Save, Search, ShoppingCart } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { lc, pad } from '../lib/utils.js';
 import { searchCardAutocomplete, fetchCardByExactName, cardImageUrl } from '../lib/scryfall.js';
@@ -7,7 +7,7 @@ import { renameDeck, setDeckNotes, setDeckPublic, applyWithLog } from '../lib/de
 import { CardsTab, PackagesTab, CurveTab, BracketTab, StagesTab, ProbabilitiesTab, RecommendationsTab } from './Tabs.jsx';
 import { deckTotalPrice, formatPrice, deckPriceTooltip } from '../lib/pricing.js';
 import { loadSettings } from '../lib/settings.js';
-import { RulesModal, ExportModal, ShareModal, CompareModal, NotesModal, PrintingPickerModal, RuleZeroModal } from './Modals.jsx';
+import { RulesModal, ExportModal, ShareModal, CompareModal, NotesModal, PrintingPickerModal, RuleZeroModal, BuylistModal } from './Modals.jsx';
 import { ScryfallSearchPanel } from './ScryfallSearchPanel.jsx';
 import { addCardsToDeck } from '../lib/deckops.js';
 import { ManaCost } from './ManaCost.jsx';
@@ -330,6 +330,7 @@ export function DeckEditor({ deck, onUpdate: rawOnUpdate, onBack, onDuplicate, o
   const [showExport, setShowExport] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showRuleZero, setShowRuleZero] = useState(false);
+  const [showBuylist, setShowBuylist] = useState(false);
   const [showCompare, setShowCompare] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [showScryfall, setShowScryfall] = useState(false);
@@ -528,6 +529,12 @@ export function DeckEditor({ deck, onUpdate: rawOnUpdate, onBack, onDuplicate, o
           label="Rule Zero"
           title="Generate a Rule Zero card (bracket, win cons, flags) to share with the pod"
         />
+        <ActionButton
+          onClick={() => setShowBuylist(true)}
+          icon={ShoppingCart}
+          label="Buylist"
+          title="Missing cards vs your Vault, priced across vendors"
+        />
         {onDuplicate && (
           <ActionButton
             onClick={onDuplicate}
@@ -611,6 +618,7 @@ export function DeckEditor({ deck, onUpdate: rawOnUpdate, onBack, onDuplicate, o
       {showExport && <ExportModal deck={deck} onClose={() => setShowExport(false)} />}
       {showShare && <ShareModal deck={deck} onClose={() => setShowShare(false)} />}
       {showRuleZero && <RuleZeroModal deck={deck} onClose={() => setShowRuleZero(false)} />}
+      {showBuylist && <BuylistModal deck={deck} onClose={() => setShowBuylist(false)} />}
       {showCompare && <CompareModal deck={deck} otherDecks={otherDecks} onClose={() => setShowCompare(false)} />}
       {showNotes && (
         <NotesModal

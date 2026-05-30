@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.36.0 — Missing-cards buylist
+
+The DeckEditor toolbar gains a **Buylist** action that intersects the active deck against your Vault, lists exactly what's still needed, and prices each row across the two real Scryfall feeds (TCGplayer Mid and Cardmarket Trend) so you can spot whichever vendor is cheaper. A CSV export drops straight into TCGplayer's mass-entry import box.
+
+### Library
+- **New `src/lib/buylist.js`** with `missingCards(deck, collection)` returning `[{ name, count, scryfall, prices: { tcgplayer, cardmarket } }]` sorted by TCGplayer price desc, `cheapestCart(buylist)` picking the cheaper vendor per row (FX-aware: 1 EUR ≈ 1.09 USD reference), `singleCartTotals(buylist)` for one-vendor checkout totals, and `toTcgplayerCsv(buylist)` formatted as `Quantity,Name` with proper CSV escaping for names containing commas or quotes. `BUYLIST_VENDORS = ['tcgplayer', 'cardmarket']`. Vault quantity subtracts from required count via the existing `collection.ownedCount`.
+
+### UI
+- **`BuylistModal`** in `Modals.jsx` shows a three-up summary header (cheapest split-cart total / TCGplayer single cart / Cardmarket single cart) plus a per-card table with both vendor prices side-by-side and the cheapest "pick" badge per row in the accent color. Loading state while the Vault reads; explicit empty state when nothing is missing.
+- Footer actions: **Download .csv** and **Copy CSV →** (clipboard) for TCGplayer mass-entry handoff.
+- **DeckEditor toolbar** gets a `Buylist` action (shopping-cart icon) right after Rule Zero.
+
+### Tests
+- 17 new cases in `buylist.test.js` covering missing-12 acceptance case, Vault subtraction, commander inclusion, sort order, null collection safety, both-vendor prices in source currencies, null-price rows, cheapest-cart vendor picking (TCG vs CM, single-vendor fallback, both-null skip), single-cart totals + unpriced counts, and CSV escaping for commas and embedded quotes.
+
 ## v0.35.0 — Decklist export: plain text / Moxfield / Archidekt + send-to buttons
 
 The Export modal now exposes three target formats and one-click handoff to the major deckbuilders. The same paste-import path that landed in #111 now round-trips with the export, so a deck exported here drops back in untouched.
