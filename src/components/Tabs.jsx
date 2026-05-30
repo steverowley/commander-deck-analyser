@@ -242,7 +242,7 @@ function HealthPanel({ health }) {
         <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold flex items-center gap-2" style={{ color: CREAM }}>
           Deck Health
           <HelpTip>
-            0-100 composite of legality + lands (36-38 ideal) + ramp (8-12) + draw (10-12) + spot removal (10-12) + board wipes (3-4) + curve (2.5-3.5 avg CMC). Tracks the Command Zone "New Era" template. 100 = textbook deck on paper; doesn't mean the strategy is good.
+            0-100 composite of legality + lands + ramp + draw + spot removal (10-12) + board wipes (3-4) + protection (3+) + recursion (3+) + curve. Tracks the Command Zone "New Era" template plus Kristen Gregory's Four Pillars (ramp / draw / removal / recursion). 100 = textbook deck on paper; doesn't mean the strategy is good.
           </HelpTip>
         </div>
         <div className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>

@@ -16,19 +16,24 @@
 
 import { checkDeckLegality } from './legality.js';
 
-// Component weights track the Command Zone "New Era" template (Ep. 658):
-// targeted removal doubled from 5 to 10-12 while board wipes dropped
-// from 5 to 3-4. Splitting them in the health score reflects that a
-// deck of nine wipes and zero spot removal is broken, not balanced.
+// Component weights track the Command Zone "New Era" template (Ep. 658)
+// + Kristen Gregory's Four Pillars (ramp / draw / removal / recursion).
+// Protection rounds out the fundamentals — combat / counter / mass-wipe
+// proof for the wincon or commander. Curve, lands, and ramp/draw/removal
+// keep the bulk of the weight; protection + recursion ship at 5 each so a
+// deck missing them takes a meaningful but recoverable hit, not a major
+// gash. Total stays at 100.
 const COMPONENTS = {
   legality:         { weight: 20, label: 'Legality' },
   size:             { weight: 5,  label: 'Size' },
-  lands:            { weight: 15, label: 'Lands' },
-  ramp:             { weight: 15, label: 'Ramp' },
-  draw:             { weight: 15, label: 'Card draw' },
+  lands:            { weight: 14, label: 'Lands' },
+  ramp:             { weight: 13, label: 'Ramp' },
+  draw:             { weight: 13, label: 'Card draw' },
   targetedRemoval:  { weight: 10, label: 'Spot removal' },
   boardWipes:       { weight: 5,  label: 'Board wipes' },
-  curve:            { weight: 15, label: 'Curve' },
+  protection:       { weight: 5,  label: 'Protection' },
+  recursion:        { weight: 5,  label: 'Recursion' },
+  curve:            { weight: 10, label: 'Curve' },
 };
 
 function countByTag(deck, ...tagsAny) {
@@ -93,18 +98,21 @@ export function computeHealth(deck) {
   const drawCount = countByTag(deck, 'Card draw');
   const spotRemovalCount = countByTag(deck, 'Targeted removal');
   const boardWipeCount = countByTag(deck, 'Board wipe');
+  const protectionCount = countByTag(deck, 'Protection');
+  const recursionCount = countByTag(deck, 'Recursion', 'Reanimation');
 
-  // Curve-aware land + ramp targets.
+  // Curve-aware land + ramp targets. Bands cap at the component's weight,
+  // not the legacy 15-pt slot, so adjusting weights above stays consistent.
   const rec = recommendByCurve(avgCmc);
   const landBands = [
-    [rec.land.ideal[0], rec.land.ideal[1], 15],
-    [rec.land.ok[0],    rec.land.ok[1],    10],
-    [rec.land.ok[0] - 2, rec.land.ok[1] + 2, 5],
+    [rec.land.ideal[0], rec.land.ideal[1], COMPONENTS.lands.weight],
+    [rec.land.ok[0],    rec.land.ok[1],    Math.round(COMPONENTS.lands.weight * 0.67)],
+    [rec.land.ok[0] - 2, rec.land.ok[1] + 2, Math.round(COMPONENTS.lands.weight * 0.33)],
   ];
   const rampBands = [
-    [rec.ramp.ideal[0], rec.ramp.ideal[1], 15],
-    [rec.ramp.ok[0],    rec.ramp.ok[1],    10],
-    [rec.ramp.ok[0] - 2, rec.ramp.ok[1] + 2, 5],
+    [rec.ramp.ideal[0], rec.ramp.ideal[1], COMPONENTS.ramp.weight],
+    [rec.ramp.ok[0],    rec.ramp.ok[1],    Math.round(COMPONENTS.ramp.weight * 0.67)],
+    [rec.ramp.ok[0] - 2, rec.ramp.ok[1] + 2, Math.round(COMPONENTS.ramp.weight * 0.33)],
   ];
 
   // Don't double-penalise deck-size errors — they have their own component.
@@ -146,7 +154,7 @@ export function computeHealth(deck) {
     },
     draw: {
       ...COMPONENTS.draw,
-      points: bandScore(drawCount, [[10, 99, 15], [7, 9, 10], [4, 6, 5]]),
+      points: bandScore(drawCount, [[10, 99, COMPONENTS.draw.weight], [7, 9, Math.round(COMPONENTS.draw.weight * 0.67)], [4, 6, Math.round(COMPONENTS.draw.weight * 0.33)]]),
       note: `${drawCount} draw effects` + (drawCount < 10 ? ' — aim for 10-12' : ''),
     },
     targetedRemoval: {
@@ -159,9 +167,19 @@ export function computeHealth(deck) {
       points: bandScore(boardWipeCount, [[3, 99, 5], [1, 2, 3]]),
       note: `${boardWipeCount} board wipes` + (boardWipeCount === 0 ? ' — aim for 3-4' : boardWipeCount < 3 ? ' — light' : ''),
     },
+    protection: {
+      ...COMPONENTS.protection,
+      points: bandScore(protectionCount, [[3, 99, 5], [1, 2, 3]]),
+      note: `${protectionCount} protection effects` + (protectionCount === 0 ? ' — aim for 3-5 (counterspell / hexproof / indestructible)' : protectionCount < 3 ? ' — light' : ''),
+    },
+    recursion: {
+      ...COMPONENTS.recursion,
+      points: bandScore(recursionCount, [[3, 99, 5], [1, 2, 3]]),
+      note: `${recursionCount} recursion effects` + (recursionCount === 0 ? ' — aim for 3-5 (Kristen Gregory\'s 4th pillar)' : recursionCount < 3 ? ' — light' : ''),
+    },
     curve: {
       ...COMPONENTS.curve,
-      points: bandScore(avgCmc, [[2.5, 3.5, 15], [2.0, 4.0, 10], [1.5, 4.5, 5]]),
+      points: bandScore(avgCmc, [[2.5, 3.5, COMPONENTS.curve.weight], [2.0, 4.0, Math.round(COMPONENTS.curve.weight * 0.7)], [1.5, 4.5, Math.round(COMPONENTS.curve.weight * 0.3)]]),
       note: `avg CMC ${avgCmc.toFixed(2)}` +
         (avgCmc > 4 ? ' — top-heavy, hard to cast on curve'
           : avgCmc < 2 ? ' — very low, threats may run dry'

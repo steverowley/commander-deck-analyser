@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.37.0 — Protection + Recursion as health-score pillars (Four Pillars)
+
+Kristen Gregory's "Four Pillars of Good Deck Building" are ramp / draw / removal / **recursion**. The health score had the first three but ignored the fourth. Protection — counterspells, hexproof grants, indestructible, ward — was tagged but contributed zero to the score. This release promotes both to scored components, rebalancing the 100-point scale.
+
+### Library (closes #130)
+- **Two new components in `health.js`**: `protection` (weight 5) and `recursion` (weight 5). Both score `3+ → full`, `1-2 → partial`, `0 → 0`. Notes are action-oriented: `"0 protection effects — aim for 3-5 (counterspell / hexproof / indestructible)"` and `"0 recursion effects — aim for 3-5 (Kristen Gregory's 4th pillar)"`.
+- **Rebalance to keep total at 100**: legality 20, size 5, lands 14 (−1), ramp 13 (−2), draw 13 (−2), spot removal 10, wipes 5, protection 5 (new), recursion 5 (new), curve 10 (−5). The reductions are modest and the Four-Pillars decks score the same as before (a textbook deck that already had protection / recursion just earns the extra 10 points).
+- **Tag sources**: protection counts the existing `Protection` tag (hexproof / shroud / indestructible / protection from / ward). Recursion counts `Recursion` plus `Reanimation` so creature-specific reanimators (Animate Dead, Reanimate, Living Death) feed both pillars.
+- **Component bands switched to weight-derived constants** (`Math.round(weight × 0.67)` / `× 0.33`) so future weight tweaks don't desync the band points from the component max.
+
+### UI
+- **Health panel** auto-renders the two new rows via the existing `Object.entries(breakdown).map` — no component changes.
+- **Help text** updated: "0-100 composite of legality + lands + ramp + draw + spot removal (10-12) + board wipes (3-4) + **protection (3+) + recursion (3+)** + curve. Tracks the Command Zone 'New Era' template plus Kristen Gregory's Four Pillars."
+
+### Tests
+- **`health.test.js`** — textbook deck now includes 3 protection + 3 recursion and asserts `protection.points === 5 && recursion.points === 5`. New case verifies the docking behavior: same deck without those 6 cards scores 85–94 (lost the 10 pillar points but otherwise textbook). Existing "thin draw" test updated to assert relative-to-weight (`< weight`, `> 0`) so future rebalancing doesn't break it.
+
 ## v0.36.0 — Win Condition tag + over-tutoring check
 
 The tag engine gains a `Win condition` tag — wincons are now first-class citizens alongside Ramp / Draw / Removal. Build Advisor uses the count to spot decks that tutor for nothing in particular.
