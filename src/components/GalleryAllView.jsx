@@ -1,8 +1,8 @@
 /**
  * Full Public Gallery — click-through page reached from the
  * "View all →" link on the landing-page Public Gallery section.
- * Loads up to 200 public decks and gives the user a search box +
- * sort selector to find a specific deck.
+ * Loads up to 200 public decks and gives the user search +
+ * bracket / color / sort filters to find a specific deck.
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -11,6 +11,7 @@ import { CREAM, CREAM_DIM, CREAM_FAINT } from '../theme.js';
 import { pad } from '../lib/utils.js';
 import { loadPublicDecks } from '../lib/storage-supabase.js';
 import { GalleryCard } from './GalleryView.jsx';
+import { ManaSymbol } from './ManaCost.jsx';
 import { VersionChip } from './UI.jsx';
 
 const PAGE_LIMIT = 200;
@@ -19,6 +20,8 @@ export function GalleryAllView({ onBack, onImportFromGallery, onViewDeck }) {
   const [decks, setDecks] = useState(null);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
+  const [bracketFilter, setBracketFilter] = useState(null); // 1..5
+  const [colorFilter, setColorFilter] = useState(null);     // 'W' | 'U' | 'B' | 'R' | 'G' | 'C'
   const [sort, setSort] = useState('recent'); // recent | name | commander | bracket | health
 
   useEffect(() => {
@@ -31,11 +34,22 @@ export function GalleryAllView({ onBack, onImportFromGallery, onViewDeck }) {
     if (!decks) return [];
     const q = search.trim().toLowerCase();
     let list = decks.filter((d) => {
-      if (!q) return true;
-      const name = d.name?.toLowerCase() || '';
-      const cmdr = d.commander?.name?.toLowerCase() || '';
-      const owner = d.ownerUsername?.toLowerCase() || '';
-      return name.includes(q) || cmdr.includes(q) || owner.includes(q);
+      if (q) {
+        const name = d.name?.toLowerCase() || '';
+        const cmdr = d.commander?.name?.toLowerCase() || '';
+        const owner = d.ownerUsername?.toLowerCase() || '';
+        if (!name.includes(q) && !cmdr.includes(q) && !owner.includes(q)) return false;
+      }
+      if (bracketFilter != null && d.bracket !== bracketFilter) return false;
+      if (colorFilter) {
+        const id = d.commander?.color_identity || [];
+        if (colorFilter === 'C') {
+          if (id.length !== 0) return false;
+        } else if (!id.includes(colorFilter)) {
+          return false;
+        }
+      }
+      return true;
     });
     if (sort === 'name') list = list.slice().sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     else if (sort === 'commander') list = list.slice().sort((a, b) => (a.commander?.name || '').localeCompare(b.commander?.name || ''));
@@ -43,7 +57,10 @@ export function GalleryAllView({ onBack, onImportFromGallery, onViewDeck }) {
     else if (sort === 'health') list = list.slice().sort((a, b) => (b.health_score ?? 0) - (a.health_score ?? 0));
     // 'recent' is the default backend order (updated_at desc) — no resort.
     return list;
-  }, [decks, search, sort]);
+  }, [decks, search, bracketFilter, colorFilter, sort]);
+
+  const hasFilter = !!(search.trim() || bracketFilter != null || colorFilter);
+  const clearAll = () => { setSearch(''); setBracketFilter(null); setColorFilter(null); setSort('recent'); };
 
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-8 pb-20">
@@ -80,7 +97,13 @@ export function GalleryAllView({ onBack, onImportFromGallery, onViewDeck }) {
         </div>
       </nav>
 
-      <FilterBar search={search} setSearch={setSearch} sort={sort} setSort={setSort} />
+      <FilterBar
+        search={search} setSearch={setSearch}
+        bracketFilter={bracketFilter} setBracketFilter={setBracketFilter}
+        colorFilter={colorFilter} setColorFilter={setColorFilter}
+        sort={sort} setSort={setSort}
+        hasFilter={hasFilter} onClear={clearAll}
+      />
 
       {error ? (
         <div className="border p-8 mt-6 text-center font-serif text-sm italic" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
@@ -97,7 +120,7 @@ export function GalleryAllView({ onBack, onImportFromGallery, onViewDeck }) {
         </div>
       ) : visible.length === 0 ? (
         <div className="border border-dashed p-12 mt-6 text-center font-serif text-sm italic" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
-          No decks match "{search}". Try a different name, commander, or owner.
+          No decks match your filters. <button onClick={clearAll} className="underline hover:opacity-100" style={{ color: CREAM }}>Clear all →</button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 border-t border-l mt-6" style={{ borderColor: CREAM_FAINT }}>
@@ -110,32 +133,91 @@ export function GalleryAllView({ onBack, onImportFromGallery, onViewDeck }) {
   );
 }
 
-function FilterBar({ search, setSearch, sort, setSort }) {
+function FilterBar({
+  search, setSearch,
+  bracketFilter, setBracketFilter,
+  colorFilter, setColorFilter,
+  sort, setSort,
+  hasFilter, onClear,
+}) {
   return (
     <div className="border mt-6 p-3 grid grid-cols-1 md:grid-cols-12 gap-3 items-center" style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.02)' }}>
-      <div className="md:col-span-8">
+      <div className="md:col-span-5">
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="search deck name, commander, or @owner..."
+          placeholder="search deck, commander, or @owner..."
           className="w-full bg-transparent border px-3 py-2 focus:outline-none font-mono text-xs"
           style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(var(--ink-rgb),0.02)' }}
         />
       </div>
-      <div className="md:col-span-4 flex items-center gap-2">
-        <span className="font-mono text-[9px] tracking-wider shrink-0" style={{ color: CREAM_DIM }}>SORT</span>
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value)}
-          className="flex-1 bg-transparent border px-2 py-2 focus:outline-none font-mono text-xs"
-          style={{ borderColor: CREAM_FAINT, color: CREAM, background: 'rgba(var(--ink-rgb),0.02)' }}
-        >
-          <option value="recent">Most recent</option>
-          <option value="name">Deck name (A→Z)</option>
-          <option value="commander">Commander (A→Z)</option>
-          <option value="bracket">Bracket (high → low)</option>
-          <option value="health">Health (high → low)</option>
-        </select>
+      <div className="md:col-span-4 flex items-center gap-1.5">
+        <span className="font-mono text-[9px] tracking-wider shrink-0" style={{ color: CREAM_DIM }}>BRACKET</span>
+        {[1, 2, 3, 4, 5].map((b) => (
+          <button
+            key={b}
+            onClick={() => setBracketFilter(bracketFilter === b ? null : b)}
+            className="font-mono text-[10px] w-6 h-6 border transition"
+            style={{
+              borderColor: bracketFilter === b ? CREAM : CREAM_FAINT,
+              color: bracketFilter === b ? CREAM : CREAM_DIM,
+              background: bracketFilter === b ? 'rgba(var(--ink-rgb),0.08)' : 'transparent',
+            }}
+            title={`Bracket ${b}`}
+          >
+            {b}
+          </button>
+        ))}
+      </div>
+      <div className="md:col-span-3 flex items-center gap-1.5 justify-end">
+        <span className="font-mono text-[9px] tracking-wider shrink-0" style={{ color: CREAM_DIM }}>COLOR</span>
+        {['W', 'U', 'B', 'R', 'G', 'C'].map((c) => (
+          <button
+            key={c}
+            onClick={() => setColorFilter(colorFilter === c ? null : c)}
+            className="w-5 h-5 border transition flex items-center justify-center"
+            style={{
+              borderColor: colorFilter === c ? CREAM : CREAM_FAINT,
+              background: colorFilter === c ? 'rgba(var(--ink-rgb),0.08)' : 'transparent',
+            }}
+            title={c === 'C' ? 'Colorless' : c}
+          >
+            <ManaSymbol sym={c} size="0.7em" />
+          </button>
+        ))}
+      </div>
+      <div className="md:col-span-12 flex items-center justify-between flex-wrap gap-2 pt-1 border-t mt-1" style={{ borderColor: CREAM_FAINT }}>
+        <div className="flex items-center flex-wrap gap-2">
+          <span className="font-mono text-[9px] tracking-wider" style={{ color: CREAM_DIM }}>SORT</span>
+          {[
+            { id: 'recent', label: 'recent' },
+            { id: 'name', label: 'name' },
+            { id: 'commander', label: 'commander' },
+            { id: 'bracket', label: 'bracket' },
+            { id: 'health', label: 'health' },
+          ].map((s) => (
+            <button
+              key={s.id}
+              onClick={() => setSort(s.id)}
+              className="font-mono text-[10px] px-2 py-0.5 border transition"
+              style={{
+                borderColor: sort === s.id ? CREAM : CREAM_FAINT,
+                color: sort === s.id ? CREAM : CREAM_DIM,
+              }}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+        {hasFilter && (
+          <button
+            onClick={onClear}
+            className="font-serif text-[10px] tracking-[0.3em] uppercase hover:opacity-100 transition"
+            style={{ color: CREAM_DIM }}
+          >
+            Clear ×
+          </button>
+        )}
       </div>
     </div>
   );

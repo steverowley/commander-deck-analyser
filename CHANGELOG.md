@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.35.0 — Browse-all filters: bracket, color, archetype, budget
+
+The browse-all pages shipped in v0.30.0 only had a search box and a sort selector. As the Public Gallery and Random rolls archives fill up, that's not enough — you couldn't ask "show me the bracket-3 mono-green rolls under $200" without scrolling. Both pages now carry the same filter row that's served the Archive view well: bracket toggles + mana-symbol colour identity buttons + sort buttons + a clear-all link, with archetype and budget added on the rolls page.
+
+### `GalleryAllView`
+- **Bracket filter** — five toggle buttons (B1..B5). Click to filter; click again to clear. Mirrors the Archive pattern exactly.
+- **Colour identity filter** — six mana-symbol buttons (W/U/B/R/G/C). Single-select: picking W shows decks whose commander identity contains white; C shows colourless commanders only.
+- **Sort buttons** — inline button row instead of the dropdown. Options: recent / name / commander / bracket / health.
+- **Clear ×** — appears in the filter row whenever any filter is active; one click resets the search box and every filter.
+- **Empty-state** — when filters return zero rows, the message now offers an inline "Clear all →" link.
+
+### `RandomRollsAllView`
+- Same bracket / colour / sort / clear treatment as the gallery page.
+- **Archetype filter** — dropdown of every archetype (Tokens, Tribal, Voltron, Aristocrats, Reanimator, Spellslinger, +1/+1 counters, Combo, Stax, Lifegain, Group hug) plus "Any". Pulled straight from `ARCHETYPES` in `src/lib/archetypes.js` so future archetype additions show up automatically.
+- **Budget filter** — currency-agnostic tier buttons (≤ 50 / 50–200 / 200–500 / 500+), applied to `seedMeta.budget` in the roll's own currency. The bucket boundaries are wide enough that USD / GBP / EUR rolls all land in the same tier.
+- **Legacy bracket handling** — uses `seedMeta.bracket ?? 3` (matching `RollCard`'s display fallback) so pre-meta rolls don't silently vanish when you click B3.
+
 ## v0.34.0 — Region-aware currency, buy links + Cardmarket referral pop-up
 
 First-time visitors now get prices and shopping links that match where they are, and UK/EU players get a dedicated nudge toward the Cardmarket referral that funds Vault. No setup, no override of anyone who's already chosen their own settings.
