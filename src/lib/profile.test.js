@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { validateUsername } from './profile.js';
+// Import from the pure module, not profile.js — profile.js pulls in the
+// Supabase client, which throws at load on Node < 22 (the CI runner).
+import { validateUsername } from './profileValidation.js';
 
 describe('validateUsername', () => {
   it('accepts a simple valid handle', () => {
