@@ -2,9 +2,22 @@
 
 ## v0.39.1 — Automated QA plan: e2e in CI + test backfill
 
-A QA hardening pass. The end-to-end smoke suite — previously local-only — now
-runs in CI on every PR, and four untested pure-logic modules gained unit
-coverage. No app behaviour changes.
+A QA hardening pass. Fixes a pre-existing CI failure (the unit job was red on
+`main`), wires the previously local-only e2e suite into CI, and backfills unit
+coverage for four untested pure-logic modules. No app behaviour changes.
+
+### Fixes
+- **Unit tests no longer crash on the Node 20 CI runner.** The Supabase client
+  constructs its Realtime client eagerly in `createClient()`, and
+  `@supabase/realtime-js` throws at import time when there's no global
+  `WebSocket` — which is the case on Node < 22. Any test whose import graph
+  reached `supabase.js` (e.g. `buylist.test.js` → `collection.js`) passed
+  locally on Node 22 but failed in CI. A test-only WebSocket stub
+  (`vitest.setup.js`, wired via `setupFiles`) satisfies the environment check;
+  real browsers are unaffected.
+- **`validateUsername` split into a Supabase-free `profileValidation.js`** so
+  username-rule tests never load the client. `profile.js` re-exports it, so its
+  public API is unchanged. Mirrors the existing `podsAgg.js` / `pods.js` split.
 
 ### CI
 - **Playwright e2e wired into `test.yml`** as a dedicated `e2e` job: cached

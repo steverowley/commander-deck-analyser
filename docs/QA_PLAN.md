@@ -25,10 +25,16 @@ npm run test:watch # re-runs on file change while developing
 - **490 tests across 39 files** as of v0.39.0.
 - Convention: each `src/lib/<module>.js` has a sibling `src/lib/<module>.test.js`.
 - Pure-logic only — no network, no real Supabase. Modules that touch the
-  Supabase client are tested at their pure boundary (e.g. `profile.js` →
-  `validateUsername`; pod math lives in `podsAgg.js`, split out of `pods.js`
+  Supabase client are tested at their pure boundary (e.g. username rules live
+  in `profileValidation.js`; pod math in `podsAgg.js`, split out of `pods.js`
   precisely so tests don't import the Realtime client).
 - Runs in the `node` environment (see `vite.config.js` → `test`).
+- **CI runs Node 20; dev machines often run Node 22+.** The Supabase client
+  constructs its Realtime client eagerly, and `@supabase/realtime-js` throws at
+  import on Node < 22 when there's no global `WebSocket`. `vitest.setup.js`
+  stubs a no-op `WebSocket` (via `setupFiles`) so any test that transitively
+  imports `supabase.js` passes on both. **Don't remove this stub** — without it
+  the suite is green locally on Node 22 and red on the Node 20 runner.
 
 ### Layer 2 — Production build (Vite)
 
