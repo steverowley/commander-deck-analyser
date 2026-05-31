@@ -108,6 +108,27 @@ export function checkUnderland(deck) {
 }
 
 /**
+ * Over-tutoring without targets — a deck with 6 tutors and 2 wincons
+ * is tutoring for the same generic value card every time. The fix is
+ * either more wincons or fewer tutors; we surface both options. Uses
+ * the Tutor tag (oracle-text pattern) and the Win condition tag
+ * (named-list + generic patterns + assembled-combo membership).
+ */
+export function checkOverTutoring(deck) {
+  const tutorCount = countByTag(deck, 'Tutor');
+  if (tutorCount === 0) return null;
+  const winconCount = countByTag(deck, 'Win condition');
+  if (tutorCount <= winconCount + 2) return null;
+  const gap = tutorCount - winconCount;
+  return {
+    id: 'over-tutoring',
+    severity: gap >= 5 ? 'major' : 'warn',
+    title: `${tutorCount} tutors with only ${winconCount} win condition${winconCount === 1 ? '' : 's'}`,
+    detail: `What are you tutoring for? Either add more closers or trim tutors. Tutor-to-wincon ratio: ${tutorCount}:${winconCount}.`,
+  };
+}
+
+/**
  * Top-heavy curve without compensating ramp — a 4.0-MV deck with 8
  * ramp can't cast its bombs. Health score already warns about each
  * piece separately, but the derived "you're under AND over" check is
@@ -135,7 +156,7 @@ const SEVERITY_RANK = { major: 0, warn: 1, info: 2 };
 
 export function runAntipatternChecks(deck) {
   if (!deck?.cards?.length) return [];
-  const checks = [checkUnderland, checkCurveRampImbalance];
+  const checks = [checkUnderland, checkCurveRampImbalance, checkOverTutoring];
   return checks
     .map((fn) => {
       try { return fn(deck); }

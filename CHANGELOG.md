@@ -17,6 +17,38 @@ The browse-all pages shipped in v0.30.0 only had a search box and a sort selecto
 - **Budget filter** — currency-agnostic tier buttons (≤ 50 / 50–200 / 200–500 / 500+), applied to `seedMeta.budget` in the roll's own currency. The bucket boundaries are wide enough that USD / GBP / EUR rolls all land in the same tier.
 - **Legacy bracket handling** — uses `seedMeta.bracket ?? 3` (matching `RollCard`'s display fallback) so pre-meta rolls don't silently vanish when you click B3.
 
+## v0.36.0 — Win Condition tag + over-tutoring check
+
+The tag engine gains a `Win condition` tag — wincons are now first-class citizens alongside Ramp / Draw / Removal. Build Advisor uses the count to spot decks that tutor for nothing in particular.
+
+### Library
+- **`WIN_CONDITION_CARDS` Set in `constants.js`** — curated list of 35 game-ending cards across four families: game-state alt-wins (Approach of the Second Sun, Felidar Sovereign, Helix Pinnacle, Maze's End, …), library-empty wins (Thassa's Oracle, Lab Maniac, Jace Wielder), infinite/X damage finishers (Aetherflux Reservoir, Walking Ballista, Exsanguinate, Torment of Hailfire, Comet Storm, …), and big-mana mass-power closers (Craterhoof Behemoth, Insurrection, Pathbreaker Ibex, finales). The Build Advisor's over-tutoring check uses this plus assembled-combo detection.
+- **`Win condition` added to `TAG_PATTERNS`** with generic regex covering "you win the game", "target player loses the game", "each opponent loses the game", and X-damage-to-each-opponent finishers. Pattern matching catches cards the curated list misses; the list catches cards whose wincon text is hidden behind triggers.
+- **`detectTags` (in `tags.js`) auto-applies `Win condition`** when the card matches the patterns, is on the curated list, OR is part of an assembled combo (combos in `COMBO_INDEX` all have `results` that end the game). `AUTO_TAGS` updated so the tag is preserved by `retag()`. (closes #132)
+
+### Build Advisor (closes #137)
+- **New `checkOverTutoring(deck)` check** in `antipatterns.js`. Counts tutors and wincons; warns when `tutors > wincons + 2`. Title format: `"6 tutors with only 2 win conditions"`. Detail asks the user to either add more closers or trim tutors. Severity escalates to `major` when the gap is ≥ 5. No-ops cleanly on decks with zero tutors.
+
+### Tests
+- **`tags.test.js`** — 4 new cases: Approach of the Second Sun (named curated list), Helix Pinnacle ("you win the game" pattern), assembled combo piece tagged as Win condition, vanilla creature not tagged.
+- **`antipatterns.test.js`** — 4 new cases: 6-tutor / 2-wincon warns; 6-tutor / 5-wincon stays quiet; deck with no tutors returns null; gap ≥ 5 escalates to `major`.
+
+## v0.35.0 — Decklist export: plain text / Moxfield / Archidekt + send-to buttons
+
+The Export modal now exposes three target formats and one-click handoff to the major deckbuilders. The same paste-import path that landed in #111 now round-trips with the export, so a deck exported here drops back in untouched.
+
+### Library
+- **New `src/lib/deckExport.js`** with `toPlainText`, `toMoxfield`, `toArchidekt`, `exportAs(deck, formatId)`, and an `EXPORT_FORMATS` registry. All three formats sort non-basics alphabetically with basics grouped at the bottom (matches Moxfield's own export convention). Plain text uses `// Commander` + `// Deck` comment headers so a re-parse correctly routes the body into the mainboard; Moxfield uses explicit `Commander` / `Deck` / `Maybeboard` section blocks; Archidekt adds `(SET) <num>` printing tags when the card has them so the importer can pin the exact printing.
+- Constants `MOXFIELD_IMPORT_URL` and `ARCHIDEKT_IMPORT_URL` expose the upstream import endpoints for the send-to flow.
+
+### UI
+- **`ExportModal` overhaul** in `Modals.jsx`:
+  - Segmented format picker (Plain text / Moxfield / Archidekt) above the preview textarea — switching format re-renders the text in place.
+  - Footer gains **Send to Moxfield** and **Send to Archidekt** buttons. Each copies the current format to the clipboard, then opens the upstream import page in a new tab (their importers require a paste — there's no URL-prefill scheme).
+
+### Tests
+- 12 new cases in `deckExport.test.js` covering plain-text layout + basics-at-bottom + alphabetical basics, plain-text round-trip through `parseTextDecklist`, Moxfield header round-trip + commander-less variant, Archidekt printing tags + bare-name fallback + round-trip with tags stripped, `exportAs` dispatch + fallback.
+
 ## v0.34.0 — Region-aware currency, buy links + Cardmarket referral pop-up
 
 First-time visitors now get prices and shopping links that match where they are, and UK/EU players get a dedicated nudge toward the Cardmarket referral that funds Vault. No setup, no override of anyone who's already chosen their own settings.
@@ -36,18 +68,6 @@ First-time visitors now get prices and shopping links that match where they are,
 - **New `geo.test.js`** (country mapping, timezone/locale fallback, IP path with mocked fetch, IP-first-then-fallback ordering) and **`referralPrompt.test.js`** (region gating, referrer gating, dismissed / remind-window logic, writers). 416 tests green (up from 382).
 
 ## v0.33.0 — Per-deck swap log
-
-Every add / cut / count-change you make in the deck editor now lands in a per-deck swap log so six months from now you remember why you cut Sol Ring. Per-card notes were already supported; this release adds the chronological log + optional "why?" notes per entry.
-
-### Library
-- **`src/lib/deckops.js`** picks up `diffCards(prev, next)`, `recordSwap(deck, change)`, `applyWithLog(prev, next, note?)`, `setSwapNote(deck, ts, note)`, `deleteSwapEntry(deck, ts)`. The log is trimmed to `SWAP_LOG_CAP = 100` newest entries; notes are trimmed + capped at `SWAP_NOTE_MAX = 280`. The whole log is plain JSON so it survives backup / restore through `lib/backup.js` unchanged.
-
-### UI
-- **`DeckEditor`** wraps the incoming `onUpdate` prop in `applyWithLog(deck, next)`, so every editor-driven mutation is captured automatically. Imports (`App.handleImport`), random rolls, and share-acceptance keep using the bare `addCardsToDeck` path so they don't pollute the log.
-- **`SwapLogPanel` at the bottom of the Cards tab** collapses by default. Open it to see chronological entries (newest first) with the added / removed cards as chips, a timestamp, and an inline "+ Note" affordance to add a "why?" retroactively. A `Only show entries with my notes` checkbox filters out the auto-noise. Each row has a delete button for trimming an accidental editor click.
-
-### Tests
-- 11 new cases in `deckops.test.js` covering `diffCards` (add / remove / count change), `recordSwap` (no-op for empty diffs, trims long notes, caps log size), `applyWithLog` (captures changes + notes, skips no-ops), `setSwapNote` / `deleteSwapEntry`, and a JSON round-trip to confirm backup safety.
 
 ## v0.32.0 — Build Advisor: anti-pattern warnings + curve-aware land label
 

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   checkUnderland,
   checkCurveRampImbalance,
+  checkOverTutoring,
   runAntipatternChecks,
 } from './antipatterns.js';
 
@@ -87,6 +88,46 @@ describe('checkCurveRampImbalance', () => {
     for (let i = 0; i < 57; i++) cards.push(spell(`Mid ${i}`, [], { cmc: 3 }));
     const deck = { cards, commander: { color_identity: ['G'] } };
     expect(checkCurveRampImbalance(deck)).toBeNull();
+  });
+});
+
+describe('checkOverTutoring', () => {
+  it('warns when 6 tutors but only 2 wincons', () => {
+    const cards = [];
+    for (let i = 0; i < 37; i++) cards.push(basicLand(`Forest ${i}`));
+    for (let i = 0; i < 6; i++) cards.push(spell(`Tutor ${i}`, ['Tutor']));
+    for (let i = 0; i < 2; i++) cards.push(spell(`Wincon ${i}`, ['Win condition']));
+    for (let i = 0; i < 54; i++) cards.push(spell(`Filler ${i}`, []));
+    const w = checkOverTutoring({ cards, commander: { color_identity: [] } });
+    expect(w).not.toBeNull();
+    expect(w.id).toBe('over-tutoring');
+    expect(w.title).toMatch(/6 tutors/);
+  });
+
+  it('does not warn when tutor count matches the wincon supply', () => {
+    const cards = [];
+    for (let i = 0; i < 37; i++) cards.push(basicLand(`Forest ${i}`));
+    for (let i = 0; i < 6; i++) cards.push(spell(`Tutor ${i}`, ['Tutor']));
+    for (let i = 0; i < 5; i++) cards.push(spell(`Wincon ${i}`, ['Win condition']));
+    for (let i = 0; i < 51; i++) cards.push(spell(`Filler ${i}`, []));
+    expect(checkOverTutoring({ cards })).toBeNull();
+  });
+
+  it('returns null for a deck with no tutors', () => {
+    const cards = [];
+    for (let i = 0; i < 37; i++) cards.push(basicLand(`Forest ${i}`));
+    for (let i = 0; i < 62; i++) cards.push(spell(`Filler ${i}`, []));
+    expect(checkOverTutoring({ cards })).toBeNull();
+  });
+
+  it('escalates severity to major at gap >= 5', () => {
+    const cards = [];
+    for (let i = 0; i < 37; i++) cards.push(basicLand(`Forest ${i}`));
+    for (let i = 0; i < 7; i++) cards.push(spell(`Tutor ${i}`, ['Tutor']));
+    for (let i = 0; i < 1; i++) cards.push(spell(`Wincon ${i}`, ['Win condition']));
+    for (let i = 0; i < 54; i++) cards.push(spell(`Filler ${i}`, []));
+    const w = checkOverTutoring({ cards });
+    expect(w.severity).toBe('major');
   });
 });
 
