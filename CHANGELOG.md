@@ -1,5 +1,35 @@
 # Changelog
 
+## v0.39.1 — Automated QA plan: e2e in CI + test backfill
+
+A QA hardening pass. The end-to-end smoke suite — previously local-only — now
+runs in CI on every PR, and four untested pure-logic modules gained unit
+coverage. No app behaviour changes.
+
+### CI
+- **Playwright e2e wired into `test.yml`** as a dedicated `e2e` job: cached
+  Chromium binary (keyed on the Playwright version, so most runs skip the
+  ~150 MB download), `--with-deps` for OS libs, and an HTML-report + traces
+  artifact uploaded on failure for debugging without a local re-run.
+- **`playwright.config.js` hardened for CI**: `forbidOnly` (a committed
+  `test.only` now fails the run instead of silently shrinking the suite) and
+  2 retries (absorbs first-paint flake without masking a real failure).
+
+### Tests
+- **+36 unit tests across 4 new files** (490 total, up from 454):
+  `archetypes.test.js` (id lookup + tag matching + prefix/Tribal),
+  `podsAgg.test.js` (matchup + pod-stat aggregation, win/loss perspective,
+  fallback opponent labels), `profile.test.js` (username validation rules and
+  boundaries), and `changelog.test.js` — which pins `package.json` ↔
+  CHANGELOG top-version in lock-step so the landing-page version chip can't
+  drift.
+
+### Docs
+- **New `docs/QA_PLAN.md`** documenting the three automated layers (unit /
+  build / e2e), what CI runs, the coverage map, the per-release manual pass,
+  and the known gaps (no lint step, untested Supabase I/O, component unit
+  tests, bundle size).
+
 ## v0.39.0 — Protection + Recursion as health-score pillars (Four Pillars)
 
 Kristen Gregory's "Four Pillars of Good Deck Building" are ramp / draw / removal / **recursion**. The health score had the first three but ignored the fourth. Protection — counterspells, hexproof grants, indestructible, ward — was tagged but contributed zero to the score. This release promotes both to scored components, rebalancing the 100-point scale.
