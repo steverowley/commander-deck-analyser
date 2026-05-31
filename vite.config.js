@@ -76,5 +76,8 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.{js,jsx}'],
+    // Stub the WebSocket global so the Supabase client (constructed eagerly
+    // in createClient) doesn't throw on Node < 22 in CI. See vitest.setup.js.
+    setupFiles: ['./vitest.setup.js'],
   },
 });

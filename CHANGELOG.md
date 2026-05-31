@@ -1,5 +1,48 @@
 # Changelog
 
+## v0.39.1 — Automated QA plan: e2e in CI + test backfill
+
+A QA hardening pass. Fixes a pre-existing CI failure (the unit job was red on
+`main`), wires the previously local-only e2e suite into CI, and backfills unit
+coverage for four untested pure-logic modules. No app behaviour changes.
+
+### Fixes
+- **Unit tests no longer crash on the Node 20 CI runner.** The Supabase client
+  constructs its Realtime client eagerly in `createClient()`, and
+  `@supabase/realtime-js` throws at import time when there's no global
+  `WebSocket` — which is the case on Node < 22. Any test whose import graph
+  reached `supabase.js` (e.g. `buylist.test.js` → `collection.js`) passed
+  locally on Node 22 but failed in CI. A test-only WebSocket stub
+  (`vitest.setup.js`, wired via `setupFiles`) satisfies the environment check;
+  real browsers are unaffected.
+- **`validateUsername` split into a Supabase-free `profileValidation.js`** so
+  username-rule tests never load the client. `profile.js` re-exports it, so its
+  public API is unchanged. Mirrors the existing `podsAgg.js` / `pods.js` split.
+
+### CI
+- **Playwright e2e wired into `test.yml`** as a dedicated `e2e` job: cached
+  Chromium binary (keyed on the Playwright version, so most runs skip the
+  ~150 MB download), `--with-deps` for OS libs, and an HTML-report + traces
+  artifact uploaded on failure for debugging without a local re-run.
+- **`playwright.config.js` hardened for CI**: `forbidOnly` (a committed
+  `test.only` now fails the run instead of silently shrinking the suite) and
+  2 retries (absorbs first-paint flake without masking a real failure).
+
+### Tests
+- **+36 unit tests across 4 new files** (490 total, up from 454):
+  `archetypes.test.js` (id lookup + tag matching + prefix/Tribal),
+  `podsAgg.test.js` (matchup + pod-stat aggregation, win/loss perspective,
+  fallback opponent labels), `profile.test.js` (username validation rules and
+  boundaries), and `changelog.test.js` — which pins `package.json` ↔
+  CHANGELOG top-version in lock-step so the landing-page version chip can't
+  drift.
+
+### Docs
+- **New `docs/QA_PLAN.md`** documenting the three automated layers (unit /
+  build / e2e), what CI runs, the coverage map, the per-release manual pass,
+  and the known gaps (no lint step, untested Supabase I/O, component unit
+  tests, bundle size).
+
 ## v0.39.0 — Protection + Recursion as health-score pillars (Four Pillars)
 
 Kristen Gregory's "Four Pillars of Good Deck Building" are ramp / draw / removal / **recursion**. The health score had the first three but ignored the fourth. Protection — counterspells, hexproof grants, indestructible, ward — was tagged but contributed zero to the score. This release promotes both to scored components, rebalancing the 100-point scale.

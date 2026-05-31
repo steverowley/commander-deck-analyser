@@ -19,9 +19,36 @@ jobs:
       - run: npm ci
       - run: npm test
 
-  # E2E (Playwright) is intentionally not wired into CI yet — needs more
-  # iteration to stabilise the browser-install + dev-server boot in the
-  # GitHub Actions environment. The suite still runs locally:
-  #   npm run e2e:install
-  #   npm run e2e
-  # Once stable, add an e2e job here with cached browser binaries.
+  e2e:
+    name: Playwright (e2e smoke)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      # Cache the browser binary keyed on the Playwright version, so most
+      # runs skip the ~150 MB Chromium download. `--with-deps` still runs on
+      # a cache hit to pull the OS-level libraries (those aren't cached).
+      - name: Resolve Playwright version
+        id: pw
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+      # Keep the HTML report + traces for any failing test so a red run is
+      # debuggable without re-running locally.
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
