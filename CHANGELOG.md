@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.35.0 — Browse-all filters: bracket, color, archetype, budget
+## v0.37.0 — Browse-all filters: bracket, color, archetype, budget
 
 The browse-all pages shipped in v0.30.0 only had a search box and a sort selector. As the Public Gallery and Random rolls archives fill up, that's not enough — you couldn't ask "show me the bracket-3 mono-green rolls under $200" without scrolling. Both pages now carry the same filter row that's served the Archive view well: bracket toggles + mana-symbol colour identity buttons + sort buttons + a clear-all link, with archetype and budget added on the rolls page.
 
