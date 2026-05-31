@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.37.0 — Protection + Recursion as health-score pillars (Four Pillars)
+## v0.39.0 — Protection + Recursion as health-score pillars (Four Pillars)
 
 Kristen Gregory's "Four Pillars of Good Deck Building" are ramp / draw / removal / **recursion**. The health score had the first three but ignored the fourth. Protection — counterspells, hexproof grants, indestructible, ward — was tagged but contributed zero to the score. This release promotes both to scored components, rebalancing the 100-point scale.
 
@@ -16,6 +16,38 @@ Kristen Gregory's "Four Pillars of Good Deck Building" are ramp / draw / removal
 
 ### Tests
 - **`health.test.js`** — textbook deck now includes 3 protection + 3 recursion and asserts `protection.points === 5 && recursion.points === 5`. New case verifies the docking behavior: same deck without those 6 cards scores 85–94 (lost the 10 pillar points but otherwise textbook). Existing "thin draw" test updated to assert relative-to-weight (`< weight`, `> 0`) so future rebalancing doesn't break it.
+
+## v0.38.0 — Missing-cards buylist
+
+The DeckEditor toolbar gains a **Buylist** action that intersects the active deck against your Vault, lists exactly what's still needed, and prices each row across the two real Scryfall feeds (TCGplayer Mid and Cardmarket Trend) so you can spot whichever vendor is cheaper. A CSV export drops straight into TCGplayer's mass-entry import box.
+
+### Library
+- **New `src/lib/buylist.js`** with `missingCards(deck, collection)` returning `[{ name, count, scryfall, prices: { tcgplayer, cardmarket } }]` sorted by TCGplayer price desc, `cheapestCart(buylist)` picking the cheaper vendor per row (FX-aware: 1 EUR ≈ 1.09 USD reference), `singleCartTotals(buylist)` for one-vendor checkout totals, and `toTcgplayerCsv(buylist)` formatted as `Quantity,Name` with proper CSV escaping for names containing commas or quotes. `BUYLIST_VENDORS = ['tcgplayer', 'cardmarket']`. Vault quantity subtracts from required count via the existing `collection.ownedCount`.
+
+### UI
+- **`BuylistModal`** in `Modals.jsx` shows a three-up summary header (cheapest split-cart total / TCGplayer single cart / Cardmarket single cart) plus a per-card table with both vendor prices side-by-side and the cheapest "pick" badge per row in the accent color. Loading state while the Vault reads; explicit empty state when nothing is missing.
+- Footer actions: **Download .csv** and **Copy CSV →** (clipboard) for TCGplayer mass-entry handoff.
+- **DeckEditor toolbar** gets a `Buylist` action (shopping-cart icon) right after Rule Zero.
+
+### Tests
+- 17 new cases in `buylist.test.js` covering missing-12 acceptance case, Vault subtraction, commander inclusion, sort order, null collection safety, both-vendor prices in source currencies, null-price rows, cheapest-cart vendor picking (TCG vs CM, single-vendor fallback, both-null skip), single-cart totals + unpriced counts, and CSV escaping for commas and embedded quotes.
+
+## v0.37.0 — Browse-all filters: bracket, color, archetype, budget
+
+The browse-all pages shipped in v0.30.0 only had a search box and a sort selector. As the Public Gallery and Random rolls archives fill up, that's not enough — you couldn't ask "show me the bracket-3 mono-green rolls under $200" without scrolling. Both pages now carry the same filter row that's served the Archive view well: bracket toggles + mana-symbol colour identity buttons + sort buttons + a clear-all link, with archetype and budget added on the rolls page.
+
+### `GalleryAllView`
+- **Bracket filter** — five toggle buttons (B1..B5). Click to filter; click again to clear. Mirrors the Archive pattern exactly.
+- **Colour identity filter** — six mana-symbol buttons (W/U/B/R/G/C). Single-select: picking W shows decks whose commander identity contains white; C shows colourless commanders only.
+- **Sort buttons** — inline button row instead of the dropdown. Options: recent / name / commander / bracket / health.
+- **Clear ×** — appears in the filter row whenever any filter is active; one click resets the search box and every filter.
+- **Empty-state** — when filters return zero rows, the message now offers an inline "Clear all →" link.
+
+### `RandomRollsAllView`
+- Same bracket / colour / sort / clear treatment as the gallery page.
+- **Archetype filter** — dropdown of every archetype (Tokens, Tribal, Voltron, Aristocrats, Reanimator, Spellslinger, +1/+1 counters, Combo, Stax, Lifegain, Group hug) plus "Any". Pulled straight from `ARCHETYPES` in `src/lib/archetypes.js` so future archetype additions show up automatically.
+- **Budget filter** — currency-agnostic tier buttons (≤ 50 / 50–200 / 200–500 / 500+), applied to `seedMeta.budget` in the roll's own currency. The bucket boundaries are wide enough that USD / GBP / EUR rolls all land in the same tier.
+- **Legacy bracket handling** — uses `seedMeta.bracket ?? 3` (matching `RollCard`'s display fallback) so pre-meta rolls don't silently vanish when you click B3.
 
 ## v0.36.0 — Win Condition tag + over-tutoring check
 

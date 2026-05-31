@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Loader2, Check, BookOpen, Copy, Download, Link as LinkIcon, GitCompare, Archive, FileText, Settings as SettingsIcon, Dices, Shuffle, Bug, ExternalLink } from 'lucide-react';
+import { X, Loader2, Check, BookOpen, Copy, Download, Link as LinkIcon, GitCompare, Archive, FileText, Settings as SettingsIcon, Dices, Shuffle, Bug, ExternalLink, ShoppingCart } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, parseDecklist, lc } from '../lib/utils.js';
 import { parseTextDecklist, fetchDeckFromUrl, detectDeckUrl } from '../lib/deckImport.js';
@@ -11,6 +11,7 @@ import { loadCollection, uniqueCount } from '../lib/collection.js';
 import { saveRandomRoll } from '../lib/storage-supabase.js';
 import { exportDecklist } from '../lib/deckops.js';
 import { exportAs, EXPORT_FORMATS, MOXFIELD_IMPORT_URL, ARCHIDEKT_IMPORT_URL } from '../lib/deckExport.js';
+import { missingCards, cheapestCart, singleCartTotals, toTcgplayerCsv } from '../lib/buylist.js';
 import { buildShareUrl } from '../lib/share.js';
 import { buildRuleZeroCard, asMarkdown as ruleZeroAsMarkdown, BRACKET_LABELS, flagsLine } from '../lib/ruleZero.js';
 import { downloadRuleZeroPng } from '../lib/ruleZeroImage.js';
@@ -970,6 +971,169 @@ function Stat({ label, value }) {
       </div>
       <div className="font-serif font-bold text-base mt-1" style={{ color: CREAM }}>
         {value}
+      </div>
+    </div>
+  );
+}
+
+export function BuylistModal({ deck, onClose }) {
+  const [collection, setCollection] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    loadCollection().then((c) => { setCollection(c); setLoading(false); });
+  }, []);
+
+  const buylist = useMemo(() => missingCards(deck, collection), [deck, collection]);
+  const cheapest = useMemo(() => cheapestCart(buylist), [buylist]);
+  const singles = useMemo(() => singleCartTotals(buylist), [buylist]);
+  const csv = useMemo(() => toTcgplayerCsv(buylist), [buylist]);
+
+  const copyCsv = async () => {
+    try { await navigator.clipboard.writeText(csv); } catch {}
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  const downloadCsv = () => {
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(deck.name || 'buylist').replace(/[^a-z0-9-]+/gi, '_')}-buylist.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const fmtUsd = (n) => (n == null ? '—' : `$${n.toFixed(2)}`);
+  const fmtEur = (n) => (n == null ? '—' : `€${n.toFixed(2)}`);
+
+  return (
+    <div
+      className="fixed inset-0 flex items-center justify-center z-50 p-4"
+      style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
+    >
+      <div className="w-full max-w-3xl max-h-[90vh] flex flex-col border" style={{ background: BG, borderColor: CREAM_FAINT }}>
+        <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: CREAM_FAINT }}>
+          <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold flex items-center gap-2" style={{ color: CREAM }}>
+            <ShoppingCart className="w-3.5 h-3.5" /> Missing cards · {pad(buylist.length)}
+          </div>
+          <button onClick={onClose} style={{ color: CREAM_DIM }}>
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="p-5 flex-1 overflow-auto space-y-4">
+          <p className="font-serif text-sm italic" style={{ color: CREAM_DIM }}>
+            Intersected against your Vault. Prices are TCGplayer Mid (USD) and Cardmarket Trend (EUR) — Scryfall's two real per-card feeds. Card Kingdom doesn't publish a per-card price feed.
+          </p>
+
+          {loading ? (
+            <div className="font-mono text-xs" style={{ color: CREAM_DIM }}>
+              <Loader2 className="w-3 h-3 inline-block animate-spin mr-2" /> Reading Vault…
+            </div>
+          ) : buylist.length === 0 ? (
+            <div className="border p-12 text-center font-serif italic" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
+              No missing cards — every card in this deck is already in your Vault. Nice.
+            </div>
+          ) : (
+            <>
+              {/* Totals summary */}
+              <div className="grid grid-cols-1 md:grid-cols-3 border" style={{ borderColor: CREAM_FAINT }}>
+                <div className="p-4 border-r border-b md:border-b-0" style={{ borderColor: CREAM_FAINT }}>
+                  <div className="font-mono text-[10px] tracking-wider mb-1" style={{ color: CREAM_DIM }}>
+                    CHEAPEST CART
+                  </div>
+                  <div className="font-serif font-bold text-lg" style={{ color: CREAM }}>
+                    {fmtUsd(cheapest.tcgplayerTotal)} + {fmtEur(cheapest.cardmarketTotal)}
+                  </div>
+                  <div className="font-serif text-xs italic mt-0.5" style={{ color: CREAM_DIM }}>
+                    Per-card cheapest. Two carts, two checkouts.
+                  </div>
+                </div>
+                <div className="p-4 border-r md:border-r border-b md:border-b-0" style={{ borderColor: CREAM_FAINT }}>
+                  <div className="font-mono text-[10px] tracking-wider mb-1" style={{ color: CREAM_DIM }}>
+                    SINGLE CART · TCGPLAYER
+                  </div>
+                  <div className="font-serif font-bold text-lg" style={{ color: CREAM }}>
+                    {fmtUsd(singles.tcgplayer.total)}
+                  </div>
+                  {singles.tcgplayer.unpriced > 0 && (
+                    <div className="font-serif text-xs italic mt-0.5" style={{ color: CREAM_DIM }}>
+                      {singles.tcgplayer.unpriced} card{singles.tcgplayer.unpriced === 1 ? '' : 's'} unpriced
+                    </div>
+                  )}
+                </div>
+                <div className="p-4" style={{ borderColor: CREAM_FAINT }}>
+                  <div className="font-mono text-[10px] tracking-wider mb-1" style={{ color: CREAM_DIM }}>
+                    SINGLE CART · CARDMARKET
+                  </div>
+                  <div className="font-serif font-bold text-lg" style={{ color: CREAM }}>
+                    {fmtEur(singles.cardmarket.total)}
+                  </div>
+                  {singles.cardmarket.unpriced > 0 && (
+                    <div className="font-serif text-xs italic mt-0.5" style={{ color: CREAM_DIM }}>
+                      {singles.cardmarket.unpriced} card{singles.cardmarket.unpriced === 1 ? '' : 's'} unpriced
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Per-card table */}
+              <div className="border-t border-l" style={{ borderColor: CREAM_FAINT }}>
+                <div className="grid grid-cols-12 gap-2 px-3 py-2 border-r border-b font-mono text-[10px] tracking-wider" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM, background: 'rgba(var(--ink-rgb),0.025)' }}>
+                  <div className="col-span-1">QTY</div>
+                  <div className="col-span-6">CARD</div>
+                  <div className="col-span-2 text-right">TCG (USD)</div>
+                  <div className="col-span-2 text-right">CM (EUR)</div>
+                  <div className="col-span-1 text-right">PICK</div>
+                </div>
+                {cheapest.rows.map((r) => (
+                  <div key={r.name} className="grid grid-cols-12 gap-2 px-3 py-2 border-r border-b items-baseline" style={{ borderColor: CREAM_FAINT }}>
+                    <div className="col-span-1 font-mono text-[11px]" style={{ color: CREAM }}>{r.count}</div>
+                    <div className="col-span-6 font-serif text-sm truncate" style={{ color: CREAM }}>{r.name}</div>
+                    <div className="col-span-2 text-right font-mono text-[11px]" style={{ color: r.chosenVendor === 'tcgplayer' ? CREAM : CREAM_DIM }}>
+                      {fmtUsd(r.prices.tcgplayer)}
+                    </div>
+                    <div className="col-span-2 text-right font-mono text-[11px]" style={{ color: r.chosenVendor === 'cardmarket' ? CREAM : CREAM_DIM }}>
+                      {fmtEur(r.prices.cardmarket)}
+                    </div>
+                    <div className="col-span-1 text-right font-mono text-[10px] uppercase" style={{ color: r.chosenVendor ? ACCENT : CREAM_DIM }}>
+                      {r.chosenVendor === 'tcgplayer' ? 'TCG' : r.chosenVendor === 'cardmarket' ? 'CM' : '—'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        {buylist.length > 0 && (
+          <div className="px-5 py-4 border-t flex flex-wrap justify-end gap-3" style={{ borderColor: CREAM_FAINT }}>
+            <button onClick={onClose} className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+              Close
+            </button>
+            <button
+              onClick={downloadCsv}
+              className="font-serif text-[10px] tracking-[0.3em] uppercase flex items-center gap-2 border px-3 py-1.5"
+              style={{ borderColor: CREAM_FAINT, color: CREAM }}
+            >
+              <Download className="w-3 h-3" /> Download .csv
+            </button>
+            <button
+              onClick={copyCsv}
+              className="font-serif text-[10px] tracking-[0.3em] uppercase flex items-center gap-2"
+              style={{ color: CREAM }}
+              title="Copy CSV for TCGplayer mass-entry import"
+            >
+              {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+              {copied ? 'Copied' : 'Copy CSV →'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
