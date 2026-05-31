@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.36.0 — Missing-cards buylist
+## v0.38.0 — Missing-cards buylist
 
 The DeckEditor toolbar gains a **Buylist** action that intersects the active deck against your Vault, lists exactly what's still needed, and prices each row across the two real Scryfall feeds (TCGplayer Mid and Cardmarket Trend) so you can spot whichever vendor is cheaper. A CSV export drops straight into TCGplayer's mass-entry import box.
 
@@ -14,6 +14,39 @@ The DeckEditor toolbar gains a **Buylist** action that intersects the active dec
 
 ### Tests
 - 17 new cases in `buylist.test.js` covering missing-12 acceptance case, Vault subtraction, commander inclusion, sort order, null collection safety, both-vendor prices in source currencies, null-price rows, cheapest-cart vendor picking (TCG vs CM, single-vendor fallback, both-null skip), single-cart totals + unpriced counts, and CSV escaping for commas and embedded quotes.
+
+## v0.37.0 — Browse-all filters: bracket, color, archetype, budget
+
+The browse-all pages shipped in v0.30.0 only had a search box and a sort selector. As the Public Gallery and Random rolls archives fill up, that's not enough — you couldn't ask "show me the bracket-3 mono-green rolls under $200" without scrolling. Both pages now carry the same filter row that's served the Archive view well: bracket toggles + mana-symbol colour identity buttons + sort buttons + a clear-all link, with archetype and budget added on the rolls page.
+
+### `GalleryAllView`
+- **Bracket filter** — five toggle buttons (B1..B5). Click to filter; click again to clear. Mirrors the Archive pattern exactly.
+- **Colour identity filter** — six mana-symbol buttons (W/U/B/R/G/C). Single-select: picking W shows decks whose commander identity contains white; C shows colourless commanders only.
+- **Sort buttons** — inline button row instead of the dropdown. Options: recent / name / commander / bracket / health.
+- **Clear ×** — appears in the filter row whenever any filter is active; one click resets the search box and every filter.
+- **Empty-state** — when filters return zero rows, the message now offers an inline "Clear all →" link.
+
+### `RandomRollsAllView`
+- Same bracket / colour / sort / clear treatment as the gallery page.
+- **Archetype filter** — dropdown of every archetype (Tokens, Tribal, Voltron, Aristocrats, Reanimator, Spellslinger, +1/+1 counters, Combo, Stax, Lifegain, Group hug) plus "Any". Pulled straight from `ARCHETYPES` in `src/lib/archetypes.js` so future archetype additions show up automatically.
+- **Budget filter** — currency-agnostic tier buttons (≤ 50 / 50–200 / 200–500 / 500+), applied to `seedMeta.budget` in the roll's own currency. The bucket boundaries are wide enough that USD / GBP / EUR rolls all land in the same tier.
+- **Legacy bracket handling** — uses `seedMeta.bracket ?? 3` (matching `RollCard`'s display fallback) so pre-meta rolls don't silently vanish when you click B3.
+
+## v0.36.0 — Win Condition tag + over-tutoring check
+
+The tag engine gains a `Win condition` tag — wincons are now first-class citizens alongside Ramp / Draw / Removal. Build Advisor uses the count to spot decks that tutor for nothing in particular.
+
+### Library
+- **`WIN_CONDITION_CARDS` Set in `constants.js`** — curated list of 35 game-ending cards across four families: game-state alt-wins (Approach of the Second Sun, Felidar Sovereign, Helix Pinnacle, Maze's End, …), library-empty wins (Thassa's Oracle, Lab Maniac, Jace Wielder), infinite/X damage finishers (Aetherflux Reservoir, Walking Ballista, Exsanguinate, Torment of Hailfire, Comet Storm, …), and big-mana mass-power closers (Craterhoof Behemoth, Insurrection, Pathbreaker Ibex, finales). The Build Advisor's over-tutoring check uses this plus assembled-combo detection.
+- **`Win condition` added to `TAG_PATTERNS`** with generic regex covering "you win the game", "target player loses the game", "each opponent loses the game", and X-damage-to-each-opponent finishers. Pattern matching catches cards the curated list misses; the list catches cards whose wincon text is hidden behind triggers.
+- **`detectTags` (in `tags.js`) auto-applies `Win condition`** when the card matches the patterns, is on the curated list, OR is part of an assembled combo (combos in `COMBO_INDEX` all have `results` that end the game). `AUTO_TAGS` updated so the tag is preserved by `retag()`. (closes #132)
+
+### Build Advisor (closes #137)
+- **New `checkOverTutoring(deck)` check** in `antipatterns.js`. Counts tutors and wincons; warns when `tutors > wincons + 2`. Title format: `"6 tutors with only 2 win conditions"`. Detail asks the user to either add more closers or trim tutors. Severity escalates to `major` when the gap is ≥ 5. No-ops cleanly on decks with zero tutors.
+
+### Tests
+- **`tags.test.js`** — 4 new cases: Approach of the Second Sun (named curated list), Helix Pinnacle ("you win the game" pattern), assembled combo piece tagged as Win condition, vanilla creature not tagged.
+- **`antipatterns.test.js`** — 4 new cases: 6-tutor / 2-wincon warns; 6-tutor / 5-wincon stays quiet; deck with no tutors returns null; gap ≥ 5 escalates to `major`.
 
 ## v0.35.0 — Decklist export: plain text / Moxfield / Archidekt + send-to buttons
 
@@ -50,18 +83,6 @@ First-time visitors now get prices and shopping links that match where they are,
 - **New `geo.test.js`** (country mapping, timezone/locale fallback, IP path with mocked fetch, IP-first-then-fallback ordering) and **`referralPrompt.test.js`** (region gating, referrer gating, dismissed / remind-window logic, writers). 416 tests green (up from 382).
 
 ## v0.33.0 — Per-deck swap log
-
-Every add / cut / count-change you make in the deck editor now lands in a per-deck swap log so six months from now you remember why you cut Sol Ring. Per-card notes were already supported; this release adds the chronological log + optional "why?" notes per entry.
-
-### Library
-- **`src/lib/deckops.js`** picks up `diffCards(prev, next)`, `recordSwap(deck, change)`, `applyWithLog(prev, next, note?)`, `setSwapNote(deck, ts, note)`, `deleteSwapEntry(deck, ts)`. The log is trimmed to `SWAP_LOG_CAP = 100` newest entries; notes are trimmed + capped at `SWAP_NOTE_MAX = 280`. The whole log is plain JSON so it survives backup / restore through `lib/backup.js` unchanged.
-
-### UI
-- **`DeckEditor`** wraps the incoming `onUpdate` prop in `applyWithLog(deck, next)`, so every editor-driven mutation is captured automatically. Imports (`App.handleImport`), random rolls, and share-acceptance keep using the bare `addCardsToDeck` path so they don't pollute the log.
-- **`SwapLogPanel` at the bottom of the Cards tab** collapses by default. Open it to see chronological entries (newest first) with the added / removed cards as chips, a timestamp, and an inline "+ Note" affordance to add a "why?" retroactively. A `Only show entries with my notes` checkbox filters out the auto-noise. Each row has a delete button for trimming an accidental editor click.
-
-### Tests
-- 11 new cases in `deckops.test.js` covering `diffCards` (add / remove / count change), `recordSwap` (no-op for empty diffs, trims long notes, caps log size), `applyWithLog` (captures changes + notes, skips no-ops), `setSwapNote` / `deleteSwapEntry`, and a JSON round-trip to confirm backup safety.
 
 ## v0.32.0 — Build Advisor: anti-pattern warnings + curve-aware land label
 

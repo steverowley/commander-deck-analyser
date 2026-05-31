@@ -81,6 +81,39 @@ describe('detectTags', () => {
     expect(tags).not.toContain('Mana rock');
   });
 
+  it('tags Win condition on named alt-win cards', () => {
+    const approach = c({
+      name: 'Approach of the Second Sun',
+      type_line: 'Sorcery',
+      oracle_text: 'If this spell was cast from your hand and you\'ve cast another spell named Approach of the Second Sun this game, you win the game.',
+    });
+    expect(detectTags(approach)).toContain('Win condition');
+  });
+
+  it('tags Win condition on "you win the game" pattern (e.g. Helix Pinnacle, generic)', () => {
+    const helix = c({
+      name: 'Helix Pinnacle',
+      type_line: 'Enchantment',
+      oracle_text: 'At the beginning of your upkeep, if Helix Pinnacle has 100 or more tower counters on it, you win the game.',
+    });
+    expect(detectTags(helix)).toContain('Win condition');
+  });
+
+  it('tags assembled combo pieces as Win condition (they win by definition)', () => {
+    const oracle = c({
+      name: "Thassa's Oracle",
+      type_line: 'Creature — Merfolk',
+      oracle_text: 'wins',
+    });
+    const names = new Set(["demonic consultation"]);
+    const tags = detectTags(oracle, names);
+    expect(tags).toContain('Win condition');
+  });
+
+  it('does NOT tag Win condition on a vanilla creature', () => {
+    expect(detectTags(c({ oracle_text: '' }))).not.toContain('Win condition');
+  });
+
   it('still tags spells that fetch basic lands as Ramp', () => {
     const tags = detectTags(c({
       name: 'Cultivate',

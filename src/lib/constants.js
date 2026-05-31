@@ -87,6 +87,58 @@ export const BANNED_CARDS = new Set([
 // metadata (results, prerequisites, colors). The bracket assessor and the
 // combo-piece tagger import from there directly.
 
+// Cards that close the game on their own — game-state win triggers
+// (Approach / Felidar Sovereign / Helix Pinnacle), infinite-damage
+// outputs (Aetherflux Reservoir / Walking Ballista / Goblin Bombardment),
+// library-empty wins (Thassa's Oracle / Lab Maniac), and X-cost finishers
+// (Exsanguinate / Torment of Hailfire / Insurrection / Craterhoof). The
+// Build Advisor's "over-tutoring" check uses this plus the combo-piece
+// detector to assess whether the deck has a real closer.
+export const WIN_CONDITION_CARDS = new Set([
+  // Game-state alt-wins
+  'approach of the second sun',
+  "maze's end",
+  'biovisionary',
+  'mortal combat',
+  'felidar sovereign',
+  'test of endurance',
+  'celestial convergence',
+  "azor's elocutors",
+  'mechanized production',
+  'happily ever after',
+  'simic ascendancy',
+  'helix pinnacle',
+  'coalition victory',
+  'epic struggle',
+  'darksteel reactor',
+  'revel in riches',
+  'near-death experience',
+  // Library-empty wins
+  "thassa's oracle",
+  'laboratory maniac',
+  'jace, wielder of mysteries',
+  // Infinite-damage / X-damage finishers
+  'aetherflux reservoir',
+  'walking ballista',
+  'goblin bombardment',
+  'impact tremors',
+  'purphoros, god of the forge',
+  'exsanguinate',
+  'debt to the deathless',
+  'torment of hailfire',
+  'comet storm',
+  'fall of the titans',
+  // Big-mana / mass-power finishers
+  'craterhoof behemoth',
+  'insurrection',
+  'overwhelming stampede',
+  'pathbreaker ibex',
+  'finale of devastation',
+  'finale of glory',
+  'finale of promise',
+  "tovolar's huntmaster",
+]);
+
 // Regex patterns matched against oracle text to assign tags.
 export const TAG_PATTERNS = {
   "Lifegain": [/gain (a|an|\d+|x) life/i, /gains? life/i, /lifelink/i],
@@ -131,6 +183,16 @@ export const TAG_PATTERNS = {
   "Flicker": [/exile target (creature|permanent).{0,30}(return|then return)/i, /(blink|flicker).{0,30}return.{0,15}battlefield/i],
   "Energy": [/get \{e\}/i, /pay \{e\}/i],
   "Devotion": [/devotion to/i],
+  // Wincon detection — generic patterns for game-ending text. The
+  // WIN_CONDITION_CARDS Set above catches the named cards that pattern
+  // matching misses (e.g. Helix Pinnacle's "You win the game" is hidden
+  // behind a counter trigger).
+  "Win condition": [
+    /you win the game/i,
+    /target (player|opponent) loses the game/i,
+    /each opponent loses the game/i,
+    /(deals|deal) (x|\d+) damage to (each opponent|any target)/i,
+  ],
   "Equipment": [], "Aura": [], "Vehicle": [], "Combo piece": [], "Game Changer": [],
 };
 
