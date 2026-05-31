@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.38.0 — Missing-cards buylist
+
+The DeckEditor toolbar gains a **Buylist** action that intersects the active deck against your Vault, lists exactly what's still needed, and prices each row across the two real Scryfall feeds (TCGplayer Mid and Cardmarket Trend) so you can spot whichever vendor is cheaper. A CSV export drops straight into TCGplayer's mass-entry import box.
+
+### Library
+- **New `src/lib/buylist.js`** with `missingCards(deck, collection)` returning `[{ name, count, scryfall, prices: { tcgplayer, cardmarket } }]` sorted by TCGplayer price desc, `cheapestCart(buylist)` picking the cheaper vendor per row (FX-aware: 1 EUR ≈ 1.09 USD reference), `singleCartTotals(buylist)` for one-vendor checkout totals, and `toTcgplayerCsv(buylist)` formatted as `Quantity,Name` with proper CSV escaping for names containing commas or quotes. `BUYLIST_VENDORS = ['tcgplayer', 'cardmarket']`. Vault quantity subtracts from required count via the existing `collection.ownedCount`.
+
+### UI
+- **`BuylistModal`** in `Modals.jsx` shows a three-up summary header (cheapest split-cart total / TCGplayer single cart / Cardmarket single cart) plus a per-card table with both vendor prices side-by-side and the cheapest "pick" badge per row in the accent color. Loading state while the Vault reads; explicit empty state when nothing is missing.
+- Footer actions: **Download .csv** and **Copy CSV →** (clipboard) for TCGplayer mass-entry handoff.
+- **DeckEditor toolbar** gets a `Buylist` action (shopping-cart icon) right after Rule Zero.
+
+### Tests
+- 17 new cases in `buylist.test.js` covering missing-12 acceptance case, Vault subtraction, commander inclusion, sort order, null collection safety, both-vendor prices in source currencies, null-price rows, cheapest-cart vendor picking (TCG vs CM, single-vendor fallback, both-null skip), single-cart totals + unpriced counts, and CSV escaping for commas and embedded quotes.
+
 ## v0.37.0 — Browse-all filters: bracket, color, archetype, budget
 
 The browse-all pages shipped in v0.30.0 only had a search box and a sort selector. As the Public Gallery and Random rolls archives fill up, that's not enough — you couldn't ask "show me the bracket-3 mono-green rolls under $200" without scrolling. Both pages now carry the same filter row that's served the Archive view well: bracket toggles + mana-symbol colour identity buttons + sort buttons + a clear-all link, with archetype and budget added on the rolls page.
