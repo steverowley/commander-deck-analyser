@@ -30,6 +30,9 @@ jobs:
           # Public Cloudflare Web Analytics beacon token (repo variable).
           # Empty if unset — analytics stays inert.
           VITE_CF_ANALYTICS_TOKEN: ${{ vars.VITE_CF_ANALYTICS_TOKEN }}
+          # Public Cloudflare Turnstile site key (repo variable). Empty if
+          # unset — captcha stays off.
+          VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

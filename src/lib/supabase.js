@@ -109,11 +109,16 @@ export function useAuthState() {
   return state;
 }
 
-export async function signInWithEmail(email, redirectTo) {
+export async function signInWithEmail(email, redirectTo, captchaToken) {
   if (!supabase) throw new Error('Cloud sync is not configured.');
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: redirectTo || window.location.href },
+    options: {
+      emailRedirectTo: redirectTo || window.location.href,
+      // Only sent when a Turnstile token is present; Supabase ignores it
+      // unless CAPTCHA is enabled in the project's Auth settings.
+      ...(captchaToken ? { captchaToken } : {}),
+    },
   });
   if (error) throw error;
 }
