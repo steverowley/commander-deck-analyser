@@ -581,21 +581,37 @@ function SwapLogPanel({ deck, onUpdate }) {
 
   return (
     <div className="border" style={{ borderColor: CREAM_FAINT }}>
-      <button
-        onClick={() => setOpen((o) => !o)}
+      {/* Header is a plain container, not a button, so HelpTip's button isn't
+          nested inside another button (invalid HTML + a11y). The title and the
+          show/hide indicator are each their own toggle; HelpTip is a sibling. */}
+      <div
         className="w-full px-5 py-3 border-b flex items-center justify-between"
         style={{ borderColor: open ? CREAM_FAINT : 'transparent', color: CREAM }}
       >
         <span className="font-serif text-sm tracking-[0.3em] uppercase font-bold flex items-center gap-2">
-          Swap log · {pad(log.length)}
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            className="hover:opacity-80 transition"
+            style={{ color: CREAM }}
+            aria-expanded={open}
+          >
+            Swap log · {pad(log.length)}
+          </button>
           <HelpTip>
             Every add / cut / count-change made from the editor lands here. Imports and random rolls don't pollute the log. The latest 100 entries are kept; click a row to add a "why?" note retroactively.
           </HelpTip>
         </span>
-        <span className="font-mono text-[10px]" style={{ color: CREAM_DIM }}>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="font-mono text-[10px] hover:opacity-80 transition"
+          style={{ color: CREAM_DIM }}
+          aria-label={open ? 'Hide swap log' : 'Show swap log'}
+        >
           {open ? 'hide ▲' : 'show ▼'}
-        </span>
-      </button>
+        </button>
+      </div>
 
       {open && (
         <div className="divide-y" style={{ borderColor: CREAM_FAINT }}>
