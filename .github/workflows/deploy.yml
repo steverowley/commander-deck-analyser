@@ -33,6 +33,8 @@ jobs:
           # Public Cloudflare Turnstile site key (repo variable). Empty if
           # unset — captcha stays off.
           VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
+          # Sentry DSN (repo variable). Empty if unset — monitoring stays off.
+          VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

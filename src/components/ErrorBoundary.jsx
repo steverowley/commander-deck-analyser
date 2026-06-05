@@ -12,6 +12,7 @@
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, ACCENT } from '../theme.js';
+import { captureError } from '../lib/monitoring.js';
 
 export class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -24,8 +25,10 @@ export class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, info) {
-    // Log to console so the user / a future Sentry can see the stack.
+    // Log to console, and report to Sentry when monitoring is configured.
+    // (React render errors don't reach Sentry's global handlers.)
     console.error('Vault ErrorBoundary caught:', error, info?.componentStack);
+    captureError(error, { componentStack: info?.componentStack, label: this.props.label });
     this.setState({ info });
   }
 
