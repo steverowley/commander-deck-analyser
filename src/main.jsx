@@ -4,8 +4,10 @@ import App from './App.jsx';
 import { registerServiceWorker } from './sw-register.js';
 import { applyThemeMode, getThemeMode } from './lib/themeMode.js';
 import { initAnalytics } from './lib/analytics.js';
+import { initMonitoring } from './lib/monitoring.js';
 import './index.css';
 
+initMonitoring();
 applyThemeMode(getThemeMode());
 initAnalytics();
 
