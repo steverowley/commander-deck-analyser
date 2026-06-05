@@ -8,19 +8,12 @@
  */
 
 import { supabase } from './supabase.js';
+// Username validation lives in a Supabase-free module so it can be unit
+// tested without loading the client (createClient throws on Node < 22 in
+// CI). Re-exported here to keep profile.js's public API unchanged.
+import { validateUsername } from './profileValidation.js';
 
-const USERNAME_PATTERN = /^[a-zA-Z0-9_][a-zA-Z0-9_-]{1,23}$/;
-
-export function validateUsername(username) {
-  if (!username) return 'Username is required.';
-  const trimmed = username.trim();
-  if (trimmed.length < 2) return 'Username must be at least 2 characters.';
-  if (trimmed.length > 24) return 'Username must be 24 characters or fewer.';
-  if (!USERNAME_PATTERN.test(trimmed)) {
-    return 'Use letters, digits, underscore and hyphen only. Start with a letter, digit, or underscore.';
-  }
-  return null;
-}
+export { validateUsername };
 
 /**
  * Read the current user's profile row. Returns null on failure or
