@@ -8,22 +8,34 @@ import React, { useState } from 'react';
 import { X, Loader2, Check, Mail } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { signInWithEmail, signInWithGoogle } from '../lib/supabase.js';
+import { disposableEmailError } from '../lib/emailGuard.js';
+import { TurnstileWidget, turnstileEnabled } from './TurnstileWidget.jsx';
 
 export function AuthModal({ onClose }) {
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState(null);
+  const [captchaToken, setCaptchaToken] = useState('');
 
   const sendMagicLink = async () => {
     if (!email.trim()) {
       setError('Enter an email address.');
       return;
     }
+    const disposable = disposableEmailError(email);
+    if (disposable) {
+      setError(disposable);
+      return;
+    }
+    if (turnstileEnabled && !captchaToken) {
+      setError('Please complete the “I’m human” check first.');
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
-      await signInWithEmail(email.trim());
+      await signInWithEmail(email.trim(), undefined, captchaToken || undefined);
       setSent(true);
     } catch (e) {
       setError(e.message || 'Sign-in failed.');
@@ -99,9 +111,10 @@ export function AuthModal({ onClose }) {
                   />
                   {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: CREAM_DIM }} />}
                 </div>
+                <TurnstileWidget onToken={setCaptchaToken} />
                 <button
                   onClick={sendMagicLink}
-                  disabled={busy || !email.trim()}
+                  disabled={busy || !email.trim() || (turnstileEnabled && !captchaToken)}
                   className="mt-2 w-full font-serif text-[10px] tracking-[0.3em] uppercase border py-2 disabled:opacity-30"
                   style={{ borderColor: CREAM_FAINT, color: CREAM }}
                 >
