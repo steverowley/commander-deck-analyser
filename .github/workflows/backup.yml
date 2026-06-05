@@ -1,0 +1,47 @@
+name: Nightly DB backup
+
+# Dumps the Supabase Postgres database once a day and stores it as a
+# downloadable workflow artifact (90-day retention). Free safety net for the
+# Supabase free tier, which has no point-in-time recovery. See docs/BACKUP.md
+# for the one-time secret setup and how to restore.
+
+on:
+  schedule:
+    - cron: '17 3 * * *' # 03:17 UTC daily (off-peak)
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo apt-get update
+          sudo install -d /usr/share/postgresql-common/pgdg
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | sudo gpg --dearmor -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+
+      - name: Dump database
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error::SUPABASE_DB_URL secret is not set — see docs/BACKUP.md"
+            exit 1
+          fi
+          ts="$(date -u +'%Y%m%dT%H%M%SZ')"
+          pg_dump "$SUPABASE_DB_URL" --no-owner --no-privileges --format=plain \
+            | gzip > "vault-backup-${ts}.sql.gz"
+          ls -lh vault-backup-*.sql.gz
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vault-db-backup
+          path: vault-backup-*.sql.gz
+          retention-days: 90
+          if-no-files-found: error
