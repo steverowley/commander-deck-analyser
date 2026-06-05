@@ -15,7 +15,7 @@ A Magic: The Gathering Commander deck builder. Built as a Vite + React + Tailwin
 - **Public Gallery** + **Latest Random Rolls** — landing-page sections fed by `loadPublicDecks` and `loadRandomRolls`. Cards styled identically (commander thumb, badges, `@user · 5m ago`, View / Copy → mine).
 - **Profile** — first-sign-in onboarding for username; editor reachable from the `Profile · <handle>` button. Username uniqueness at DB level via `public.profiles`.
 
-Current version: **v0.9.3**. Bump per the rules below.
+Current version: tracked in `package.json` (the `version` field) — read it there rather than trusting a number hardcoded here. Bump per the rules below.
 
 ---
 
@@ -23,22 +23,16 @@ Current version: **v0.9.3**. Bump per the rules below.
 
 Bump `package.json` + add a CHANGELOG entry on **every** shippable PR. The version chip on the landing page hover-displays the changelog, so it has to track main.
 
-- Bug-fix-only PR: patch bump (`0.9.3 → 0.9.4`), one bullet under the latest section.
-- Feature PR: minor bump (`0.9.x → 0.10.0`), new section with categorised bullets.
+- Bug-fix-only PR: patch bump (e.g. `0.39.0 → 0.39.1`), one bullet under the latest section.
+- Feature PR: minor bump (e.g. `0.39.x → 0.40.0`), new section with categorised bullets.
 
-All work on `claude/youthful-brahmagupta-mQLkb`. After each squash-merge, rebase the branch onto `origin/main` before opening the next PR — the previous unsquashed commits will conflict otherwise:
-
-```
-git fetch origin main
-git rebase --onto origin/main <last-commit-already-on-main>
-git push --force-with-lease origin claude/youthful-brahmagupta-mQLkb
-```
+Work on a feature branch off `main` (e.g. `feat/<short-description>`, or the session's `claude/*` branch) and open a PR — `main` is protected, so nothing lands without one. PRs are **squash-merged**, so each PR becomes a single commit on `main`; start the next branch fresh from the updated `main` rather than reusing or rebasing an old one.
 
 ---
 
 ## Testing + build before push
 
-- `npm test` (Vitest) — currently **184 passing** (autoseed invariants, pricing, landbase, tags, csvImport, etc.).
+- `npm test` (Vitest) — **454 passing** as of v0.39.0 (autoseed invariants, pricing, landbase, tags, csvImport, etc.); the full suite must be green. Use Node 22+ locally (the Supabase realtime client needs a native `WebSocket`, which Node 20 lacks).
 - `npm run build` (Vite) — verifies the prod bundle compiles.
 - Both must be green locally; CI re-runs them. If a CI run is fast (<30s) and the diff is small, "merge when ready" is your cue to act on the green webhook.
 
