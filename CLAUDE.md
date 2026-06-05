@@ -56,7 +56,8 @@ Work on a feature branch off `main` (e.g. `feat/<short-description>`, or the ses
 | `public.decks` | user-owned decks; `data jsonb` carries the full deck object | owner-anything, anyone-read-public — **MUST filter on `owner_id` in app-side selects** |
 | `public.collection` | Vault entries `(user_id, card_name, quantity, added_at, meta jsonb)` | owner read+write only |
 | `public.random_rolls` | snapshot of rolled decks (commander, cards, seed_meta) | anyone read, owner insert+delete; `owner_id` is `ON DELETE SET NULL` so deleted accounts don't wipe history |
-| `public.profiles` | `(user_id, username)` | anyone read, owner upsert |
+| `public.profiles` | `(user_id, username, supporter, supporter_since, supporter_total_cents, pref_retailer)` | **owner-only** read + upsert. Public/other-user contexts read the `public.public_profiles` view (`user_id, username, supporter` only) — NEVER the base table, so the money columns stay private. The PayPal webhook writes the supporter columns via the service role (bypasses RLS); a trigger blocks client writes to them |
+| `public.public_profiles` | view = `select user_id, username, supporter from profiles` | `select` granted to `anon` + `authenticated`; the safe public projection the gallery joins against |
 
 Supabase MCP tools are available — use `apply_migration` for DDL, `execute_sql` for diagnostics.
 
@@ -92,6 +93,7 @@ Three drop sources, all accepted on both zones:
 - Don't reintroduce custom CSS cursors. Tried multiple iterations (quill, V-seal, MTG card, classic arrow) — none stuck. OS defaults are the floor.
 - Don't auto-publish rolled decks into the user's archive. They open as a transient session (`viewingDeck` slot, `id: 'roll:<ts>'`). User has to explicitly hit **Save to my archive →** in the editor banner to keep one.
 - Don't strip the `owner_id` filter from `loadDecks`. That's the leak that put strangers' decks in your archive.
+- Don't read other users' rows from `public.profiles`, and don't re-add an "anyone can read" policy to it. The base table is owner-only; gallery / other-user reads MUST go through the `public_profiles` view (`user_id, username, supporter` only). A bare read of `profiles` would leak `supporter_total_cents` + account UUIDs.
 - Don't write an `async (target) => async (e) => ...` drop-handler factory. The outer async makes the factory return a Promise and `onDrop` becomes a no-op.
 
 ---

@@ -200,8 +200,10 @@ export async function loadPublicDecks(limit = 24) {
   if (!decks?.length) return [];
 
   const ownerIds = [...new Set(decks.map((d) => d.owner_id))];
+  // public-safe view: exposes only user_id/username/supporter. The base
+  // profiles table is owner-only RLS so its money columns stay private.
   const { data: profiles } = await supabase
-    .from('profiles')
+    .from('public_profiles')
     .select('user_id, username, supporter')
     .in('user_id', ownerIds);
 
@@ -292,7 +294,7 @@ export async function loadRandomRolls(limit = 12) {
   let profileByOwner = new Map();
   if (ownerIds.length > 0) {
     const { data: profiles } = await supabase
-      .from('profiles')
+      .from('public_profiles') // public-safe view (see loadPublicDecks)
       .select('user_id, username, supporter')
       .in('user_id', ownerIds);
     for (const p of profiles || []) profileByOwner.set(p.user_id, p);
