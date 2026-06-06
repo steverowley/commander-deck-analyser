@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.40.0 — Roll a deck from a commander you choose
+
+The random-deck roller only ever rolled a *random* commander. Now you can pick the exact commander you want and have the same EDHREC-seeded build pipeline assemble a deck around it. The deck-building backend already took a commander argument — this release adds the way to choose one.
+
+### UI
+- **`RandomDeckModal` gains a Random / Choose mode toggle.** In **Choose** mode the colour-identity roller is replaced by a commander search box (debounced Scryfall name autocomplete, same 250ms pattern as the side search panel); picking a result validates it and drops it into the existing commander preview panel. **Random** mode is unchanged. Bracket / budget / archetype / "Only use cards from my Vault" / share-to-gallery and the **Build deck →** button are shared across both modes.
+- The modal subtitle and the preview-panel label track the mode ("Random commander" / "Rolled" vs "Chosen commander" / "Chosen"). The footer **Roll commander / Reroll** button only shows in Random mode.
+- Picking a non-commander (e.g. an instant) shows a clear inline message at selection time. And if a chosen legal commander has no EDHREC page yet, the build stops with an actionable message instead of returning a commander-only deck.
+
+### Library
+- **`isLegalCommander(card)`** in `scryfall.js` — pure check mirroring the Vault's rule (a legendary creature) plus cards whose rules text says they "can be your commander" (planeswalker commanders, etc.). Tests each face independently so a DFC isn't mistaken for a commander when "Legendary" and "Creature" come from different faces.
+- **`fetchCommanderByName(name)`** — resolves a name and returns `{ card, ok }`, where `ok` is true only when the card resolved *and* is a legal commander.
+
+### Tests
+- `scryfall.test.js` — 8 cases for `isLegalCommander` (legendary creature, non-legendary, legendary non-creature, planeswalker-commander clause, legendary-creature DFC face, cross-face DFC rejection, instant, null) and 3 for `fetchCommanderByName` (legal, non-commander, unresolved name).
+
 ## v0.39.0 — Protection + Recursion as health-score pillars (Four Pillars)
 
 Kristen Gregory's "Four Pillars of Good Deck Building" are ramp / draw / removal / **recursion**. The health score had the first three but ignored the fourth. Protection — counterspells, hexproof grants, indestructible, ward — was tagged but contributed zero to the score. This release promotes both to scored components, rebalancing the 100-point scale.

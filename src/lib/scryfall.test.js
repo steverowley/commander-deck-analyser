@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // `cacheCard` and the rest of scryfall.js are real — only the network
 // call inside fetchCardsByName is mocked through global.fetch.
 
-import { pickRandomCommanderFromCollection, rehydrateMissingOracleText } from './scryfall.js';
+import { pickRandomCommanderFromCollection, rehydrateMissingOracleText, isLegalCommander, fetchCommanderByName } from './scryfall.js';
 
 function makeCard({ name, type_line = 'Legendary Creature — Human', color_identity = [], oracle_text = '' }) {
   return { name, type_line, color_identity, oracle_text, cmc: 3 };
@@ -254,5 +254,89 @@ describe('rehydrateMissingOracleText', () => {
     const result = await rehydrateMissingOracleText(cards);
     expect(result.rehydrated).toBe(0);
     expect(result.failed).toBe(1);
+  });
+});
+
+describe('isLegalCommander', () => {
+  it('accepts a legendary creature', () => {
+    expect(isLegalCommander({ type_line: 'Legendary Creature — Elf Druid' })).toBe(true);
+  });
+
+  it('rejects a non-legendary creature', () => {
+    expect(isLegalCommander({ type_line: 'Creature — Goblin' })).toBe(false);
+  });
+
+  it('rejects a legendary non-creature with no "can be your commander" clause', () => {
+    expect(isLegalCommander({ type_line: 'Legendary Artifact', oracle_text: '{T}: Add {C}.' })).toBe(false);
+  });
+
+  it('accepts a planeswalker that can be your commander', () => {
+    expect(isLegalCommander({
+      type_line: 'Legendary Planeswalker — Freyalise',
+      oracle_text: "Freyalise, Llanowar's Fury can be your commander.",
+    })).toBe(true);
+  });
+
+  it('accepts a DFC whose combined type line includes a legendary creature face', () => {
+    // normalize() joins both faces into the top-level type_line.
+    expect(isLegalCommander({
+      type_line: 'Legendary Creature — God // Legendary Enchantment Artifact',
+    })).toBe(true);
+  });
+
+  it('rejects a DFC where "Legendary" and "Creature" come from different faces', () => {
+    // Neither face is itself a legendary creature — the per-face check
+    // must not be fooled by the joined string matching both regexes.
+    expect(isLegalCommander({
+      type_line: 'Legendary Sorcery // Creature — Zombie',
+    })).toBe(false);
+  });
+
+  it('rejects an instant', () => {
+    expect(isLegalCommander({ type_line: 'Instant' })).toBe(false);
+  });
+
+  it('returns false for null / undefined', () => {
+    expect(isLegalCommander(null)).toBe(false);
+    expect(isLegalCommander(undefined)).toBe(false);
+  });
+});
+
+describe('fetchCommanderByName', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    delete global.fetch;
+  });
+
+  it('resolves a legal commander as { card, ok: true }', async () => {
+    global.fetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        name: 'Zedruvus, Test Commander',
+        type_line: 'Legendary Creature — Human Wizard',
+        color_identity: ['W'],
+      }),
+    }));
+    const { card, ok } = await fetchCommanderByName('Zedruvus, Test Commander');
+    expect(ok).toBe(true);
+    expect(card?.name).toBe('Zedruvus, Test Commander');
+  });
+
+  it('resolves a non-commander card as { card, ok: false }', async () => {
+    global.fetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ name: 'Voltaic Test Bolt', type_line: 'Instant' }),
+    }));
+    const { card, ok } = await fetchCommanderByName('Voltaic Test Bolt');
+    expect(ok).toBe(false);
+    expect(card?.name).toBe('Voltaic Test Bolt');
+  });
+
+  it('returns { card: null, ok: false } when the name does not resolve', async () => {
+    // Both the exact and fuzzy /cards/named lookups miss.
+    global.fetch = vi.fn(async () => ({ ok: false }));
+    const { card, ok } = await fetchCommanderByName('Nonexistent Test Card 9000');
+    expect(card).toBeNull();
+    expect(ok).toBe(false);
   });
 });

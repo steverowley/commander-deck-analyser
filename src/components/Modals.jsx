@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Loader2, Check, BookOpen, Copy, Download, Link as LinkIcon, GitCompare, Archive, FileText, Settings as SettingsIcon, Dices, Shuffle, Bug, ExternalLink, ShoppingCart } from 'lucide-react';
+import { X, Loader2, Check, BookOpen, Copy, Download, Link as LinkIcon, GitCompare, Archive, FileText, Settings as SettingsIcon, Dices, Shuffle, Bug, ExternalLink, ShoppingCart, Search } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, parseDecklist, lc } from '../lib/utils.js';
 import { parseTextDecklist, fetchDeckFromUrl, detectDeckUrl } from '../lib/deckImport.js';
-import { fetchCardsByName, fetchCardByExactName, refreshCachedCards, fetchPrintings, fetchRandomCommander, pickRandomCommanderFromCollection, cardImageUrl, searchCardAutocomplete } from '../lib/scryfall.js';
+import { fetchCardsByName, fetchCardByExactName, refreshCachedCards, fetchPrintings, fetchRandomCommander, pickRandomCommanderFromCollection, fetchCommanderByName, cardImageUrl, searchCardAutocomplete } from '../lib/scryfall.js';
 import { buildSeededDeck } from '../lib/autoseed.js';
 import { ARCHETYPES } from '../lib/archetypes.js';
 import { loadCollection, uniqueCount } from '../lib/collection.js';
@@ -2447,10 +2447,45 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
   const [building, setBuilding] = useState(false);
   const [progress, setProgress] = useState('');
   const [error, setError] = useState(null);
+  // 'random' = roll a random commander (the original flow); 'choose' =
+  // search for and pick a specific commander, then build around it.
+  const [mode, setMode] = useState('random');
+  const [query, setQuery] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [searching, setSearching] = useState(false); // autocomplete in flight
+  const [lookingUp, setLookingUp] = useState(false);  // resolving a picked name
 
   useEffect(() => {
     loadCollection().then(setCollection);
   }, []);
+
+  // Debounced name autocomplete, only while the Choose tab is active.
+  // Mirrors ScryfallSearchPanel's 250ms-and-`alive`-flag pattern.
+  useEffect(() => {
+    if (mode !== 'choose') return;
+    const term = query.trim();
+    if (term.length < 2) {
+      setSuggestions([]);
+      setSearching(false);
+      return;
+    }
+    let alive = true;
+    setSearching(true);
+    const t = setTimeout(async () => {
+      const r = await searchCardAutocomplete(term);
+      if (!alive) return;
+      setSuggestions(r.slice(0, 8));
+      setSearching(false);
+    }, 250);
+    // Reset the spinner if the search is cancelled (new keystroke, mode
+    // switch, pick) before the debounce fires — the timer callback that
+    // would otherwise clear it never runs on these paths.
+    return () => {
+      alive = false;
+      clearTimeout(t);
+      setSearching(false);
+    };
+  }, [query, mode]);
   const collectionSize = collection ? uniqueCount(collection) : 0;
 
   const budget = BUDGET_PRESETS.find((b) => b.id === budgetId)?.value ?? null;
@@ -2485,6 +2520,44 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
     }
   };
 
+  // Switch between Random and Choose. Clear the in-progress commander +
+  // search state so a roll never bleeds into the chosen flow (or back).
+  const switchMode = (m) => {
+    if (m === mode) return;
+    setMode(m);
+    setCommander(null);
+    setError(null);
+    setQuery('');
+    setSuggestions([]);
+  };
+
+  // Resolve a name the user picked and confirm it's a legal commander
+  // before setting it — picking, say, an instant should fail here with a
+  // clear message rather than later. (A legal commander can still lack an
+  // EDHREC page; build() guards that case separately.)
+  const chooseCommander = async (name) => {
+    setSuggestions([]);
+    setQuery('');
+    setError(null);
+    setLookingUp(true);
+    try {
+      const { card, ok } = await fetchCommanderByName(name);
+      if (!card) {
+        setError(`Couldn't find a card named "${name}".`);
+        setCommander(null);
+      } else if (!ok) {
+        setError(`${card.name} isn't a legal commander — pick a legendary creature (or a card that can be your commander).`);
+        setCommander(null);
+      } else {
+        setCommander(card);
+      }
+    } catch (e) {
+      setError(e.message || 'Lookup failed.');
+    } finally {
+      setLookingUp(false);
+    }
+  };
+
   const build = async () => {
     if (!commander) return;
     setBuilding(true);
@@ -2501,6 +2574,18 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
         collection,
       };
       const { cards, missing, summary } = await buildSeededDeck(commander, opts, setProgress);
+      // A legal commander isn't guaranteed an EDHREC page (brand-new or
+      // obscure legends). buildSeededDeck returns an empty list in that
+      // case — surface it rather than handing back a commander-only deck.
+      if (!cards.length) {
+        setError(
+          missing?.[0] === 'EDHREC has no page for this commander'
+            ? `EDHREC has no page for ${commander.name} yet — try a more established commander.`
+            : `Couldn't build a deck for ${commander.name}.`
+        );
+        setBuilding(false);
+        return;
+      }
       const breakdown = summary
         ? ` Lands ${summary.land + summary.basics}${summary.basics ? ` (${summary.basics} basics)` : ''}, ramp ${summary.ramp}, draw ${summary.draw}, spot removal ${summary.removal}, wipes ${summary.wipe}, strategy ${summary.other}.`
         : '';
@@ -2580,7 +2665,7 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
               <Dices className="w-3 h-3" /> Roll a deck
             </div>
             <div className="font-serif text-lg font-black uppercase mt-1" style={{ color: CREAM }}>
-              Random commander
+              {mode === 'choose' ? 'Chosen commander' : 'Random commander'}
             </div>
           </div>
           <button onClick={onClose} style={{ color: CREAM_DIM }} disabled={building}>
@@ -2589,6 +2674,76 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
         </div>
 
         <div className="flex-1 overflow-auto p-5 space-y-5">
+          {/* Mode: roll a random commander, or search + choose a specific one. */}
+          <div className="flex items-center gap-1.5">
+            {[
+              { id: 'random', label: 'Random', Icon: Dices },
+              { id: 'choose', label: 'Choose', Icon: Search },
+            ].map(({ id, label, Icon }) => {
+              const active = mode === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => switchMode(id)}
+                  disabled={rolling || building || lookingUp}
+                  className="flex-1 px-3 h-9 border font-serif text-[11px] tracking-[0.2em] uppercase transition flex items-center justify-center gap-1.5 disabled:opacity-30"
+                  style={{
+                    borderColor: active ? CREAM : CREAM_FAINT,
+                    color: active ? CREAM : CREAM_DIM,
+                    background: active ? 'rgba(var(--ink-rgb),0.08)' : 'transparent',
+                  }}
+                  aria-pressed={active}
+                >
+                  <Icon className="w-3 h-3" /> {label}
+                </button>
+              );
+            })}
+          </div>
+
+          {mode === 'choose' && (
+            <div>
+              <div className="font-serif text-[10px] tracking-[0.3em] uppercase font-bold mb-2" style={{ color: CREAM_DIM }}>
+                Commander
+              </div>
+              <div className="flex gap-2 items-center border px-3 py-2" style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.02)' }}>
+                <Search className="w-3.5 h-3.5" style={{ color: CREAM_DIM }} />
+                <input
+                  value={query}
+                  onChange={(e) => { setQuery(e.target.value); if (commander) setCommander(null); }}
+                  placeholder="search a legendary creature..."
+                  autoFocus
+                  className="flex-1 bg-transparent focus:outline-none font-mono text-sm"
+                  style={{ color: CREAM }}
+                />
+                {(searching || lookingUp) && <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: CREAM_DIM }} />}
+              </div>
+              {suggestions.length > 0 && (
+                <div className="border border-t-0 max-h-56 overflow-auto" style={{ borderColor: CREAM_FAINT, background: BG }}>
+                  {suggestions.map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => chooseCommander(n)}
+                      className="w-full text-left px-3 py-2 font-serif text-sm border-b last:border-b-0 transition hover:opacity-100"
+                      style={{ color: CREAM, borderColor: CREAM_FAINT, background: 'transparent' }}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {query.trim().length >= 2 && !searching && !lookingUp && !commander && suggestions.length === 0 && (
+                <div className="font-serif text-xs italic mt-2" style={{ color: CREAM_DIM }}>
+                  No matches — check the spelling.
+                </div>
+              )}
+              <div className="font-serif text-xs italic mt-2" style={{ color: CREAM_DIM }}>
+                Pick any legendary creature (or a card that can be your commander). The deck is built from EDHREC's typical list for that commander.
+              </div>
+            </div>
+          )}
+
+          {mode === 'random' && (
+          <>
           <div>
             <div className="font-serif text-[10px] tracking-[0.3em] uppercase font-bold mb-2" style={{ color: CREAM_DIM }}>
               Color identity · <span style={{ color: CREAM }}>{colorLabel}</span>
@@ -2645,6 +2800,8 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
               Include partner / background commanders
             </span>
           </div>
+          </>
+          )}
 
           {/* Bracket target */}
           <div>
@@ -2772,7 +2929,7 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
               />
               <div className="flex-1 min-w-0">
                 <div className="font-serif text-[10px] tracking-[0.3em] uppercase font-bold" style={{ color: CREAM_DIM }}>
-                  Rolled
+                  {mode === 'choose' ? 'Chosen' : 'Rolled'}
                 </div>
                 <div className="font-serif font-black uppercase mt-1 tracking-tight" style={{ color: CREAM, fontSize: 'clamp(1.25rem, 3vw, 1.75rem)' }}>
                   {commander.name}
@@ -2861,15 +3018,17 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
             Cancel
           </button>
           <div className="flex items-center gap-4">
-            <button
-              onClick={roll}
-              disabled={rolling || building}
-              className="font-serif text-[10px] tracking-[0.3em] uppercase border px-4 py-2 hover:opacity-100 disabled:opacity-30 flex items-center gap-1.5"
-              style={{ borderColor: CREAM_FAINT, color: CREAM }}
-            >
-              {rolling ? <Loader2 className="w-3 h-3 animate-spin" /> : <Shuffle className="w-3 h-3" />}
-              {commander ? 'Reroll' : 'Roll commander'}
-            </button>
+            {mode === 'random' && (
+              <button
+                onClick={roll}
+                disabled={rolling || building}
+                className="font-serif text-[10px] tracking-[0.3em] uppercase border px-4 py-2 hover:opacity-100 disabled:opacity-30 flex items-center gap-1.5"
+                style={{ borderColor: CREAM_FAINT, color: CREAM }}
+              >
+                {rolling ? <Loader2 className="w-3 h-3 animate-spin" /> : <Shuffle className="w-3 h-3" />}
+                {commander ? 'Reroll' : 'Roll commander'}
+              </button>
+            )}
             <button
               onClick={build}
               disabled={!commander || building}

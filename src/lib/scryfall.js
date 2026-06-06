@@ -444,6 +444,42 @@ export async function pickRandomCommanderFromCollection({ collection, colors = [
 }
 
 /**
+ * Can this card legally be a Commander? Mirrors the Vault's rule (a
+ * legendary creature) but also admits the handful of non-creature cards
+ * whose rules text explicitly says they "can be your commander" — e.g.
+ * the planeswalker commanders (Commander Legends) and design oddballs
+ * like Grist, the Hunger Tide. Used to validate a *hand-picked* commander
+ * before we try to build an EDHREC-seeded deck around it.
+ *
+ * Works on a normalized card: for DFCs `type_line` is the combined face
+ * string ("Legendary Creature — God // Legendary Enchantment") and
+ * `oracle_text` joins both faces. We test each face independently so a
+ * card like "Legendary Sorcery // Creature — Zombie" (where neither face
+ * is itself a legendary creature) doesn't slip through.
+ */
+export function isLegalCommander(card) {
+  if (!card) return false;
+  const faces = (card.type_line || '').split('//');
+  if (faces.some((f) => /Legendary/i.test(f) && /Creature/i.test(f))) return true;
+  if ((card.oracle_text || '').toLowerCase().includes('can be your commander')) return true;
+  return false;
+}
+
+/**
+ * Resolve a card name to a card and confirm it can be a Commander.
+ * Returns `{ card, ok }`:
+ *   - `card` is the normalized card, or null when the name didn't resolve.
+ *   - `ok` is true only when `card` exists AND is a legal commander.
+ * The caller distinguishes "no such card" (card null) from "found but not
+ * a commander" (card set, ok false) to show a tailored message.
+ */
+export async function fetchCommanderByName(name) {
+  const card = await fetchCardByExactName(name);
+  if (!card) return { card: null, ok: false };
+  return { card, ok: isLegalCommander(card) };
+}
+
+/**
  * Build a card image URL. Uses Scryfall's hosted images, proxied through
  * weserv.nl to avoid hot-linking issues and provide some caching.
  */
