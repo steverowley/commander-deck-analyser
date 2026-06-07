@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.41.0 — The roller now builds to the health model
+
+The random-deck roller and the health score had drifted apart: the roller balanced lands / ramp / draw / removal / wipes, but the health score *also* grades **protection** and **recursion** (Kristen Gregory's Four Pillars) — so a freshly-rolled deck could score badly on two pillars the app itself preaches. And every archetype got the same one-size template. This release makes the builder target the same model it's graded against, shaped per archetype.
+
+### Library
+- **Per-archetype build profiles** (`archetypes.js` → `archetypeBuildProfile`). A base profile anchored on the Command Zone "New Era" template + Four Pillars (10 draw / 10 removal / 3 wipes / 3 protection / 3 recursion / 2 win-cons), with community-consensus overrides: Voltron runs fewer lands + more protection, Aristocrats more wipes, Combo/Reanimator more recursion + closers, Spellslinger more draw + removal, Stax leaner lands, etc.
+- **`autoseed.js` now builds protection, recursion, and win-condition slots** as first-class buckets (previously zero of each), and pulls its draw/removal/wipe targets from the archetype profile instead of fixed constants. Tutors no longer count as "card draw" (matching how `health.js` counts), so they fall to the synergy pool instead of padding the draw number.
+- **Pip-weighted basic lands** — padded basics now follow the deck's actual coloured-pip demand (Frank Karsten / Salubrious Snail), so a blue-heavy deck gets mostly Islands instead of an even split. Falls back to an even split when no pips are known; colourless commanders still get Wastes.
+
+### UI
+- The roll summary note now reports protection + recursion counts alongside the existing land/ramp/draw/removal/wipe breakdown.
+
+### Tests
+- `autoseed.test.js` — new cases: protection + recursion pillars get filled when the pool has them; archetype reshapes the role split (Aristocrats → ≥5 wipes); padded basics weight toward the deck's pip demand (blue-heavy → more Islands than Plains). All existing 99-card invariants still hold.
+
 ## v0.40.0 — Roll a deck from a commander you choose
 
 The random-deck roller only ever rolled a *random* commander. Now you can pick the exact commander you want and have the same EDHREC-seeded build pipeline assemble a deck around it. The deck-building backend already took a commander argument — this release adds the way to choose one.

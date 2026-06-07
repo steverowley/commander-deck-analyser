@@ -2587,7 +2587,7 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
         return;
       }
       const breakdown = summary
-        ? ` Lands ${summary.land + summary.basics}${summary.basics ? ` (${summary.basics} basics)` : ''}, ramp ${summary.ramp}, draw ${summary.draw}, spot removal ${summary.removal}, wipes ${summary.wipe}, strategy ${summary.other}.`
+        ? ` Lands ${summary.land + summary.basics}${summary.basics ? ` (${summary.basics} basics)` : ''}, ramp ${summary.ramp}, draw ${summary.draw}, spot removal ${summary.removal}, wipes ${summary.wipe}, protection ${summary.protection}, recursion ${summary.recursion}, strategy ${summary.other}.`
         : '';
       const optsNote = [
         `bracket ${bracket}`,
