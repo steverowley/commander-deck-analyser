@@ -91,6 +91,41 @@ export function archetypeById(id) {
   return ARCHETYPES.find((a) => a.id === id) || ARCHETYPES[0];
 }
 
+/**
+ * Per-archetype build targets for the random-deck roller. The base
+ * profile is the Command Zone "New Era" template (Ep. 658) crossed with
+ * Kristen Gregory's Four Pillars: ~10 draw, 10 spot removal, 3 wipes,
+ * plus protection + recursion floors (aim 3-5 — we target the low end so
+ * the synergy slots aren't starved) and a couple of guaranteed closers.
+ * `landDelta` / `rampDelta` nudge the curve-derived land/ramp targets.
+ *
+ * Per-archetype overrides follow the community-consensus deviations
+ * (control wants more answers; voltron fewer lands + more protection;
+ * aristocrats more wipes; combo/reanimator more recursion + closers).
+ * Lands + ramp still come from the curve — these only reshape the
+ * role split so a rolled deck scores well on its own health check.
+ */
+const BASE_PROFILE = {
+  draw: 10, removal: 10, wipe: 3, protection: 3, recursion: 3, wincon: 2,
+  landDelta: 0, rampDelta: 0,
+};
+
+const PROFILE_OVERRIDES = {
+  tokens:      { wipe: 4 },
+  voltron:     { draw: 6, removal: 6, wipe: 1, protection: 6, recursion: 2, landDelta: -2 },
+  aristocrats: { removal: 9, wipe: 5, recursion: 4 },
+  reanimator:  { recursion: 5, wincon: 3 },
+  spellslinger:{ draw: 13, removal: 12, wipe: 2 },
+  combo:       { draw: 12, removal: 8, wipe: 2, protection: 5, wincon: 3 },
+  stax:        { removal: 8, wipe: 2, protection: 4, landDelta: -2 },
+  lifegain:    { recursion: 4 },
+  'group-hug': { protection: 5 },
+};
+
+export function archetypeBuildProfile(id) {
+  return { ...BASE_PROFILE, ...(PROFILE_OVERRIDES[id] || {}) };
+}
+
 export function tagsMatchArchetype(tags, archetype) {
   if (!archetype || archetype.id === 'any') return false;
   for (const t of tags) {
