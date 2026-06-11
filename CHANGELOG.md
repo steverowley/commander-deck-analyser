@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.48.0 — Undo for Vault removals
+
+### Vault (part 1 of #191)
+- **Removed a card by mistake? Undo it.** Deleting a card from the Vault (grid card trash or list-row trash) now shows an 8-second toast with an **Undo** button that restores the exact quantity and the printing/foil meta. Works signed-in and local.
+- **Toast actions** — the toast bus + host gained optional `{ label, onClick }` action buttons, available for future flows.
+
+(The other half of #191 — Ctrl+Z in the deck editor via the swap log — stays open.)
+
 ## v0.47.0 — Pods: logging a rematch is just picking the winner
 
 ### Pods (closes #197)

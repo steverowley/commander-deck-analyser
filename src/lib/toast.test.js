@@ -51,3 +51,16 @@ describe('toast bus', () => {
     expect(a).not.toBe(b);
   });
 });
+
+describe('toast actions', () => {
+  it('passes an action through to subscribers, defaults to null', () => {
+    const seen = [];
+    const off = onToast((t) => seen.push(t));
+    const onClick = () => {};
+    toast('Removed Sol Ring', { action: { label: 'Undo', onClick } });
+    toast('plain');
+    off();
+    expect(seen[0].action).toEqual({ label: 'Undo', onClick });
+    expect(seen[1].action).toBeNull();
+  });
+});

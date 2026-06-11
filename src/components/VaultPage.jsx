@@ -22,7 +22,9 @@ import { VaultCard } from './VaultCard.jsx';
 import { ManaSymbol } from './ManaCost.jsx';
 import {
   loadCollection,
+  addToCollection,
   setCardQuantity,
+  setCardMeta,
   bulkAddToCollection,
   bulkImportVault,
   clearCollection,
@@ -306,9 +308,29 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
   };
 
   const remove = async (entry) => {
+    // Snapshot before the delete so Undo can restore quantity + meta
+    // (printing/foil picks) exactly.
+    const snapshot = { name: entry.name, quantity: entry.quantity || 1, meta: entry.meta ? { ...entry.meta } : null };
     const ok = await setCardQuantity(entry.name, 0);
-    if (!ok) toast.error(`Couldn't remove ${entry.name} — check your connection.`);
+    if (!ok) {
+      toast.error(`Couldn't remove ${entry.name} — check your connection.`);
+      await refresh();
+      return;
+    }
     await refresh();
+    toast(`Removed ${snapshot.name} from your Vault.`, {
+      duration: 8000,
+      action: {
+        label: 'Undo',
+        onClick: async () => {
+          await addToCollection(snapshot.name, snapshot.quantity);
+          if (snapshot.meta && Object.keys(snapshot.meta).length > 0) {
+            await setCardMeta(snapshot.name, snapshot.meta);
+          }
+          await refresh();
+        },
+      },
+    });
   };
 
   const clearAll = async () => {
