@@ -18,6 +18,7 @@ import { CREAM, CREAM_DIM, CREAM_FAINT, BG } from '../theme.js';
 import { cardImageUrl } from '../lib/scryfall.js';
 import { setCardMeta, setCardQuantity } from '../lib/collection.js';
 import { toast } from '../lib/toast.js';
+import { confirmDialog } from '../lib/confirm.js';
 import { PrintingPickerModal } from './Modals.jsx';
 
 const FOIL_STYLES = ['rainbow', 'galaxy', 'surge', 'etched', 'oil'];
@@ -68,7 +69,7 @@ export function VaultCard({ entry, card, onChanged, size = 'md', showArtFoil = t
 
   const remove = async (e) => {
     e?.stopPropagation();
-    if (!confirm(`Remove ${entry.name} from your Vault?`)) return;
+    if (!(await confirmDialog(`Remove ${entry.name} from your Vault?`, { confirmLabel: 'Remove' }))) return;
     setBusy(true);
     try {
       const ok = await setCardQuantity(entry.name, 0);

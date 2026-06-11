@@ -19,6 +19,7 @@ import {
   listPodMembers, addPodMember, removePodMember,
   listGames, logGame, deleteGame, aggregatePodStats,
 } from '../lib/pods.js';
+import { confirmDialog } from '../lib/confirm.js';
 
 export function PodsPage({ onBack, signedIn, decks = [] }) {
   const [pods, setPods] = useState([]);
@@ -62,7 +63,7 @@ export function PodsPage({ onBack, signedIn, decks = [] }) {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Delete this pod and all its games?')) return;
+    if (!(await confirmDialog('Delete this pod and all its games?', { confirmLabel: 'Delete' }))) return;
     await deletePod(id);
     await refresh();
     if (selectedId === id) setSelectedId(null);
@@ -223,13 +224,13 @@ function PodDetail({ pod, decks }) {
   };
 
   const handleRemoveMember = async (id) => {
-    if (!confirm('Remove this member? Their game history stays in the log.')) return;
+    if (!(await confirmDialog('Remove this member? Their game history stays in the log.', { confirmLabel: 'Remove' }))) return;
     await removePodMember(id);
     await refresh();
   };
 
   const handleDeleteGame = async (id) => {
-    if (!confirm('Delete this game?')) return;
+    if (!(await confirmDialog('Delete this game?', { confirmLabel: 'Delete' }))) return;
     await deleteGame(id);
     await refresh();
   };
