@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.42.0 — Vault-aware deck editing
+
+The Vault and the deck editor finally talk to each other (closes #196). Ownership data was already loaded for Buylist and coverage stats — now it's visible while you build.
+
+### UI
+- **"vault ×N" chip on editor card rows** — every card in the Cards tab shows a green ownership badge when it's in your Vault (with copy count). `CardRow` takes an `owned` prop; `CardsTab` loads the collection once on mount.
+- **Ownership badges on EDHREC recommendations** — both the Top Synergy list and the By Theme groups mark recs you already own.
+- **"Owned only" filter in the Recs tab** — checkbox next to the Top Synergy / By Theme / Cuts picker filters recommendations to cards in your Vault (the synergy list pulls a deeper 400-candidate pool before filtering so a small Vault still fills the list). Distinct empty state with a one-click "Show all →" when nothing matches; themes that end up empty are hidden rather than rendered as bare headers.
+
 ## v0.41.0 — UX hardening: the app tells you when things work (and when they don't)
 
 A full user-experience review (filed as issues #177–#200) found the recurring theme: writes could fail silently, mobile users had no import path, and unsaved work evaporated. This release fixes the worst of it.

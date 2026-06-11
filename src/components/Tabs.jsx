@@ -15,6 +15,7 @@ import { fetchRecommendations, topRecommendations, recommendationsByTheme, theme
 import { fetchCardByExactName, resolveScryfallUrl, extractDroppedScryfallUrl, rehydrateMissingOracleText } from '../lib/scryfall.js';
 import { checkDeckLegality } from '../lib/legality.js';
 import { runAntipatternChecks } from '../lib/antipatterns.js';
+import { loadCollection, ownedCount } from '../lib/collection.js';
 import { CardSearchBar, CardRow, TagPill, CardThumb, StatBox, FlagBox, ProbCard, EmptyState, HelpTip } from './UI.jsx';
 import { toast } from '../lib/toast.js';
 import { ScryfallSearchPanel, SCRYFALL_DRAG_MIME } from './ScryfallSearchPanel.jsx';
@@ -303,6 +304,10 @@ export function CardsTab({ deck, onUpdate }) {
 
   const [recentlyRejected, setRecentlyRejected] = useState([]);
   const [searchTarget, setSearchTarget] = useState('deck');
+  // Vault ownership — loaded once so every card row can wear its
+  // "vault ×N" chip. Null until loaded; ownedCount handles that.
+  const [collection, setCollection] = useState(null);
+  useEffect(() => { loadCollection().then(setCollection); }, []);
   // The CardSearchBar hands resolved cards back here. We branch on the
   // target toggle: deck (default) routes through safeAddCards; wishlist
   // adds without consuming a slot in the 100-card cap.
@@ -514,6 +519,7 @@ export function CardsTab({ deck, onUpdate }) {
               key={c.name}
               entry={c}
               idx={i}
+              owned={ownedCount(collection, c.name)}
               onChangeCount={changeCount}
               onRemove={removeCard}
               onDemoteToWishlist={() => onUpdate(demoteToWishlist(deck, c.name))}
@@ -2294,6 +2300,11 @@ export function RecommendationsTab({ deck, onUpdate }) {
   const [error, setError] = useState(null);
   const [adding, setAdding] = useState({}); // { cardName: true } while fetching
   const [view, setView] = useState('synergy'); // 'synergy' | 'theme'
+  // Vault ownership — powers the "vault ×N" badge per rec and the
+  // owned-only filter (build from what you already have).
+  const [collection, setCollection] = useState(null);
+  const [ownedOnly, setOwnedOnly] = useState(false);
+  useEffect(() => { loadCollection().then(setCollection); }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -2320,16 +2331,27 @@ export function RecommendationsTab({ deck, onUpdate }) {
     return s;
   }, [deck.cards, deck.commander]);
 
-  const topList = useMemo(
-    () => (recs ? topRecommendations(recs, excludeNames, 40) : []),
-    [recs, excludeNames]
-  );
+  const topList = useMemo(() => {
+    if (!recs) return [];
+    // When filtering to owned cards, pull a deeper candidate pool so a
+    // small Vault still fills the list before the slice back to 40.
+    const list = topRecommendations(recs, excludeNames, ownedOnly ? 400 : 40);
+    if (!ownedOnly) return list;
+    return list.filter((r) => ownedCount(collection, r.name) > 0).slice(0, 40);
+  }, [recs, excludeNames, ownedOnly, collection]);
 
   const archetype = useMemo(() => classifyArchetype(deck).primary, [deck.cards, deck.commander]);
 
   const byTheme = useMemo(
-    () => (recs ? themesForArchetype(recs, archetype?.id, excludeNames).map((t) => ({ ...t, cards: t.cards.slice(0, 8) })) : []),
-    [recs, excludeNames, archetype]
+    () => (recs
+      ? themesForArchetype(recs, archetype?.id, excludeNames)
+          .map((t) => ({
+            ...t,
+            cards: (ownedOnly ? t.cards.filter((r) => ownedCount(collection, r.name) > 0) : t.cards).slice(0, 8),
+          }))
+          .filter((t) => t.cards.length > 0)
+      : []),
+    [recs, excludeNames, archetype, ownedOnly, collection]
   );
 
   const cuts = useMemo(
@@ -2429,6 +2451,12 @@ export function RecommendationsTab({ deck, onUpdate }) {
             </button>
           ))}
         </div>
+        {view !== 'cuts' && (
+          <label className="inline-flex items-center gap-1.5 ml-3 cursor-pointer align-middle" title="Only show recommendations you already own in your Vault">
+            <input type="checkbox" checked={ownedOnly} onChange={(e) => setOwnedOnly(e.target.checked)} />
+            <span className="font-mono text-[10px]" style={{ color: ownedOnly ? CREAM : CREAM_DIM }}>owned only</span>
+          </label>
+        )}
       </div>
 
       {nearMissCombos.length > 0 && (
@@ -2529,6 +2557,7 @@ export function RecommendationsTab({ deck, onUpdate }) {
             <RecRow
               key={rec.name}
               rec={rec}
+              owned={ownedCount(collection, rec.name)}
               busy={!!adding[rec.name]}
               onAdd={() => addRec(rec)}
             />
@@ -2568,6 +2597,7 @@ export function RecommendationsTab({ deck, onUpdate }) {
                   <RecRow
                     key={rec.name}
                     rec={rec}
+                    owned={ownedCount(collection, rec.name)}
                     busy={!!adding[rec.name]}
                     onAdd={() => addRec(rec)}
                     compact
@@ -2620,7 +2650,16 @@ export function RecommendationsTab({ deck, onUpdate }) {
 
       {!loading && !error && (view === 'synergy' || view === 'theme') && topList.length === 0 && byTheme.length === 0 && recs && (
         <div className="border p-12 text-center font-serif text-sm italic" style={{ borderColor: CREAM_FAINT, color: CREAM_DIM }}>
-          You already have all of EDHREC's top recommendations for this commander. Nice.
+          {ownedOnly ? (
+            <>
+              None of EDHREC's recommendations for this commander are in your Vault.{' '}
+              <button onClick={() => setOwnedOnly(false)} className="underline hover:opacity-100" style={{ color: CREAM }}>
+                Show all →
+              </button>
+            </>
+          ) : (
+            <>You already have all of EDHREC's top recommendations for this commander. Nice.</>
+          )}
         </div>
       )}
     </div>
@@ -2713,7 +2752,7 @@ function CutRow({ cut, replacements, busy, onRemove, onReplace }) {
   );
 }
 
-function RecRow({ rec, busy, onAdd, compact }) {
+function RecRow({ rec, busy, onAdd, compact, owned = 0 }) {
   const inclusionPct = Math.round(rec.inclusion * 100);
   const synergyLabel =
     rec.synergy >= 0.2 ? 'high' :
@@ -2735,8 +2774,17 @@ function RecRow({ rec, busy, onAdd, compact }) {
         />
       )}
       <div className="flex-1 min-w-0">
-        <div className="font-serif font-bold uppercase tracking-tight truncate" style={{ color: CREAM, fontSize: compact ? '0.85rem' : '0.95rem' }}>
-          {rec.name}
+        <div className="font-serif font-bold uppercase tracking-tight truncate flex items-baseline gap-2" style={{ color: CREAM, fontSize: compact ? '0.85rem' : '0.95rem' }}>
+          <span className="truncate">{rec.name}</span>
+          {owned > 0 && (
+            <span
+              className="font-mono text-[9px] tracking-wider shrink-0 normal-case"
+              style={{ color: '#a3c98a' }}
+              title={`You own ${owned} cop${owned === 1 ? 'y' : 'ies'} in your Vault`}
+            >
+              vault ×{owned}
+            </span>
+          )}
         </div>
         {!compact && rec.label && (
           <div className="font-serif text-xs italic truncate" style={{ color: CREAM_DIM }}>

@@ -459,7 +459,7 @@ export function RuleSection({ title, children }) {
 
 // ───────────────────────────────────────────────────────────────────────────────
 
-export function CardRow({ entry, idx, onChangeCount, onRemove, onEditTags, onDemoteToWishlist, onChangePrinting }) {
+export function CardRow({ entry, idx, onChangeCount, onRemove, onEditTags, onDemoteToWishlist, onChangePrinting, owned = 0 }) {
   const c = entry.scryfall;
   const [hoverPos, setHoverPos] = useState(null);
   const [imgError, setImgError] = useState(false);
@@ -545,6 +545,14 @@ export function CardRow({ entry, idx, onChangeCount, onRemove, onEditTags, onDem
       </div>
       <div className="flex flex-col items-end gap-1.5 shrink-0">
         <div className="font-mono text-[10px] tracking-wider text-right flex items-center gap-1.5" style={{ color: CREAM_DIM }}>
+          {owned > 0 && (
+            <>
+              <span style={{ color: '#a3c98a' }} title={`You own ${owned} cop${owned === 1 ? 'y' : 'ies'} in your Vault`}>
+                vault ×{owned}
+              </span>
+              <span className="opacity-50">·</span>
+            </>
+          )}
           <span>cmc · {c.cmc ?? 0}</span>
           {(() => {
             const cur = loadSettings().currency || 'usd';
