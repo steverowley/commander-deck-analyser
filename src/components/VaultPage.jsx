@@ -9,7 +9,7 @@
  * Rendered by App.jsx when view === 'vault'.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronLeft, Loader2, Library, Camera, ClipboardPaste, Trash2, Plus, Minus, X,
   Crown, BarChart3, Coins, Layers, Download, FileUp,
@@ -772,6 +772,25 @@ function InventorySection({
   const TYPES = ['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Planeswalker', 'Land'];
   const COLORS = ['W', 'U', 'B', 'R', 'G', 'M', 'C'];
 
+  // Incremental rendering (#192): a 1,000-card Vault used to mount
+  // 1,000 image nodes at once. Render in batches and extend when the
+  // sentinel below the grid scrolls near the viewport.
+  const BATCH = 60;
+  const [visibleCount, setVisibleCount] = useState(BATCH);
+  const sentinelRef = useRef(null);
+  useEffect(() => { setVisibleCount(BATCH); }, [entries]);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    const obs = new IntersectionObserver((hits) => {
+      if (hits.some((h) => h.isIntersecting)) {
+        setVisibleCount((c) => Math.min(c + BATCH, entries.length));
+      }
+    }, { rootMargin: '600px' });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [entries.length, visibleCount]);
+
   const clearFilters = () => {
     setFilter('');
     setTypeFilter(null);
@@ -904,7 +923,7 @@ function InventorySection({
         </div>
       ) : view === 'grid' ? (
         <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {entries.map((entry) => {
+          {entries.slice(0, visibleCount).map((entry) => {
             const card = printingCards[lc(entry.name)] || cardData[lc(entry.name)];
             return (
               <div key={entry.name} className="flex flex-col gap-2">
@@ -929,7 +948,7 @@ function InventorySection({
         </div>
       ) : (
         <div className="mt-3 border" style={{ borderColor: CREAM_FAINT }}>
-          {entries.map((entry) => (
+          {entries.slice(0, visibleCount).map((entry) => (
             <div key={entry.name} className="px-5 py-2.5 border-b flex items-center gap-3" style={{ borderColor: CREAM_FAINT }}>
               <div className="flex-1 min-w-0">
                 <div className="font-serif font-bold uppercase tracking-tight truncate text-sm" style={{ color: CREAM }}>
@@ -950,6 +969,11 @@ function InventorySection({
               </button>
             </div>
           ))}
+        </div>
+      )}
+      {visibleCount < entries.length && (
+        <div ref={sentinelRef} className="p-6 text-center font-mono text-[10px] tracking-wider" style={{ color: CREAM_DIM }}>
+          Showing {visibleCount} of {entries.length} — scroll for more
         </div>
       )}
     </div>

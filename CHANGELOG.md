@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.46.0 — Big Vaults stop melting phones
+
+### Performance (closes #192)
+- **Incremental Inventory rendering.** The Vault grid/list now mounts 60 entries at a time and extends via an IntersectionObserver sentinel (600px look-ahead) instead of mounting every card at once — a 1,000-card collection no longer creates 1,000 image nodes on page load. Batch count resets whenever filters/sort change; a "Showing X of Y — scroll for more" line marks the boundary. No dependency added.
+
 ## v0.45.0 — CSV imports now catch typos
 
 ### Vault (closes #200)
