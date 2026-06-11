@@ -434,4 +434,31 @@ describe('buildSeededDeck', () => {
     const plains = cards.find((c) => c.name === 'Plains')?.count ?? 0;
     expect(islands).toBeGreaterThan(plains);
   });
+
+  it('degenerate all-role pool with no lands still gets a real land base (make-room hardening)', async () => {
+    // Fuzz case from the PR-176 review: every pool card is a role card
+    // (ramp / draw / removal) — zero lands, zero 'other' fillers. The
+    // old make-room loop could only drop 'other', so basics never fit
+    // and the deck shipped with 0-2 lands.
+    const pool = [
+      ...Array.from({ length: 33 }, (_, i) => makeRamp(i)),
+      ...Array.from({ length: 33 }, (_, i) => makeDraw(i)),
+      ...Array.from({ length: 33 }, (_, i) => makeRemoval(i)),
+    ];
+    fetchRecommendations.mockResolvedValue(pool.map((c) => ({ name: c.name })));
+    fetchCardsByName.mockImplementation(async () => ({
+      results: buildResults(pool),
+      notFound: [],
+      errors: [],
+    }));
+
+    const commander = { name: 'Test Cmdr', color_identity: ['G'] };
+    const { cards, summary } = await buildSeededDeck(commander);
+
+    expect(totalCount(cards)).toBe(99);
+    // No nonbasic lands exist in this pool, so every land is a padded
+    // basic — the land base must reach a sane floor, not 0-2.
+    expect(summary.basics).toBeGreaterThanOrEqual(30);
+  });
+
 });

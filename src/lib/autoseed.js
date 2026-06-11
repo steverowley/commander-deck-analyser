@@ -374,6 +374,21 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
         dropped++;
       }
     }
+    // Degenerate-pool hardening (#176 review finding): a pool that is
+    // ALL role-cards (no 'other' synergy fillers) used to leave nothing
+    // droppable here, so the land slots never opened up and the deck
+    // shipped with 0-2 lands. When 'other' is exhausted, shed role
+    // fillers from the end — overflow-fill order, i.e. the lowest-
+    // priority adds — until the land target fits. Lands are never
+    // dropped to make room for lands.
+    for (let i = entries.length - 1; i >= 0 && dropped < needToDrop; i--) {
+      const cat = categorize(entries[i].scryfall);
+      if (cat === 'land') continue;
+      entries.splice(i, 1);
+      if (summary[cat] !== undefined) summary[cat]--;
+      else summary.other--;
+      dropped++;
+    }
     const room = DECK_TOTAL - totalSlots(entries);
     const padCount = Math.min(wanted, room);
     if (padCount > 0) {

@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.54.0 — The roller builds to the health model
+
+Lands PR #176's work (rebased onto v0.53.1 and hardened past its known edge case).
+
+### Roller
+- **`archetypes.js`** — per-archetype build profiles (`archetypeBuildProfile`) on a Command Zone "New Era" + Four Pillars base, with consensus overrides (Voltron fewer lands / more protection, Aristocrats more wipes, Combo/Reanimator more recursion + closers, etc.).
+- **`autoseed.js`** — protection / recursion / win-condition are first-class build buckets; targets come from the archetype profile; tutors no longer count as card draw (matches `health.js`); padded basics are pip-weighted instead of an even split.
+- **Edge case fixed (the gate #176 left open):** a degenerate pool of all role-cards with no lands and no 'other' fillers could ship a 0–2-land deck because the make-room loop only dropped 'other'. It now sheds role fillers from the end (overflow order) once 'other' is exhausted — lands are never dropped to make room for lands. Pinned by a new fuzz-case regression test.
+- Roll summary note reports protection + recursion.
+
+### Tests
+- 4 new in `autoseed.test.js` (3 from #176 + the degenerate-pool regression). Suite: 546 passing.
+
 ## v0.53.1 — Project notes catch up with the UX-hardening run
 
 - `CLAUDE.md` updated: test count (542 as of v0.53.0), the changelog↔version lock-step test, and a new "Shared UX systems" section documenting the toast bus, confirm dialog, hash router, modal-behavior hook, editor undo stack, the deck+collection sign-in migration semantics, and the unsaved-roll backstop — so future sessions extend these instead of reinventing them.
