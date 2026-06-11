@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.51.0 — URLs at last: refresh keeps your place, decks are linkable
+
+### Routing (closes #195)
+- **New hash router** (`src/lib/router.js`, dependency-free): `#/deck/:id`, `#/vault`, `#/pods`, `#/gallery`, `#/rolls`, plus public permalinks `#/gallery/:id` and `#/roll/:id` that rehydrate read-only via the existing Supabase lazy loaders. Routes all start with `#/` so legacy `#d=` share links keep working untouched.
+- **App state ↔ hash, both ways.** Deep links and browser back/forward apply the route (mount + hashchange/popstate); in-app navigation writes the hash (push for navigation, replace for the first hashless load — no junk history entries). Refresh mid-editor now reopens the same deck instead of dumping you on the homepage.
+- **Viewing a gallery deck or roll puts its shareable permalink in the address bar.** Transient rolled decks stay unroutable by design (they can't be rehydrated after a refresh — the `vault:lastRoll` draft from v0.41.0 covers that case).
+
+### Tests
+- 10 new cases in `router.test.js` — parse/format round-trips for every view, URI encoding, share-link non-collision, unknown-route fallbacks, transient-id rejection.
+
 ## v0.50.0 — Esc closes every modal
 
 ### Accessibility (part 1 of #189)
