@@ -129,6 +129,11 @@ export function GalleryAllView({ onBack, onImportFromGallery, onViewDeck }) {
           ))}
         </div>
       )}
+      {decks && decks.length >= PAGE_LIMIT && (
+        <div className="font-serif text-xs italic text-center mt-4" style={{ color: CREAM_DIM }}>
+          Showing the {PAGE_LIMIT} most recent public decks — use the search and filters to narrow down.
+        </div>
+      )}
     </div>
   );
 }

@@ -252,3 +252,41 @@ describe('fetchDeckFromUrl', () => {
     }
   });
 });
+
+describe('fetchDeckFromUrl — friendly error mapping', () => {
+  const withFetch = async (impl, fn) => {
+    const original = global.fetch;
+    global.fetch = impl;
+    try { await fn(); } finally { global.fetch = original; }
+  };
+
+  it('explains private decks instead of HTTP 401', async () => {
+    await withFetch(vi.fn(async () => ({ ok: false, status: 401, json: async () => ({}) })), async () => {
+      await expect(fetchDeckFromUrl('https://www.moxfield.com/decks/abc')).rejects.toThrow(
+        /private — make it public on Moxfield/
+      );
+    });
+  });
+
+  it('explains missing decks instead of HTTP 404', async () => {
+    await withFetch(vi.fn(async () => ({ ok: false, status: 404, json: async () => ({}) })), async () => {
+      await expect(fetchDeckFromUrl('https://archidekt.com/decks/999')).rejects.toThrow(
+        /No deck found at that URL/
+      );
+    });
+  });
+
+  it('suggests pasting the list when the network call itself fails', async () => {
+    await withFetch(vi.fn(async () => { throw new Error('TypeError: Failed to fetch'); }), async () => {
+      await expect(fetchDeckFromUrl('https://www.moxfield.com/decks/abc')).rejects.toThrow(
+        /Couldn't reach Moxfield.*paste the decklist/
+      );
+    });
+  });
+
+  it('names the right service per source', async () => {
+    await withFetch(vi.fn(async () => ({ ok: false, status: 403, json: async () => ({}) })), async () => {
+      await expect(fetchDeckFromUrl('https://archidekt.com/decks/123')).rejects.toThrow(/Archidekt/);
+    });
+  });
+});

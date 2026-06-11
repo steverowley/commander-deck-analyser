@@ -12,7 +12,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ChevronLeft, Loader2, Library, Camera, ClipboardPaste, Trash2, Plus, Minus, X,
-  Crown, BarChart3, Coins, Layers,
+  Crown, BarChart3, Coins, Layers, Download, FileUp,
 } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, parseDecklist, lc } from '../lib/utils.js';
@@ -29,7 +29,8 @@ import {
   uniqueCount,
   totalCount,
 } from '../lib/collection.js';
-import { detectMoxfieldCsv, parseMoxfieldCsv } from '../lib/csvImport.js';
+import { detectMoxfieldCsv, parseMoxfieldCsv, collectionToMoxfieldCsv } from '../lib/csvImport.js';
+import { toast } from '../lib/toast.js';
 import { CardScanner } from './CardScanner.jsx';
 import { computeVaultStats } from '../lib/vaultStats.js';
 import { cardPrice, formatPrice, activePriceSource, vendorLabel, vendorMeta } from '../lib/pricing.js';
@@ -49,6 +50,9 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
   const [bulkText, setBulkText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  // { done, total } while a CSV import is mid-flight — drives the
+  // progress readout in the bulk modal.
+  const [importProgress, setImportProgress] = useState(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [view, setView] = useState('grid');
   const [cardData, setCardData] = useState({});
@@ -177,13 +181,21 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
   const handleAddFromSearch = async (cards) => {
     // bulkAddToCollection batches: one read + one upsert covering all
     // cards, instead of an addToCollection round-trip per card.
-    await bulkAddToCollection(cards.map((c) => ({ name: c.name, quantity: 1 })));
+    const ok = await bulkAddToCollection(cards.map((c) => ({ name: c.name, quantity: 1 })));
+    if (!ok) {
+      toast.error("Couldn't add to your Vault — check your connection.");
+      return;
+    }
+    toast.success(cards.length === 1
+      ? `Added ${cards[0].name} to your Vault.`
+      : `Added ${cards.length} cards to your Vault.`);
     await refresh();
   };
 
   const handleBulkSubmit = async () => {
     setBusy(true);
     setError(null);
+    setImportProgress(null);
     try {
       if (detectMoxfieldCsv(bulkText)) {
         const rows = parseMoxfieldCsv(bulkText);
@@ -191,14 +203,16 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
           setError("Looks like a Moxfield CSV but I couldn't parse any rows.");
           return;
         }
-        const { added, failed, error: importError } = await bulkImportVault(rows);
+        const { added, failed, error: importError } = await bulkImportVault(rows, setImportProgress);
         await refresh();
         if (failed > 0) {
+          // Persistent — stays until the user closes the modal. A
+          // partial-failure summary that self-destructs gets missed.
           setError(`Imported ${added} of ${rows.length}; ${failed} failed${importError ? `: ${importError}` : ''}.`);
-          setTimeout(() => setError(null), 10000);
         } else {
           setBulkText('');
           setShowBulk(false);
+          toast.success(`Imported ${added} card${added === 1 ? '' : 's'} into your Vault.`);
         }
         return;
       }
@@ -207,22 +221,62 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
         setError('No card lines found. Paste a Moxfield CSV, or a list with one card per line ("Nx" prefix optional).');
         return;
       }
-      await bulkAddToCollection(lines);
+      const ok = await bulkAddToCollection(lines);
+      if (!ok) {
+        setError("Couldn't write to your Vault — check your connection and try again.");
+        return;
+      }
       await refresh();
       setBulkText('');
       setShowBulk(false);
+      toast.success(`Added ${lines.length} card${lines.length === 1 ? '' : 's'} to your Vault.`);
     } finally {
       setBusy(false);
+      setImportProgress(null);
     }
   };
 
+  const closeBulk = () => {
+    if (busy) return; // an upload is mid-flight — don't orphan it silently
+    setShowBulk(false);
+    setError(null);
+  };
+
+  const handlePickCsvFile = async (file) => {
+    if (!file) return;
+    try {
+      setBulkText(await file.text());
+      setError(null);
+    } catch {
+      setError(`Couldn't read "${file.name}" — try again or paste the contents instead.`);
+    }
+  };
+
+  const exportCsv = () => {
+    const csv = collectionToMoxfieldCsv(collection || {});
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `vault-collection-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
   const adjust = async (entry, delta) => {
-    await setCardQuantity(entry.name, (entry.quantity || 0) + delta);
+    const ok = await setCardQuantity(entry.name, (entry.quantity || 0) + delta);
+    if (!ok) toast.error(`Couldn't update ${entry.name} — check your connection.`);
+    await refresh();
+  };
+
+  const setQty = async (entry, qty) => {
+    const ok = await setCardQuantity(entry.name, qty);
+    if (!ok) toast.error(`Couldn't update ${entry.name} — check your connection.`);
     await refresh();
   };
 
   const remove = async (entry) => {
-    await setCardQuantity(entry.name, 0);
+    const ok = await setCardQuantity(entry.name, 0);
+    if (!ok) toast.error(`Couldn't remove ${entry.name} — check your connection.`);
     await refresh();
   };
 
@@ -357,8 +411,9 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
             hasFilter={hasFilter}
             confirmClear={confirmClear} setConfirmClear={setConfirmClear}
             clearAll={clearAll} busy={busy}
-            adjust={adjust} remove={remove}
+            adjust={adjust} remove={remove} setQty={setQty}
             refresh={refresh}
+            onExportCsv={exportCsv}
           />
         </>
       )}
@@ -366,8 +421,11 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
       {showBulk && (
         <BulkPasteModal
           bulkText={bulkText} setBulkText={setBulkText}
-          busy={busy} onClose={() => setShowBulk(false)}
+          busy={busy} onClose={closeBulk}
           onSubmit={handleBulkSubmit}
+          error={error}
+          progress={importProgress}
+          onPickFile={handlePickCsvFile}
         />
       )}
       {showScanner && (
@@ -674,7 +732,8 @@ function InventorySection({
   filter, setFilter, typeFilter, setTypeFilter, colorFilter, setColorFilter,
   sort, setSort, showOnlyUnused, setShowOnlyUnused, hasFilter,
   confirmClear, setConfirmClear, clearAll, busy,
-  adjust, remove, refresh,
+  adjust, remove, setQty, refresh,
+  onExportCsv,
 }) {
   const TYPES = ['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Planeswalker', 'Land'];
   const COLORS = ['W', 'U', 'B', 'R', 'G', 'M', 'C'];
@@ -742,6 +801,16 @@ function InventorySection({
               </button>
             ))}
           </div>
+          {collection && Object.keys(collection).length > 0 && (
+            <button
+              onClick={onExportCsv}
+              className="font-serif text-[10px] tracking-[0.3em] uppercase flex items-center gap-1"
+              style={{ color: CREAM_DIM }}
+              title="Download your Vault as a Moxfield-compatible CSV"
+            >
+              <Download className="w-3 h-3" /> Export CSV
+            </button>
+          )}
           {collection && Object.keys(collection).length > 0 && (
             confirmClear ? (
               <span className="font-serif text-[10px] tracking-[0.3em] uppercase flex items-center gap-2">
@@ -814,7 +883,7 @@ function InventorySection({
                     <button onClick={() => adjust(entry, -1)} className="w-6 h-6" style={{ color: CREAM_DIM }} aria-label="Decrease">
                       <Minus className="w-2.5 h-2.5 mx-auto" />
                     </button>
-                    <span className="w-6 text-center font-mono text-[10px]" style={{ color: CREAM }}>{entry.quantity}</span>
+                    <QtyInput entry={entry} onCommit={(n) => setQty(entry, n)} className="w-8 h-6 text-center font-mono text-[10px]" />
                     <button onClick={() => adjust(entry, +1)} className="w-6 h-6" style={{ color: CREAM_DIM }} aria-label="Increase">
                       <Plus className="w-2.5 h-2.5 mx-auto" />
                     </button>
@@ -837,7 +906,7 @@ function InventorySection({
                 <button onClick={() => adjust(entry, -1)} className="w-7 h-7" style={{ color: CREAM_DIM }} aria-label="Decrease">
                   <Minus className="w-3 h-3 mx-auto" />
                 </button>
-                <span className="w-8 text-center font-mono text-sm" style={{ color: CREAM }}>{entry.quantity}</span>
+                <QtyInput entry={entry} onCommit={(n) => setQty(entry, n)} className="w-10 h-7 text-center font-mono text-sm" />
                 <button onClick={() => adjust(entry, +1)} className="w-7 h-7" style={{ color: CREAM_DIM }} aria-label="Increase">
                   <Plus className="w-3 h-3 mx-auto" />
                 </button>
@@ -853,7 +922,7 @@ function InventorySection({
   );
 }
 
-function BulkPasteModal({ bulkText, setBulkText, busy, onClose, onSubmit }) {
+function BulkPasteModal({ bulkText, setBulkText, busy, onClose, onSubmit, error, progress, onPickFile }) {
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center p-4"
@@ -865,7 +934,7 @@ function BulkPasteModal({ bulkText, setBulkText, busy, onClose, onSubmit }) {
           <div className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
             Bulk paste
           </div>
-          <button onClick={onClose} style={{ color: CREAM_DIM }}>
+          <button onClick={onClose} disabled={busy} className="disabled:opacity-30" style={{ color: CREAM_DIM }}>
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -873,6 +942,21 @@ function BulkPasteModal({ bulkText, setBulkText, busy, onClose, onSubmit }) {
           <p className="font-serif text-xs italic" style={{ color: CREAM_DIM }}>
             Two formats accepted: <span style={{ color: CREAM }}>Moxfield collection CSV export</span> (auto-detected — replaces quantities, captures foil flags), or a decklist with one card per line + optional <code style={{ color: CREAM }}>Nx</code> prefix.
           </p>
+          <label
+            className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-2 inline-flex items-center gap-1.5 cursor-pointer hover:opacity-100"
+            style={{ borderColor: CREAM_FAINT, color: CREAM }}
+          >
+            <FileUp className="w-3 h-3" /> Choose .csv file…
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              onChange={(e) => {
+                onPickFile?.(e.target.files?.[0]);
+                e.target.value = '';
+              }}
+            />
+          </label>
           <textarea
             value={bulkText}
             onChange={(e) => setBulkText(e.target.value)}
@@ -881,9 +965,14 @@ function BulkPasteModal({ bulkText, setBulkText, busy, onClose, onSubmit }) {
             className="w-full bg-transparent border px-3 py-2 focus:outline-none font-mono text-xs"
             style={{ borderColor: CREAM_FAINT, color: CREAM }}
           />
+          {error && (
+            <div className="border border-l-4 p-3" style={{ borderColor: ACCENT, background: 'rgba(var(--accent-rgb),0.06)' }}>
+              <div className="font-mono text-xs" style={{ color: CREAM }}>{error}</div>
+            </div>
+          )}
         </div>
         <div className="px-5 py-3 border-t flex justify-end gap-3" style={{ borderColor: CREAM_FAINT }}>
-          <button onClick={onClose} className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+          <button onClick={onClose} disabled={busy} className="font-serif text-[10px] tracking-[0.3em] uppercase disabled:opacity-30" style={{ color: CREAM_DIM }}>
             Cancel
           </button>
           <button
@@ -892,11 +981,45 @@ function BulkPasteModal({ bulkText, setBulkText, busy, onClose, onSubmit }) {
             className="font-serif text-[10px] tracking-[0.3em] uppercase border px-4 py-2 disabled:opacity-30"
             style={{ borderColor: CREAM, color: CREAM, background: 'rgba(var(--ink-rgb),0.06)' }}
           >
-            {busy ? 'Adding…' : 'Add to Vault →'}
+            {busy
+              ? (progress ? `Importing… ${progress.done} / ${progress.total}` : 'Adding…')
+              : 'Add to Vault →'}
           </button>
         </div>
       </div>
     </div>
+  );
+}
+
+// Direct-entry quantity field flanked by the ± steppers. Commits on
+// blur / Enter; Escape reverts. Typing 0 removes the card (same rule
+// as setCardQuantity).
+function QtyInput({ entry, onCommit, className }) {
+  const [val, setVal] = useState(String(entry.quantity ?? 0));
+  useEffect(() => { setVal(String(entry.quantity ?? 0)); }, [entry.quantity]);
+  const commit = () => {
+    const n = parseInt(val, 10);
+    if (!Number.isFinite(n) || n < 0 || n === entry.quantity) {
+      setVal(String(entry.quantity ?? 0));
+      return;
+    }
+    onCommit(n);
+  };
+  return (
+    <input
+      type="number"
+      min="0"
+      value={val}
+      onChange={(e) => setVal(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') e.currentTarget.blur();
+        if (e.key === 'Escape') setVal(String(entry.quantity ?? 0));
+      }}
+      className={`bg-transparent focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${className || ''}`}
+      style={{ color: CREAM }}
+      aria-label={`Quantity of ${entry.name}`}
+    />
   );
 }
 

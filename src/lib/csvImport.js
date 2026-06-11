@@ -79,3 +79,43 @@ export function parseMoxfieldCsv(text) {
   }
   return out;
 }
+
+/* ─── Export ───────────────────────────────────────────────────────────── */
+
+const EXPORT_HEADER = '"Count","Tradelist Count","Name","Edition","Condition","Language","Foil","Tags","Last Modified","Collector Number","Alter","Proxy","Purchase Price"';
+
+function csvCell(value) {
+  return `"${String(value ?? '').replace(/"/g, '""')}"`;
+}
+
+// Reverse of FOIL_MAP, best-effort: Moxfield only understands
+// foil/etched, so the fancier internal styles (gilded, galaxy, …)
+// export as plain "foil" rather than silently dropping the flag.
+function foilToMoxfield(style) {
+  if (!style) return '';
+  return style === 'etched' ? 'etched' : 'foil';
+}
+
+/**
+ * Serialise a Vault collection map (see lib/collection.js for the
+ * shape) to a Moxfield-compatible collection CSV. The output passes
+ * detectMoxfieldCsv + parseMoxfieldCsv, so a Vault export round-trips
+ * through our own importer — and into Moxfield's.
+ */
+export function collectionToMoxfieldCsv(collection) {
+  const entries = Object.values(collection || {})
+    .filter((e) => e?.name)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const lines = [EXPORT_HEADER];
+  for (const e of entries) {
+    const count = Math.max(1, e.quantity | 0);
+    const foil = foilToMoxfield(e.meta?.foil);
+    lines.push([
+      csvCell(count), csvCell(0), csvCell(e.name),
+      csvCell(''), csvCell(''), csvCell(''),
+      csvCell(foil),
+      csvCell(''), csvCell(''), csvCell(''), csvCell(''), csvCell(''), csvCell(''),
+    ].join(','));
+  }
+  return lines.join('\n');
+}

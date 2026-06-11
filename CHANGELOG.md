@@ -1,5 +1,36 @@
 # Changelog
 
+## v0.41.0 — UX hardening: the app tells you when things work (and when they don't)
+
+A full user-experience review (filed as issues #177–#200) found the recurring theme: writes could fail silently, mobile users had no import path, and unsaved work evaporated. This release fixes the worst of it.
+
+### Feedback everywhere (closes #177)
+- **New global toast system** — `src/lib/toast.js` (tiny pub/sub, no dependency) + `<ToastHost/>` mounted at the app root. Success / info / error styles match the drop-overlay notices; errors stay up 8s, everything dismissable.
+- **Cloud write failures now surface.** Deck saves (`handleUpdate`, create, duplicate, copy-from-gallery, save-transient) check the `saveDeck` result and toast an error instead of silently dropping the change. Vault writes (`setCardQuantity`, `bulkAddToCollection`) now return success booleans and their callers toast on failure.
+- **Tap-to-add confirms.** Adding a card from the Scryfall side panel (homepage → Vault, editor → deck) toasts "Added X" — or the strict-mode block reason — since the panel covers the list where the change lands.
+- **Editor "Blocked by strict mode" banner no longer self-destructs after 6s** — it stays until dismissed (new ×) or the next add replaces it (closes #186).
+
+### Data safety
+- **Fixed a real migration data-loss bug:** `uploadLocalDecks` returned 0 on a Supabase insert error, so the first-sign-in migration would clear localStorage decks after a *failed* upload and report "✓ Migrated 0 decks". It now throws; local decks survive a failed migration.
+- **Local Vault migrates on sign-in** (closes #178) — alongside decks, with its own per-account flag (existing accounts pick it up next sign-in). Merge is `max(local, cloud)` per card via new pure `mergeVaultQuantities` so retries can't double-count; cloud printing/foil picks win. Local copy cleared only after every chunk lands.
+- **Unsaved rolled decks survive a refresh/closed tab** (closes #183) — the latest transient roll is mirrored to `vault:lastRoll` on every edit; next visit offers a "Resume / Discard" banner. Saving to the archive or discarding clears it. Rolls still never auto-join the archive.
+- **Read-only gallery views are now labelled** (closes #182) — viewing a gallery deck shows an accent banner "Viewing a gallery deck — changes here won't be kept" with **Copy to my archive →**, instead of silently swallowing edits.
+
+### Vault & imports
+- **Vault CSV export** (closes #179) — Export CSV button in the Inventory controls downloads a Moxfield-compatible CSV (new `collectionToMoxfieldCsv`; round-trips through our own importer, foil flags preserved).
+- **CSV file picker** (closes #180) — "Choose .csv file…" button in Bulk paste reads the file into the textarea; phones and non-drag users finally have a path.
+- **CSV import progress + persistent errors** (closes #181) — the bulk modal shows "Importing… 400 / 2000" (the lib's `onProgress` was never wired), failure summaries no longer auto-clear after 10s and now render *inside* the modal (they used to render behind it, invisible), and the modal can't be closed mid-upload. The drop-overlay CSV path shows live progress too.
+- **Direct quantity entry** (closes #188) — Vault grid/list counts are now editable number inputs (Enter/blur commits, Esc reverts) alongside the ± steppers; 1→10 is no longer nine clicks.
+
+### Friendlier failures & navigation
+- **URL deck-import errors are now actionable** (closes #184): 401/403 → "This deck looks private — make it public on Moxfield…", 404 → "No deck found at that URL…", network/CORS → "Couldn't reach Moxfield — …paste the decklist instead." (was "Upstream returned HTTP 401").
+- **`public/404.html`** (closes #185, part 1) — GitHub Pages SPA fallback preserving query + hash, so share links with a stray path no longer dead-end.
+- **Social meta tags** (closes #185, part 2) — description, Open Graph, Twitter card, `theme-color` in `index.html`. (`og:image` banner asset tracked in #199.)
+- **Browse-all caps are labelled** (closes #187) — gallery + rolls pages note "Showing the 200 most recent…" when the fetch limit is hit.
+
+### Tests
+- 19 new cases: toast bus (5), `collectionToMoxfieldCsv` round-trip/sort/foil/empty (4), `mergeVaultQuantities` max-merge/meta-precedence/case/clamping (6), friendly import-error mapping incl. service naming (4). Suite: 528 passing.
+
 ## v0.40.0 — Roll a deck from a commander you choose
 
 The random-deck roller only ever rolled a *random* commander. Now you can pick the exact commander you want and have the same EDHREC-seeded build pipeline assemble a deck around it. The deck-building backend already took a commander argument — this release adds the way to choose one.

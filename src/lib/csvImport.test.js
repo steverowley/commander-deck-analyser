@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { detectMoxfieldCsv, parseMoxfieldCsv } from './csvImport.js';
+import { detectMoxfieldCsv, parseMoxfieldCsv, collectionToMoxfieldCsv } from './csvImport.js';
 
 const MOX_HEADER = '"Count","Tradelist Count","Name","Edition","Condition","Language","Foil","Tags","Last Modified","Collector Number","Alter","Proxy","Purchase Price"';
 
@@ -61,5 +61,51 @@ describe('parseMoxfieldCsv', () => {
     ].join('\n');
     const rows = parseMoxfieldCsv(text);
     expect(rows[0].name).toBe('Yawgmoth, Thran "Physician"');
+  });
+});
+
+describe('collectionToMoxfieldCsv', () => {
+  const collection = {
+    'sol ring': { name: 'Sol Ring', quantity: 3, added_at: 1, meta: {} },
+    'edgar, markov': { name: 'Edgar, Markov', quantity: 1, added_at: 2, meta: { foil: 'rainbow' } },
+    'yawgmoth, thran "physician"': { name: 'Yawgmoth, Thran "Physician"', quantity: 2, added_at: 3, meta: { foil: 'etched' } },
+  };
+
+  it('round-trips through our own detector + parser', () => {
+    const csv = collectionToMoxfieldCsv(collection);
+    expect(detectMoxfieldCsv(csv)).toBe(true);
+    const rows = parseMoxfieldCsv(csv);
+    expect(rows).toHaveLength(3);
+    const byName = Object.fromEntries(rows.map((r) => [r.name, r]));
+    expect(byName['Sol Ring'].count).toBe(3);
+    expect(byName['Sol Ring'].foil).toBe(null);
+    expect(byName['Edgar, Markov'].count).toBe(1);
+    expect(byName['Edgar, Markov'].foil).toBe('rainbow');
+    expect(byName['Yawgmoth, Thran "Physician"'].count).toBe(2);
+    expect(byName['Yawgmoth, Thran "Physician"'].foil).toBe('etched');
+  });
+
+  it('sorts rows by name and clamps broken quantities to 1', () => {
+    const csv = collectionToMoxfieldCsv({
+      'zur the enchanter': { name: 'Zur the Enchanter', quantity: 0, meta: {} },
+      'arcane signet': { name: 'Arcane Signet', quantity: 2, meta: {} },
+    });
+    const rows = parseMoxfieldCsv(csv);
+    expect(rows.map((r) => r.name)).toEqual(['Arcane Signet', 'Zur the Enchanter']);
+    expect(rows[1].count).toBe(1);
+  });
+
+  it('exports exotic foil styles as plain foil so the flag survives', () => {
+    const csv = collectionToMoxfieldCsv({
+      'sol ring': { name: 'Sol Ring', quantity: 1, meta: { foil: 'gilded' } },
+    });
+    const rows = parseMoxfieldCsv(csv);
+    expect(rows[0].foil).toBe('rainbow'); // Moxfield "foil" maps back to our default foil style
+  });
+
+  it('handles an empty collection (header only)', () => {
+    const csv = collectionToMoxfieldCsv({});
+    expect(detectMoxfieldCsv(csv)).toBe(true);
+    expect(parseMoxfieldCsv(csv)).toEqual([]);
   });
 });

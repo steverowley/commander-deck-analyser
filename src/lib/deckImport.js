@@ -142,15 +142,23 @@ export function detectDeckUrl(url) {
 
 /* ─── Remote fetch ─────────────────────────────────────────────────────── */
 
-async function fetchJson(url, { headers } = {}) {
+async function fetchJson(url, { headers, service = 'the deck site' } = {}) {
   let res;
   try {
     res = await fetch(url, { headers });
   } catch (e) {
-    throw new Error(`Network error fetching ${url}: ${e.message}`);
+    // CORS rejections and offline both land here — the user can't tell
+    // them apart and doesn't need to; the workaround is the same.
+    throw new Error(`Couldn't reach ${service} — check your connection and try again, or paste the decklist instead.`);
+  }
+  if (res.status === 401 || res.status === 403) {
+    throw new Error(`This deck looks private — make it public on ${service}, or paste the decklist instead.`);
+  }
+  if (res.status === 404) {
+    throw new Error(`No deck found at that URL — check the link, or the deck may have been deleted.`);
   }
   if (!res.ok) {
-    throw new Error(`Upstream returned HTTP ${res.status}`);
+    throw new Error(`${service} returned an error (HTTP ${res.status}) — try again in a moment, or paste the decklist instead.`);
   }
   return res.json();
 }
@@ -228,7 +236,8 @@ export async function fetchMoxfieldDeck(deckId) {
   const id = String(deckId || '').trim();
   if (!id) throw new Error('Missing Moxfield deck id');
   const payload = await fetchJson(
-    `https://api2.moxfield.com/v3/decks/all/${encodeURIComponent(id)}`
+    `https://api2.moxfield.com/v3/decks/all/${encodeURIComponent(id)}`,
+    { service: 'Moxfield' }
   );
   return shapeMoxfieldDeck(payload);
 }
@@ -237,7 +246,8 @@ export async function fetchArchidektDeck(deckId) {
   const id = String(deckId || '').trim();
   if (!id) throw new Error('Missing Archidekt deck id');
   const payload = await fetchJson(
-    `https://archidekt.com/api/decks/${encodeURIComponent(id)}/`
+    `https://archidekt.com/api/decks/${encodeURIComponent(id)}/`,
+    { service: 'Archidekt' }
   );
   return shapeArchidektDeck(payload);
 }

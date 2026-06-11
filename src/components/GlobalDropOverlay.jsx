@@ -48,9 +48,13 @@ export function GlobalDropOverlay({ onAddToVault, onAddToDeck, activeDeckName, o
         setTimeout(() => setError(null), 6000);
         return;
       }
-      const { added, failed, error: importError } = await bulkImportVault(rows);
+      const { added, failed, error: importError } = await bulkImportVault(
+        rows,
+        (p) => setNotice(`Importing ${file.name}… ${p.done} / ${p.total}`)
+      );
       onVaultChanged?.();
       if (failed > 0) {
+        setNotice(null);
         setError(`Imported ${added} of ${rows.length}; ${failed} failed${importError ? `: ${importError}` : ''}. (Check the browser console.)`);
         setTimeout(() => setError(null), 10000);
       } else {
