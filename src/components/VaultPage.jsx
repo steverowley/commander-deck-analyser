@@ -53,6 +53,11 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
   // { done, total } while a CSV import is mid-flight — drives the
   // progress readout in the bulk modal.
   const [importProgress, setImportProgress] = useState(null);
+  // Post-import Scryfall name check (#200): typos import "successfully"
+  // but are invisible to pricing / autoseed. After the rows land we
+  // resolve every name and offer to drop the unrecognized ones.
+  const [validateProgress, setValidateProgress] = useState('');
+  const [unrecognized, setUnrecognized] = useState(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [view, setView] = useState('grid');
   const [cardData, setCardData] = useState({});
@@ -209,11 +214,21 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
           // Persistent — stays until the user closes the modal. A
           // partial-failure summary that self-destructs gets missed.
           setError(`Imported ${added} of ${rows.length}; ${failed} failed${importError ? `: ${importError}` : ''}.`);
-        } else {
-          setBulkText('');
-          setShowBulk(false);
-          toast.success(`Imported ${added} card${added === 1 ? '' : 's'} into your Vault.`);
+          return;
         }
+        setBulkText('');
+        // Validate names AFTER the import landed (data is safe either
+        // way). Only report hard not-founds — transient batch errors
+        // must not tell users to delete real cards.
+        setImportProgress(null);
+        const { notFound, errors } = await fetchCardsByName(rows.map((r) => r.name), setValidateProgress);
+        setValidateProgress('');
+        if (errors.length === 0 && notFound.length > 0) {
+          setUnrecognized(notFound);
+          return; // keep the modal open to show the list
+        }
+        setShowBulk(false);
+        toast.success(`Imported ${added} card${added === 1 ? '' : 's'} into your Vault.`);
         return;
       }
       const lines = parseDecklist(bulkText);
@@ -240,6 +255,22 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
     if (busy) return; // an upload is mid-flight — don't orphan it silently
     setShowBulk(false);
     setError(null);
+    setUnrecognized(null);
+    setValidateProgress('');
+  };
+
+  const removeUnrecognized = async () => {
+    const names = unrecognized || [];
+    setBusy(true);
+    try {
+      for (const n of names) await setCardQuantity(n, 0);
+      await refresh();
+      toast.success(`Removed ${names.length} unrecognized name${names.length === 1 ? '' : 's'} from your Vault.`);
+    } finally {
+      setBusy(false);
+      setUnrecognized(null);
+      setShowBulk(false);
+    }
   };
 
   const handlePickCsvFile = async (file) => {
@@ -426,6 +457,9 @@ export function VaultPage({ onBack, signedIn, decks = [], onSelectDeck, onCollec
           error={error}
           progress={importProgress}
           onPickFile={handlePickCsvFile}
+          validateProgress={validateProgress}
+          unrecognized={unrecognized}
+          onRemoveUnrecognized={removeUnrecognized}
         />
       )}
       {showScanner && (
@@ -922,7 +956,7 @@ function InventorySection({
   );
 }
 
-function BulkPasteModal({ bulkText, setBulkText, busy, onClose, onSubmit, error, progress, onPickFile }) {
+function BulkPasteModal({ bulkText, setBulkText, busy, onClose, onSubmit, error, progress, onPickFile, validateProgress, unrecognized, onRemoveUnrecognized }) {
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center p-4"
@@ -968,6 +1002,34 @@ function BulkPasteModal({ bulkText, setBulkText, busy, onClose, onSubmit, error,
           {error && (
             <div className="border border-l-4 p-3" style={{ borderColor: ACCENT, background: 'rgba(var(--accent-rgb),0.06)' }}>
               <div className="font-mono text-xs" style={{ color: CREAM }}>{error}</div>
+            </div>
+          )}
+          {validateProgress && (
+            <div className="font-mono text-xs flex items-center gap-2" style={{ color: CREAM_DIM }}>
+              <Loader2 className="w-3 h-3 animate-spin" /> Checking names against Scryfall — {validateProgress}
+            </div>
+          )}
+          {unrecognized && (
+            <div className="border border-l-4 p-3 space-y-2" style={{ borderColor: ACCENT, background: 'rgba(var(--accent-rgb),0.06)' }}>
+              <div className="font-mono text-xs" style={{ color: CREAM }}>
+                Imported, but {unrecognized.length} name{unrecognized.length === 1 ? " isn't" : "s aren't"} recognized by Scryfall — likely typos. They'll be skipped by pricing, stats, and the deck roller.
+              </div>
+              <ul className="font-mono text-[11px] max-h-28 overflow-auto space-y-0.5" style={{ color: CREAM_DIM }}>
+                {unrecognized.map((n) => <li key={n}>· {n}</li>)}
+              </ul>
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={onRemoveUnrecognized}
+                  disabled={busy}
+                  className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-1.5 disabled:opacity-30"
+                  style={{ borderColor: ACCENT, color: ACCENT }}
+                >
+                  Remove them from Vault
+                </button>
+                <button onClick={onClose} className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+                  Keep anyway
+                </button>
+              </div>
             </div>
           )}
         </div>

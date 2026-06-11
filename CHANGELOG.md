@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.45.0 — CSV imports now catch typos
+
+### Vault (closes #200)
+- **Post-import name validation.** After a Moxfield CSV lands, every name is resolved through the existing Scryfall batch fetch (with a progress line). Hard not-founds — typos, renamed cards — surface inside the bulk modal with the full list and two choices: **Remove them from Vault** (one click) or **Keep anyway**. Transient batch errors stay silent so a network blip can never suggest deleting real cards.
+
 ## v0.44.0 — Themed confirmations replace browser popups
 
 All seven native `window.confirm()` dialogs are gone (closes #190). Destructive actions now confirm through an in-app dialog that matches the theme, reads clearly, and cancels on Esc or backdrop click.
