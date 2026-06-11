@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.53.1 — Project notes catch up with the UX-hardening run
+
+- `CLAUDE.md` updated: test count (542 as of v0.53.0), the changelog↔version lock-step test, and a new "Shared UX systems" section documenting the toast bus, confirm dialog, hash router, modal-behavior hook, editor undo stack, the deck+collection sign-in migration semantics, and the unsaved-roll backstop — so future sessions extend these instead of reinventing them.
+
 ## v0.53.0 — Modals become real dialogs
 
 ### Accessibility (closes #189)

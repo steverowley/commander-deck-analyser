@@ -32,7 +32,7 @@ Work on a feature branch off `main` (e.g. `feat/<short-description>`, or the ses
 
 ## Testing + build before push
 
-- `npm test` (Vitest) — **454 passing** as of v0.39.0 (autoseed invariants, pricing, landbase, tags, csvImport, etc.); the full suite must be green. Use Node 22+ locally (the Supabase realtime client needs a native `WebSocket`, which Node 20 lacks).
+- `npm test` (Vitest) — **542 passing** as of v0.53.0 (autoseed invariants, pricing, landbase, tags, csvImport, toast/confirm buses, router, vault-migration merge, etc.); the full suite must be green. Use Node 22+ locally (the Supabase realtime client needs a native `WebSocket`, which Node 20 lacks). `changelog.test.js` pins the CHANGELOG top section to `package.json`'s version — bump both together or the suite fails.
 - `npm run build` (Vite) — verifies the prod bundle compiles.
 - Both must be green locally; CI re-runs them. If a CI run is fast (<30s) and the diff is small, "merge when ready" is your cue to act on the green webhook.
 
@@ -45,7 +45,17 @@ Work on a feature branch off `main` (e.g. `feat/<short-description>`, or the ses
 - `src/lib/collection.js` — the Vault. `meta jsonb` column on `public.collection` holds per-card `{ printing_id, foil }`. `bulkImportVault` dedupes by `lc(name)` before upserting (Moxfield CSVs can have duplicates that reject the whole chunk).
 - `src/lib/autoseed.js` — random-deck build pipeline. Order: EDHREC pool → banned-card filter → bracket exclusions → per-card budget cap → ownedOnly filter (always runs when `ownedOnly` is true, even with null collection) → archetype boost → bucket fill (`utilityReserve(colorCount)` cap on nonbasic lands) → overflow fill (EXCLUDING lands) → basic-land padding → total-budget swap loop → safety trim to 99.
 - `src/lib/profile.js` — `public.profiles` upsert. Username uniqueness enforced at DB level; `23505` maps to "already taken".
-- `src/lib/csvImport.js` — Moxfield collection CSV parser. `detectMoxfieldCsv(text)` matches the canonical header; `parseMoxfieldCsv` returns `[{ name, count, foil, set, collectorNumber }]`.
+- `src/lib/csvImport.js` — Moxfield collection CSV parser + exporter. `detectMoxfieldCsv(text)` matches the canonical header; `parseMoxfieldCsv` returns `[{ name, count, foil, set, collectorNumber }]`; `collectionToMoxfieldCsv(collection)` round-trips back out.
+
+### Shared UX systems (added in the v0.41–v0.53 UX-hardening run — use these, don't reinvent)
+
+- `src/lib/toast.js` + `<ToastHost/>` (App root) — global feedback bus. `toast(msg)`, `toast.success`, `toast.error`, optional `{ action: { label, onClick } }` (e.g. Undo). Surface EVERY user-triggered write failure through this; never `console.warn`-only.
+- `src/lib/confirm.js` + `<ConfirmHost/>` (App root) — `await confirmDialog(msg, { confirmLabel })` replaces `window.confirm` everywhere. Falls back to `window.confirm` when no host (tests). Don't reintroduce native dialogs.
+- `src/lib/router.js` — hash router (`#/deck/:id`, `#/vault`, `#/pods`, `#/gallery[/:id]`, `#/rolls`, `#/roll/:id`). App.jsx holds two one-way syncs (hash→state on hashchange/popstate, state→hash on navigation) with equality guards. Routes start `#/`; legacy `#d=` share links parse to null and bypass it. Transient `roll:`/`view:` ids are NOT routable (`isRoutableDeckId`).
+- `useEscapeClose(onClose, enabled)` in `UI.jsx` — the modal-behavior hook (Esc close, focus restore to opener, Tab trap in topmost `[aria-modal]`). Every modal wrapper carries `role="dialog" aria-modal="true"`. New modals must use both.
+- Deck editor undo — `DeckEditor.jsx` keeps a 30-deep pre-change snapshot stack; Ctrl/Cmd+Z restores exact prior states (NOT swap-log replay). Restored snapshots get a fresh `updated` so the `saveDeck` conflict guard (5-min staleness check in `storage-supabase.js`) doesn't misfire.
+- First-sign-in migration covers decks AND the Vault collection (separate per-account flags `vault:migrated:` / `vault:collectionMigrated:`); collection merge is `max(local, cloud)` via `mergeVaultQuantities` — retry-safe, never sums. `uploadLocalDecks` THROWS on failure (returning 0 once caused local decks to be cleared after a failed upload — don't regress this).
+- Unsaved rolls are backed up to `vault:lastRoll` (single slot) with a Resume/Discard banner on next load.
 
 ---
 
