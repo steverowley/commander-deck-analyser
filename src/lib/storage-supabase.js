@@ -372,7 +372,10 @@ export async function uploadLocalDecks(decks) {
   const { data, error } = await supabase.from('decks').insert(rows).select('id');
   if (error) {
     console.warn('Supabase uploadLocalDecks failed', error);
-    return 0;
+    // Throw — NOT return 0. The migration caller clears localStorage on
+    // success; a silent 0 here used to let it wipe the local decks
+    // after a failed insert.
+    throw new Error(error.message || 'upload failed');
   }
   return data?.length || 0;
 }

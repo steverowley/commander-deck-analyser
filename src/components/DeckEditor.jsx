@@ -467,23 +467,35 @@ export function DeckEditor({ deck, onUpdate: rawOnUpdate, onBack, onDuplicate, o
       {/* Action row — icon-only on mobile (wraps, no horizontal scroll),
           icon+label on desktop. Removing overflow-x-auto means every
           button stays reachable on narrow screens without swipe-scroll. */}
-      {(deck.__transient || String(deck.id).startsWith('roll:') || String(deck.id).startsWith('view:')) && onSaveTransient && (
-        <div
-          className="px-4 md:px-5 py-2.5 border-b flex items-center justify-between gap-3 flex-wrap"
-          style={{ borderColor: CREAM_FAINT, background: 'rgba(var(--ink-rgb),0.04)' }}
-        >
-          <div className="font-serif text-xs italic" style={{ color: CREAM_DIM }}>
-            This is a transient session — edits don't persist until you save it to your archive.
-          </div>
-          <button
-            onClick={() => onSaveTransient(deck)}
-            className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-1.5 hover:opacity-100 flex items-center gap-1.5 shrink-0"
-            style={{ borderColor: CREAM, color: CREAM, background: 'rgba(var(--ink-rgb),0.08)' }}
+      {(deck.__transient || String(deck.id).startsWith('roll:') || String(deck.id).startsWith('view:')) && onSaveTransient && (() => {
+        // Two distinct transient states: a read-only gallery VIEW
+        // (edits are silently ignored) vs an editable rolled deck
+        // (edits live only in this session). The copy has to say
+        // which one the user is in.
+        const isReadonlyView = deck.__readonly || String(deck.id).startsWith('view:');
+        return (
+          <div
+            className="px-4 md:px-5 py-2.5 border-b flex items-center justify-between gap-3 flex-wrap"
+            style={{
+              borderColor: isReadonlyView ? 'rgba(var(--accent-rgb),0.5)' : CREAM_FAINT,
+              background: isReadonlyView ? 'rgba(var(--accent-rgb),0.05)' : 'rgba(var(--ink-rgb),0.04)',
+            }}
           >
-            <Save className="w-3 h-3" /> Save to my archive →
-          </button>
-        </div>
-      )}
+            <div className="font-serif text-xs italic" style={{ color: isReadonlyView ? ACCENT : CREAM_DIM }}>
+              {isReadonlyView
+                ? 'Viewing a gallery deck — changes here won’t be kept. Copy it to your archive to edit.'
+                : 'This is a transient session — edits don’t persist until you save it to your archive.'}
+            </div>
+            <button
+              onClick={() => onSaveTransient(deck)}
+              className="font-serif text-[10px] tracking-[0.3em] uppercase border px-3 py-1.5 hover:opacity-100 flex items-center gap-1.5 shrink-0"
+              style={{ borderColor: CREAM, color: CREAM, background: 'rgba(var(--ink-rgb),0.08)' }}
+            >
+              <Save className="w-3 h-3" /> {isReadonlyView ? 'Copy to my archive →' : 'Save to my archive →'}
+            </button>
+          </div>
+        );
+      })()}
 
       <div
         className="flex items-center flex-wrap gap-x-5 md:gap-x-5 gap-y-3 md:gap-y-2 border-b px-4 md:px-5 py-3 md:py-2.5 font-serif text-[11px] tracking-[0.3em] uppercase"

@@ -23,7 +23,9 @@ import { RandomRollsAllView } from './components/RandomRollsAllView.jsx';
 import { GlobalDropOverlay } from './components/GlobalDropOverlay.jsx';
 import { TipModal } from './components/TipModal.jsx';
 import { ReferralModal } from './components/ReferralModal.jsx';
-import { addToCollection } from './lib/collection.js';
+import { addToCollection, readLocalCollectionEntries, migrateLocalCollection } from './lib/collection.js';
+import { ToastHost } from './components/ToastHost.jsx';
+import { toast } from './lib/toast.js';
 import { loadProfile } from './lib/profile.js';
 import { hasTipJar } from './lib/billing.js';
 import { cardmarketReferrerUsername } from './lib/affiliate.js';
@@ -40,6 +42,30 @@ import {
   referralRemindLater,
   markReferralShown,
 } from './lib/referralPrompt.js';
+
+// Backstop for unsaved rolled decks — a single localStorage slot holding
+// the latest transient roll, so a refresh / closed tab doesn't destroy
+// ten minutes of post-roll tweaking. Cleared on save-to-archive or
+// explicit discard; never auto-promoted into the archive.
+const ROLL_DRAFT_KEY = 'vault:lastRoll';
+
+function saveRollDraft(deck) {
+  try { localStorage.setItem(ROLL_DRAFT_KEY, JSON.stringify(deck)); } catch {}
+}
+
+function readRollDraft() {
+  try {
+    const raw = localStorage.getItem(ROLL_DRAFT_KEY);
+    const d = raw ? JSON.parse(raw) : null;
+    return d && d.id && Array.isArray(d.cards) && d.cards.length > 0 ? d : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearRollDraft() {
+  try { localStorage.removeItem(ROLL_DRAFT_KEY); } catch {}
+}
 
 export default function App() {
   const [decks, setDecks] = useState([]);
@@ -97,6 +123,9 @@ export default function App() {
   const [migrating, setMigrating] = useState(false);
   const [migrationMessage, setMigrationMessage] = useState(null);
   const [authError, setAuthError] = useState(null);
+  // Unsaved rolled deck recovered from localStorage on boot — drives the
+  // "Resume / Discard" prompt. See ROLL_DRAFT_KEY above.
+  const [rollDraft, setRollDraft] = useState(() => readRollDraft());
 
   const auth = useAuthState();
 
@@ -177,36 +206,62 @@ export default function App() {
     }
   }, []);
 
-  // First-sign-in migration: if we have local decks AND the user just
-  // signed in AND we haven't migrated this account before, push them.
+  // First-sign-in migration: push local decks AND the local Vault
+  // collection to the account. Each has its own per-account flag so
+  // accounts created before collection migration existed still pick
+  // it up on their next sign-in.
   useEffect(() => {
     if (!auth.user || auth.loading || migrating) return;
-    const migratedKey = `vault:migrated:${auth.user.id}`;
-    if (localStorage.getItem(migratedKey)) return;
+    const deckKey = `vault:migrated:${auth.user.id}`;
+    const collKey = `vault:collectionMigrated:${auth.user.id}`;
 
-    const local = readLocalDecks();
-    if (local.length === 0) {
-      localStorage.setItem(migratedKey, '1');
-      return;
+    const localDecks = localStorage.getItem(deckKey) ? [] : readLocalDecks();
+    if (!localStorage.getItem(deckKey) && localDecks.length === 0) {
+      localStorage.setItem(deckKey, '1');
     }
+    const localCards = localStorage.getItem(collKey) ? [] : readLocalCollectionEntries();
+    if (!localStorage.getItem(collKey) && localCards.length === 0) {
+      localStorage.setItem(collKey, '1');
+    }
+    if (localDecks.length === 0 && localCards.length === 0) return;
 
     (async () => {
       setMigrating(true);
-      setMigrationMessage(`Uploading ${local.length} local deck${local.length === 1 ? '' : 's'}...`);
+      let failed = false;
       try {
-        const uploaded = await uploadLocalDecks(local);
-        clearLocalDecks();
-        localStorage.setItem(migratedKey, '1');
-        setMigrationMessage(`✓ Migrated ${uploaded} deck${uploaded === 1 ? '' : 's'} to your account.`);
-        // Reload to show the freshly-uploaded cloud copies.
-        const reloaded = await loadDecks();
-        setDecks(reloaded);
-        setTimeout(() => setMigrationMessage(null), 5000);
-      } catch (e) {
-        setMigrationMessage(`Migration failed: ${e.message}. Your local decks are still safe.`);
-        setTimeout(() => setMigrationMessage(null), 8000);
+        if (localDecks.length > 0) {
+          setMigrationMessage(`Uploading ${localDecks.length} local deck${localDecks.length === 1 ? '' : 's'}...`);
+          try {
+            const uploaded = await uploadLocalDecks(localDecks);
+            clearLocalDecks();
+            localStorage.setItem(deckKey, '1');
+            setMigrationMessage(`✓ Migrated ${uploaded} deck${uploaded === 1 ? '' : 's'} to your account.`);
+            // Reload to show the freshly-uploaded cloud copies.
+            const reloaded = await loadDecks();
+            setDecks(reloaded);
+          } catch (e) {
+            failed = true;
+            setMigrationMessage(`Migration failed: ${e.message}. Your local decks are still safe.`);
+          }
+        }
+        if (localCards.length > 0) {
+          setMigrationMessage(`Uploading ${localCards.length} Vault card${localCards.length === 1 ? '' : 's'}...`);
+          try {
+            // Clears the local copy itself, but only after every chunk
+            // landed — a thrown chunk leaves localStorage untouched and
+            // the max() merge makes the next attempt safe.
+            const { uploaded } = await migrateLocalCollection();
+            localStorage.setItem(collKey, '1');
+            setCollectionRev((r) => r + 1);
+            setMigrationMessage(`✓ Migrated ${uploaded} Vault card${uploaded === 1 ? '' : 's'} to your account.`);
+          } catch (e) {
+            failed = true;
+            setMigrationMessage(`Vault migration failed: ${e.message}. Your local collection is still safe.`);
+          }
+        }
       } finally {
         setMigrating(false);
+        setTimeout(() => setMigrationMessage(null), failed ? 8000 : 5000);
       }
     })();
   }, [auth.user?.id, auth.loading]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -300,7 +355,11 @@ export default function App() {
       created: Date.now(),
       updated: Date.now(),
     };
-    await saveDeck(deck);
+    const ok = await saveDeck(deck);
+    if (ok === false) {
+      toast.error(`Couldn't create "${name}" — check your connection and try again.`);
+      return;
+    }
     setDecks([deck, ...decks]);
     setActiveId(deck.id);
     markEngagement();
@@ -315,9 +374,17 @@ export default function App() {
         String(updated.id).startsWith('view:') ||
         String(updated.id).startsWith('roll:')) {
       setViewingDeck(updated);
+      // Rolls (not read-only gallery views) get the crash backstop so
+      // post-roll tweaking survives a refresh or closed tab.
+      if (!updated.__readonly && String(updated.id).startsWith('roll:')) {
+        saveRollDraft(updated);
+      }
       return;
     }
-    await saveDeck(updated);
+    const ok = await saveDeck(updated);
+    if (ok === false) {
+      toast.error(`Couldn't save "${updated.name}" to the cloud — your latest change may not be stored. Check your connection and try again.`);
+    }
     setDecks(decks.map((d) => (d.id === updated.id ? updated : d)));
   };
 
@@ -336,11 +403,20 @@ export default function App() {
     };
     delete fresh.__readonly;
     delete fresh.__transient;
-    await saveDeck(fresh);
+    const ok = await saveDeck(fresh);
+    if (ok === false) {
+      toast.error(`Couldn't save "${fresh.name}" — check your connection and try again. Your deck is still open.`);
+      return null;
+    }
+    if (String(transientDeck.id).startsWith('roll:')) {
+      clearRollDraft();
+      setRollDraft(null);
+    }
     setDecks((current) => [fresh, ...current]);
     setViewingDeck(null);
     setActiveId(fresh.id);
     markEngagement();
+    toast.success(`Saved "${fresh.name}" to your archive.`);
     return fresh;
   };
 
@@ -352,7 +428,11 @@ export default function App() {
 
   const handleDuplicate = async (deck) => {
     const copy = duplicateDeck(deck);
-    await saveDeck(copy);
+    const ok = await saveDeck(copy);
+    if (ok === false) {
+      toast.error(`Couldn't duplicate "${deck.name}" — check your connection and try again.`);
+      return;
+    }
     setDecks([copy, ...decks]);
     setActiveId(copy.id);
   };
@@ -386,7 +466,12 @@ export default function App() {
     const copy = duplicateDeck(deck);
     copy.is_public = false;
     copy.name = `${deck.name} (copy)`;
-    await saveDeck(copy);
+    const ok = await saveDeck(copy);
+    if (ok === false) {
+      toast.error(`Couldn't copy "${deck.name}" — check your connection and try again.`);
+      return;
+    }
+    toast.success(`Copied "${copy.name}" to your archive.`);
     const reloaded = await loadDecks();
     setDecks(reloaded);
   };
@@ -491,6 +576,20 @@ export default function App() {
       {migrationMessage && (
         <MigrationBanner message={migrationMessage} busy={migrating} />
       )}
+      {rollDraft && !pendingShare && !activeDeck && (
+        <RollDraftBanner
+          draft={rollDraft}
+          onResume={() => {
+            setViewingDeck(rollDraft);
+            selectDeck(rollDraft.id);
+            setRollDraft(null);
+          }}
+          onDiscard={() => {
+            clearRollDraft();
+            setRollDraft(null);
+          }}
+        />
+      )}
       {authError && (
         <AuthErrorBanner message={authError} onDismiss={() => setAuthError(null)} />
       )}
@@ -575,6 +674,10 @@ export default function App() {
                 __transient: true,
               };
               const populated = addCardsToDeck(transientDeck, payload.cards || []);
+              // Single-slot backstop: a fresh roll replaces any older
+              // unsaved draft.
+              saveRollDraft(populated);
+              setRollDraft(null);
               setViewingDeck(populated);
               selectDeck(populated.id);
               markEngagement();
@@ -643,6 +746,7 @@ export default function App() {
           const added = await addToCollection(card.name, 1);
           if (!added) throw new Error(`Couldn't add ${card.name} to your Vault — check your connection or sign-in.`);
           setCollectionRev((r) => r + 1);
+          toast.success(`Added ${card.name} to your Vault.`);
         }}
         onAddToDeck={activeDeck ? (card) => {
           const next = addCardsToDeck(activeDeck, [{ name: card.name, count: 1, scryfall: card }]);
@@ -650,6 +754,44 @@ export default function App() {
         } : null}
         onVaultChanged={() => setCollectionRev((r) => r + 1)}
       />
+      <ToastHost />
+    </div>
+  );
+}
+
+function RollDraftBanner({ draft, onResume, onDiscard }) {
+  const cardCount = (draft.cards || []).reduce((s, c) => s + (c.count || 0), 0);
+  return (
+    <div
+      className="fixed inset-x-0 top-0 z-40 border-b"
+      style={{ borderColor: 'rgba(var(--ink-rgb),0.15)', background: 'rgba(var(--bg-rgb),0.95)', backdropFilter: 'blur(6px)' }}
+    >
+      <div className="max-w-6xl mx-auto px-4 md:px-8 py-3 flex flex-col md:flex-row items-start md:items-center gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: CREAM_DIM }}>
+            Unsaved rolled deck from your last visit
+          </div>
+          <div className="font-serif text-sm mt-0.5 truncate" style={{ color: CREAM }}>
+            "{draft.name}" <span style={{ color: CREAM_DIM }}>· {cardCount} cards</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={onDiscard}
+            className="font-serif text-[10px] tracking-[0.3em] uppercase"
+            style={{ color: CREAM_DIM }}
+          >
+            Discard
+          </button>
+          <button
+            onClick={onResume}
+            className="font-serif text-[10px] tracking-[0.3em] uppercase border px-4 py-2"
+            style={{ borderColor: 'rgba(var(--ink-rgb),0.3)', color: CREAM }}
+          >
+            Resume →
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

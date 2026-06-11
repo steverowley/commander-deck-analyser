@@ -16,6 +16,7 @@ import { ImportDeckModal, RandomDeckModal } from './Modals.jsx';
 import { GalleryView } from './GalleryView.jsx';
 import { RandomRollsView } from './RandomRollsView.jsx';
 import { loadCollection, addToCollection } from '../lib/collection.js';
+import { toast } from '../lib/toast.js';
 import { ScryfallSearchPanel, SCRYFALL_DRAG_MIME } from './ScryfallSearchPanel.jsx';
 
 export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate, onImport, onBackup, onSettings, onProfile, onCollection, onPods, onReportBug, onTipJar, collectionRev = 0, user, profile, cloudEnabled, onSignIn, onSignOut, onImportFromGallery, onViewGalleryDeck, onRandomBuild, onViewAllGallery, onViewAllRolls }) {
@@ -582,7 +583,12 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
         onOpen={onCollection}
         onSearch={() => setShowScryfall(true)}
         onAddCard={async (card) => {
-          await addToCollection(card.name, 1);
+          const added = await addToCollection(card.name, 1);
+          if (!added) {
+            toast.error(`Couldn't add ${card.name} to your Vault — check your connection.`);
+            return;
+          }
+          toast.success(`Added ${card.name} to your Vault.`);
           loadCollection().then(setCollection);
         }}
         onChanged={() => loadCollection().then(setCollection)}
@@ -594,7 +600,12 @@ export function DeckListView({ decks, onSelect, onCreate, onDelete, onDuplicate,
           onClose={() => setShowScryfall(false)}
           addLabel="Add to Vault"
           onAdd={async (card) => {
-            await addToCollection(card.name, 1);
+            const added = await addToCollection(card.name, 1);
+            if (!added) {
+              toast.error(`Couldn't add ${card.name} to your Vault — check your connection.`);
+              return;
+            }
+            toast.success(`Added ${card.name} to your Vault.`);
             loadCollection().then(setCollection);
           }}
         />

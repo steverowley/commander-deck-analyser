@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Upload, BookOpen, Search, Trash2 } from 'lucide-react';
+import { Upload, BookOpen, Search, Trash2, X } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, hypergeom } from '../lib/utils.js';
 import { assessBracket } from '../lib/analyzers.js';
@@ -16,6 +16,7 @@ import { fetchCardByExactName, resolveScryfallUrl, extractDroppedScryfallUrl, re
 import { checkDeckLegality } from '../lib/legality.js';
 import { runAntipatternChecks } from '../lib/antipatterns.js';
 import { CardSearchBar, CardRow, TagPill, CardThumb, StatBox, FlagBox, ProbCard, EmptyState, HelpTip } from './UI.jsx';
+import { toast } from '../lib/toast.js';
 import { ScryfallSearchPanel, SCRYFALL_DRAG_MIME } from './ScryfallSearchPanel.jsx';
 import { ManaSymbol } from './ManaCost.jsx';
 import { BulkAddModal, TagEditModal } from './Modals.jsx';
@@ -315,10 +316,11 @@ export function CardsTab({ deck, onUpdate }) {
   const addCards = (newCards) => {
     const { deck: next, rejected } = safeAddCards(deck, newCards);
     onUpdate(next);
-    if (rejected.length > 0) {
-      setRecentlyRejected(rejected);
-      setTimeout(() => setRecentlyRejected([]), 6000);
-    }
+    // Persistent — no auto-clear. A user adding cards in a burst (or
+    // looking elsewhere) must still find out what got blocked; the
+    // banner stays until dismissed or replaced by the next batch.
+    if (rejected.length > 0) setRecentlyRejected(rejected);
+    return rejected;
   };
   const changeCount = (entry, count) => onUpdate(setCardCount(deck, entry, count));
   const removeCard = (entry) => onUpdate(removeCardFromDeck(deck, entry.name));
@@ -453,8 +455,13 @@ export function CardsTab({ deck, onUpdate }) {
 
       {recentlyRejected.length > 0 && (
         <div className="my-3 border px-4 py-3" style={{ borderColor: ACCENT, background: 'rgba(var(--accent-rgb),0.06)' }}>
-          <div className="font-serif text-[10px] tracking-[0.3em] uppercase mb-2" style={{ color: ACCENT }}>
-            Blocked by strict mode · {recentlyRejected.length} card{recentlyRejected.length === 1 ? '' : 's'}
+          <div className="flex items-center justify-between mb-2">
+            <div className="font-serif text-[10px] tracking-[0.3em] uppercase" style={{ color: ACCENT }}>
+              Blocked by strict mode · {recentlyRejected.length} card{recentlyRejected.length === 1 ? '' : 's'}
+            </div>
+            <button onClick={() => setRecentlyRejected([])} className="shrink-0 hover:opacity-100" style={{ color: CREAM_DIM }} aria-label="Dismiss">
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
           <ul className="font-mono text-[11px] space-y-0.5" style={{ color: CREAM }}>
             {recentlyRejected.slice(0, 5).map((r, i) => (
@@ -532,7 +539,13 @@ export function CardsTab({ deck, onUpdate }) {
           open={showScryfall}
           onClose={() => setShowScryfall(false)}
           addLabel="Add to deck"
-          onAdd={(card) => addCards([{ name: card.name, count: 1, scryfall: card }])}
+          onAdd={(card) => {
+            // The panel covers the card list, so the in-list change is
+            // invisible — confirm (or explain the block) via toast.
+            const rejected = addCards([{ name: card.name, count: 1, scryfall: card }]);
+            if (rejected.length === 0) toast.success(`Added ${card.name} to the deck.`);
+            else toast.error(`${card.name} was blocked: ${rejected[0].reasons.join(', ')}.`);
+          }}
         />
       )}
       {editingTags && (

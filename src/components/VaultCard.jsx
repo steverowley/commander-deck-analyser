@@ -17,6 +17,7 @@ import { Images, Sparkle, Trash2 } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG } from '../theme.js';
 import { cardImageUrl } from '../lib/scryfall.js';
 import { setCardMeta, setCardQuantity } from '../lib/collection.js';
+import { toast } from '../lib/toast.js';
 import { PrintingPickerModal } from './Modals.jsx';
 
 const FOIL_STYLES = ['rainbow', 'galaxy', 'surge', 'etched', 'oil'];
@@ -70,7 +71,8 @@ export function VaultCard({ entry, card, onChanged, size = 'md', showArtFoil = t
     if (!confirm(`Remove ${entry.name} from your Vault?`)) return;
     setBusy(true);
     try {
-      await setCardQuantity(entry.name, 0);
+      const ok = await setCardQuantity(entry.name, 0);
+      if (!ok) toast.error(`Couldn't remove ${entry.name} — check your connection.`);
       onChanged?.();
     } finally {
       setBusy(false);

@@ -117,20 +117,25 @@ export async function addToCollection(cardName, qty = 1) {
 
 /**
  * Set the count for a card directly. qty 0 deletes the row.
+ * Returns true when the write landed, false on a cloud failure —
+ * callers surface that (toast) instead of silently dropping the edit.
  */
 export async function setCardQuantity(cardName, qty) {
-  if (!cardName) return;
+  if (!cardName) return false;
   if (await isSignedIn()) {
     const userId = await currentUserId();
-    if (!userId) return;
+    if (!userId) return false;
     if (qty <= 0) {
       const { error } = await supabase
         .from('collection')
         .delete()
         .eq('user_id', userId)
         .eq('card_name', cardName);
-      if (error) console.warn('Supabase setCardQuantity delete failed', error);
-      return;
+      if (error) {
+        console.warn('Supabase setCardQuantity delete failed', error);
+        return false;
+      }
+      return true;
     }
     const { error } = await supabase
       .from('collection')
@@ -138,14 +143,18 @@ export async function setCardQuantity(cardName, qty) {
         { user_id: userId, card_name: cardName, quantity: qty },
         { onConflict: 'user_id,card_name' }
       );
-    if (error) console.warn('Supabase setCardQuantity failed', error);
-    return;
+    if (error) {
+      console.warn('Supabase setCardQuantity failed', error);
+      return false;
+    }
+    return true;
   }
   const cur = await loadCollection();
   const key = lc(cardName);
   if (qty <= 0) delete cur[key];
   else cur[key] = { name: cardName, quantity: qty, added_at: cur[key]?.added_at || Date.now() };
   saveLocal(cur);
+  return true;
 }
 
 /**
@@ -166,10 +175,10 @@ export async function removeFromCollection(cardName) {
  */
 export async function bulkAddToCollection(entries) {
   const rows = (entries || []).filter((e) => e?.name);
-  if (rows.length === 0) return;
+  if (rows.length === 0) return true;
   if (await isSignedIn()) {
     const userId = await currentUserId();
-    if (!userId) return;
+    if (!userId) return false;
     // Collapse duplicate names within the batch so the upsert payload
     // has unique primary keys (user_id, card_name).
     const wanted = new Map();
@@ -188,7 +197,7 @@ export async function bulkAddToCollection(entries) {
       .in('card_name', names);
     if (readErr) {
       console.warn('Supabase bulkAddToCollection read failed', readErr);
-      return;
+      return false;
     }
     const existingByKey = new Map();
     for (const row of existing || []) existingByKey.set(lc(row.card_name), row);
@@ -206,8 +215,11 @@ export async function bulkAddToCollection(entries) {
     const { error } = await supabase
       .from('collection')
       .upsert(payload, { onConflict: 'user_id,card_name' });
-    if (error) console.warn('Supabase bulkAddToCollection upsert failed', error);
-    return;
+    if (error) {
+      console.warn('Supabase bulkAddToCollection upsert failed', error);
+      return false;
+    }
+    return true;
   }
   // Local fallback — read-modify-write the whole collection once.
   const cur = await loadCollection();
@@ -223,6 +235,7 @@ export async function bulkAddToCollection(entries) {
     };
   }
   saveLocal(cur);
+  return true;
 }
 
 /**
@@ -357,4 +370,96 @@ export async function setCardMeta(cardName, meta) {
     saveLocal(cur);
   }
   return next;
+}
+
+/* ─── First-sign-in migration ─────────────────────────────────────────── */
+
+/**
+ * One-shot read of the LOCAL collection regardless of auth state — the
+ * post-sign-in migration needs to see what localStorage holds even
+ * though loadCollection() would route to the cloud. Mirrors
+ * storage.js#readLocalDecks.
+ */
+export function readLocalCollectionEntries() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    return raw ? Object.values(JSON.parse(raw)) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Wipe the local collection after a confirmed cloud migration so the
+ * user doesn't end up with a stale shadow copy.
+ */
+export function clearLocalCollection() {
+  try { localStorage.removeItem(LS_KEY); } catch {}
+}
+
+/**
+ * Pure merge for the migration upsert: local entries vs the cloud rows
+ * that already exist for the same names. Quantities take max(local,
+ * cloud) — NOT sum — so a retried migration can never double-count.
+ * Meta keeps the cloud's value when it has one (the account's explicit
+ * printing/foil picks win), falling back to the local meta.
+ */
+export function mergeVaultQuantities(localEntries, cloudRows) {
+  const cloudByKey = new Map();
+  for (const row of cloudRows || []) cloudByKey.set(lc(row.card_name), row);
+  const out = [];
+  for (const entry of localEntries || []) {
+    if (!entry?.name) continue;
+    const cloud = cloudByKey.get(lc(entry.name));
+    const localQty = Math.max(1, entry.quantity | 0);
+    const meta = (cloud?.meta && Object.keys(cloud.meta).length > 0)
+      ? cloud.meta
+      : (entry.meta && Object.keys(entry.meta).length > 0 ? entry.meta : null);
+    out.push({
+      card_name: cloud?.card_name || entry.name,
+      quantity: Math.max(localQty, cloud?.quantity || 0),
+      meta,
+    });
+  }
+  return out;
+}
+
+/**
+ * Upload the local (signed-out) collection into the signed-in user's
+ * cloud Vault. Merge semantics via mergeVaultQuantities. Throws on any
+ * failed chunk so the caller does NOT clear local data or set the
+ * migrated flag — a retry next session is safe because of the max()
+ * merge. On full success the local copy is cleared here.
+ *
+ * Returns { uploaded } — the number of card names written.
+ */
+export async function migrateLocalCollection() {
+  const local = readLocalCollectionEntries();
+  if (local.length === 0) return { uploaded: 0 };
+  const userId = await currentUserId();
+  if (!userId) throw new Error('not signed in');
+
+  const CHUNK = 100;
+  let uploaded = 0;
+  for (let i = 0; i < local.length; i += CHUNK) {
+    const slice = local.slice(i, i + CHUNK);
+    const names = slice.map((e) => e.name);
+    const { data: existing, error: readErr } = await supabase
+      .from('collection')
+      .select('card_name, quantity, meta')
+      .eq('user_id', userId)
+      .in('card_name', names);
+    if (readErr) throw new Error(readErr.message || String(readErr));
+    const payload = mergeVaultQuantities(slice, existing || []).map((row) => ({
+      user_id: userId,
+      ...row,
+    }));
+    const { error } = await supabase
+      .from('collection')
+      .upsert(payload, { onConflict: 'user_id,card_name' });
+    if (error) throw new Error(error.message || String(error));
+    uploaded += payload.length;
+  }
+  clearLocalCollection();
+  return { uploaded };
 }

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Vault — redirecting…</title>
+    <meta name="robots" content="noindex" />
+    <script>
+      // GitHub Pages SPA fallback: any path under the project site that
+      // isn't a real file lands here. Bounce back to the app root,
+      // preserving query + hash so #d= share links and ?tip=thanks
+      // returns survive the redirect.
+      (function () {
+        var base = '/commander-deck-analyser/';
+        window.location.replace(
+          window.location.origin + base + window.location.search + window.location.hash
+        );
+      })();
+    </script>
+  </head>
+  <body>
+    <p>Redirecting to <a href="/commander-deck-analyser/">Vault</a>…</p>
+  </body>
+</html>
