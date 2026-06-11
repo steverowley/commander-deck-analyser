@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.47.0 — Pods: logging a rematch is just picking the winner
+
+### Pods (closes #197)
+- **Seats pre-fill from the most recent game.** The Log-a-new-game form now seeds players, commanders, and deck links from the pod's last game (falling back to the first four members when there's no history), so the common "same table as last week" case only needs a winner.
+- **"↺ Same crew as last game" button** in the form header re-applies the last game's seating at any point — e.g. after the form was reshuffled for a one-off.
+
 ## v0.46.0 — Big Vaults stop melting phones
 
 ### Performance (closes #192)
