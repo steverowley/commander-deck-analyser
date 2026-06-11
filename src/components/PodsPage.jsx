@@ -316,7 +316,7 @@ function PodDetail({ pod, decks }) {
 
       {/* Game log form */}
       {members.length >= 2 && (
-        <LogGameForm pod={pod} members={members} decks={decks} onLogged={refresh} />
+        <LogGameForm pod={pod} members={members} decks={decks} onLogged={refresh} lastGame={games[0] || null} />
       )}
 
       {/* Recent games */}
@@ -393,13 +393,28 @@ function PodDetail({ pod, decks }) {
  * with a member picker, commander name, and an optional "from my decks"
  * shortcut that fills the commander from a saved deck.
  */
-function LogGameForm({ pod, members, decks, onLogged }) {
-  const initialSeats = () =>
-    members.slice(0, 4).map((m) => ({
+function LogGameForm({ pod, members, decks, onLogged, lastGame }) {
+  // Quick-log (#197): the usual case is "same table as last week" — seed
+  // the seats (players, commanders, decks) from the most recent game so
+  // logging a rematch is just picking the winner.
+  const seatsFromLast = () =>
+    (lastGame?.seats || [])
+      .map((s) => ({
+        memberId: s.member_id || '',
+        commanderName: s.commander_name || '',
+        deckId: s.deck_id || '',
+      }))
+      .filter((s) => s.memberId && members.some((m) => m.id === s.memberId));
+
+  const initialSeats = () => {
+    const last = seatsFromLast();
+    if (last.length >= 2) return last;
+    return members.slice(0, 4).map((m) => ({
       memberId: m.id,
       commanderName: '',
       deckId: '',
     }));
+  };
 
   const [seats, setSeats] = useState(initialSeats);
   const [winnerId, setWinnerId] = useState('');
@@ -452,8 +467,22 @@ function LogGameForm({ pod, members, decks, onLogged }) {
 
   return (
     <section className="border" style={{ borderColor: CREAM_FAINT }}>
-      <div className="px-5 py-3 border-b font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ borderColor: CREAM_FAINT, color: CREAM }}>
-        Log a new game
+      <div className="px-5 py-3 border-b flex items-center justify-between gap-3" style={{ borderColor: CREAM_FAINT }}>
+        <span className="font-serif text-sm tracking-[0.3em] uppercase font-bold" style={{ color: CREAM }}>
+          Log a new game
+        </span>
+        {seatsFromLast().length >= 2 && (
+          <button
+            type="button"
+            onClick={() => { setSeats(seatsFromLast()); setWinnerId(''); }}
+            disabled={busy}
+            className="font-serif text-[10px] tracking-[0.3em] uppercase disabled:opacity-30"
+            style={{ color: CREAM_DIM }}
+            title="Refill the seats with the players, commanders and decks from the most recent game"
+          >
+            ↺ Same crew as last game
+          </button>
+        )}
       </div>
       <form onSubmit={handleSubmit} className="p-4 space-y-4">
         <div className="space-y-2">
