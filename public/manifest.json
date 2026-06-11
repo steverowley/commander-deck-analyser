@@ -1,0 +1,18 @@
+{
+  "name": "Vault — Commander Deck Builder",
+  "short_name": "Vault",
+  "description": "Build, analyse, and share Magic: The Gathering Commander decks — bracket assessment, health score, EDHREC recommendations, collection tracking.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0d1614",
+  "theme_color": "#0d1614",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

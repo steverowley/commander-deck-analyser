@@ -104,6 +104,18 @@ export default function App() {
   // session, we don't auto-prompt again — even if the user closes it and
   // engages further. Using a ref keeps this out of the effect's dep list.
   const autoPromptHandled = useRef(false);
+  // Last pointer/keyboard activity — the auto-prompt waits for a quiet
+  // moment instead of popping mid-search or mid-edit.
+  const lastActivityAt = useRef(Date.now());
+  useEffect(() => {
+    const mark = () => { lastActivityAt.current = Date.now(); };
+    window.addEventListener('pointerdown', mark, { passive: true });
+    window.addEventListener('keydown', mark, { passive: true });
+    return () => {
+      window.removeEventListener('pointerdown', mark);
+      window.removeEventListener('keydown', mark);
+    };
+  }, []);
   // Auto-detected region ('uk' | 'eu' | 'us' | null). Seeds currency +
   // buy-link defaults on first visit and routes the referral pop-up.
   const [region, setRegion] = useState(() => loadSettings().region || null);
@@ -323,12 +335,24 @@ export default function App() {
 
     const elapsed = Date.now() - engagementAt;
     const remaining = Math.max(0, DEFAULT_ENGAGEMENT_DELAY_MS - elapsed);
-    const id = setTimeout(() => {
+    // How long the user must be hands-off before the prompt may open,
+    // and how often to re-check while they're still active.
+    const IDLE_MS = 15000;
+    const RECHECK_MS = 5000;
+    let idleTimer = null;
+    const id = setTimeout(function fire() {
       // Re-check at fire time — supporter status may have landed via the
       // realtime profile refresh, or region detection may have resolved.
       const ref = referralOk();
       const tip = tipOk();
       if (!ref && !tip) return;
+      // Mid-task? Wait for a quiet moment rather than interrupting —
+      // an X-click on a prompt that broke someone's flow is a permanent
+      // dismissal of the one ask we get.
+      if (Date.now() - lastActivityAt.current < IDLE_MS) {
+        idleTimer = setTimeout(fire, RECHECK_MS);
+        return;
+      }
       autoPromptHandled.current = true;
       if (ref) {
         markReferralShown();
@@ -338,7 +362,10 @@ export default function App() {
         setTipState('open-auto');
       }
     }, remaining);
-    return () => clearTimeout(id);
+    return () => {
+      clearTimeout(id);
+      clearTimeout(idleTimer);
+    };
   }, [engagementAt, tipState, referralState, profile?.supporter, region]);
 
   const activeDeck = decks.find((d) => d.id === activeId)
