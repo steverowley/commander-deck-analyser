@@ -25,11 +25,18 @@ export function ConfirmHost() {
 
   useEffect(() => {
     if (!req) return;
+    // Capture phase + stopImmediatePropagation: when the confirm sits on
+    // top of a modal, Esc must cancel ONLY the confirm — not also close
+    // the modal underneath via its own useEscapeClose listener.
     const onKey = (e) => {
-      if (e.key === 'Escape') answer(false);
+      if (e.key === 'Escape') {
+        e.stopImmediatePropagation();
+        e.stopPropagation();
+        answer(false);
+      }
     };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    document.addEventListener('keydown', onKey, true);
+    return () => document.removeEventListener('keydown', onKey, true);
   }, [req]);
 
   if (!req) return null;

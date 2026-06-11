@@ -7,11 +7,13 @@
 import React, { useState } from 'react';
 import { X, Loader2, Check, Mail } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
+import { useEscapeClose } from './UI.jsx';
 import { signInWithEmail, signInWithGoogle } from '../lib/supabase.js';
 import { disposableEmailError } from '../lib/emailGuard.js';
 import { TurnstileWidget, turnstileEnabled } from './TurnstileWidget.jsx';
 
 export function AuthModal({ onClose }) {
+  useEscapeClose(onClose);
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);

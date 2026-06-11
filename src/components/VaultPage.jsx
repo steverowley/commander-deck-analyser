@@ -18,6 +18,7 @@ import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
 import { pad, parseDecklist, lc } from '../lib/utils.js';
 import { fetchCardsByName, fetchCardById } from '../lib/scryfall.js';
 import { CardSearchBar, VersionChip } from './UI.jsx';
+import { useEscapeClose } from './UI.jsx';
 import { VaultCard } from './VaultCard.jsx';
 import { ManaSymbol } from './ManaCost.jsx';
 import {
@@ -1003,6 +1004,7 @@ function InventorySection({
 }
 
 function BulkPasteModal({ bulkText, setBulkText, busy, onClose, onSubmit, error, progress, onPickFile, validateProgress, unrecognized, onRemoveUnrecognized }) {
+  useEscapeClose(onClose);
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center p-4"
