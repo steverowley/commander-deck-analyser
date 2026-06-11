@@ -16,7 +16,7 @@ import React, { useEffect, useState } from 'react';
 import { Images, Sparkle, Trash2 } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG } from '../theme.js';
 import { cardImageUrl } from '../lib/scryfall.js';
-import { setCardMeta, setCardQuantity } from '../lib/collection.js';
+import { addToCollection, setCardMeta, setCardQuantity } from '../lib/collection.js';
 import { toast } from '../lib/toast.js';
 import { confirmDialog } from '../lib/confirm.js';
 import { PrintingPickerModal } from './Modals.jsx';
@@ -72,9 +72,27 @@ export function VaultCard({ entry, card, onChanged, size = 'md', showArtFoil = t
     if (!(await confirmDialog(`Remove ${entry.name} from your Vault?`, { confirmLabel: 'Remove' }))) return;
     setBusy(true);
     try {
+      const snapshot = { name: entry.name, quantity: entry.quantity || 1, meta: entry.meta ? { ...entry.meta } : null };
       const ok = await setCardQuantity(entry.name, 0);
-      if (!ok) toast.error(`Couldn't remove ${entry.name} — check your connection.`);
+      if (!ok) {
+        toast.error(`Couldn't remove ${entry.name} — check your connection.`);
+        onChanged?.();
+        return;
+      }
       onChanged?.();
+      toast(`Removed ${snapshot.name} from your Vault.`, {
+        duration: 8000,
+        action: {
+          label: 'Undo',
+          onClick: async () => {
+            await addToCollection(snapshot.name, snapshot.quantity);
+            if (snapshot.meta && Object.keys(snapshot.meta).length > 0) {
+              await setCardMeta(snapshot.name, snapshot.meta);
+            }
+            onChanged?.();
+          },
+        },
+      });
     } finally {
       setBusy(false);
     }

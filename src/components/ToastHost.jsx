@@ -55,6 +55,15 @@ export function ToastHost() {
           style={{ borderColor: KIND_BORDER[t.kind] || CREAM_FAINT, color: CREAM, background: 'rgba(var(--bg-rgb),0.94)', backdropFilter: 'blur(6px)' }}
         >
           <span className="flex-1 min-w-0 break-words">{t.message}</span>
+          {t.action && (
+            <button
+              onClick={() => { t.action.onClick?.(); dismiss(t.id); }}
+              className="shrink-0 font-serif text-[10px] tracking-[0.3em] uppercase underline hover:opacity-100"
+              style={{ color: CREAM }}
+            >
+              {t.action.label}
+            </button>
+          )}
           <button onClick={() => dismiss(t.id)} className="shrink-0 hover:opacity-100" style={{ color: CREAM_DIM }} aria-label="Dismiss">
             <X className="w-3.5 h-3.5" />
           </button>
