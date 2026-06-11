@@ -2391,7 +2391,8 @@ export function RecommendationsTab({ deck, onUpdate }) {
    * a user wants the "typical Edgar Markov list" as a starting point.
    */
   const seedFromAverage = async () => {
-    if (!recs || !confirm('Replace current cards with EDHREC\'s top 99 picks for this commander?')) return;
+    if (!recs) return;
+    if (!(await confirmDialog("Replace current cards with EDHREC's top 99 picks for this commander?", { confirmLabel: 'Replace' }))) return;
     setSeeding(true);
     try {
       const top = topRecommendations(recs, new Set([deck.commander.name.toLowerCase()]), 99);

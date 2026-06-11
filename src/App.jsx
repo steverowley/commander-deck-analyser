@@ -25,6 +25,7 @@ import { TipModal } from './components/TipModal.jsx';
 import { ReferralModal } from './components/ReferralModal.jsx';
 import { addToCollection, readLocalCollectionEntries, migrateLocalCollection } from './lib/collection.js';
 import { ToastHost } from './components/ToastHost.jsx';
+import { ConfirmHost } from './components/ConfirmHost.jsx';
 import { toast } from './lib/toast.js';
 import { loadProfile } from './lib/profile.js';
 import { hasTipJar } from './lib/billing.js';
@@ -782,6 +783,7 @@ export default function App() {
         onVaultChanged={() => setCollectionRev((r) => r + 1)}
       />
       <ToastHost />
+      <ConfirmHost />
     </div>
   );
 }

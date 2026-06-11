@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.44.0 — Themed confirmations replace browser popups
+
+All seven native `window.confirm()` dialogs are gone (closes #190). Destructive actions now confirm through an in-app dialog that matches the theme, reads clearly, and cancels on Esc or backdrop click.
+
+### Library
+- **`src/lib/confirm.js`** — promise-based `confirmDialog(message, { confirmLabel, cancelLabel })`, same pub/sub pattern as the toast bus. With no host mounted it falls back to `window.confirm`, and to a safe `false` where even that's missing — destructive actions default to not happening.
+- **`<ConfirmHost/>`** at the app root (z-80): accent-coloured confirm button, Cancel focused by default, Esc/backdrop cancel, `role="dialog"`/`aria-modal` — the first piece of the #189 modal-a11y groundwork.
+
+### Converted call sites
+- Vault card removal · archive replace-from-backup · card-cache clear · EDHREC seed-99 replace · pod delete · pod member removal · game-log delete. Each gets a verb-specific confirm label ("Remove", "Replace", "Clear", "Delete") instead of the browser's generic OK.
+
+### Tests
+- 6 new cases in `confirm.test.js` — resolve paths, label passthrough/defaults, no-host fallbacks.
+
 ## v0.43.0 — Installable app + polite prompts
 
 ### Platform (closes #194, the core)

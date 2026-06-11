@@ -23,6 +23,7 @@ import { RETAILERS, RETAILER_LABEL } from '../lib/affiliate.js';
 import { cacheSize, clearIDBCache } from '../lib/idbcache.js';
 import { fetchRecommendations, topRecommendations } from '../lib/edhrec.js';
 import { buildBugReportBody } from '../lib/bugReport.js';
+import { confirmDialog } from '../lib/confirm.js';
 import { supabase } from '../lib/supabase.js';
 import { TagPill, RuleSection } from './UI.jsx';
 import { ManaSymbol } from './ManaCost.jsx';
@@ -1632,7 +1633,7 @@ function BackupRestore({ onRestore, onClose }) {
     setText(await f.text());
   };
 
-  const handleRestore = () => {
+  const handleRestore = async () => {
     setError(null);
     setWarning(null);
     let parsed;
@@ -1645,7 +1646,10 @@ function BackupRestore({ onRestore, onClose }) {
     if (parsed.invalidCount > 0) {
       setWarning(`${parsed.invalidCount} entry/entries skipped — malformed.`);
     }
-    if (mode === 'replace' && !confirm(`Replace your current archive with ${parsed.decks.length} deck(s) from this backup? This can't be undone.`)) {
+    if (mode === 'replace' && !(await confirmDialog(
+      `Replace your current archive with ${parsed.decks.length} deck(s) from this backup? This can't be undone.`,
+      { confirmLabel: 'Replace' }
+    ))) {
       return;
     }
     onRestore(parsed.decks, mode);
@@ -2001,7 +2005,7 @@ export function SettingsBody() {
   const update = (key, value) => setSettings(updateSetting(key, value));
 
   const clear = async () => {
-    if (!confirm('Clear the entire card cache? Cards re-download from Scryfall as needed.')) return;
+    if (!(await confirmDialog('Clear the entire card cache? Cards re-download from Scryfall as needed.', { confirmLabel: 'Clear' }))) return;
     setClearing(true);
     await clearIDBCache();
     setCacheCount(0);
