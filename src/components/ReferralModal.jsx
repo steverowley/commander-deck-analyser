@@ -34,7 +34,7 @@ export function ReferralModal({ onClose, onRemindLater = null, autoPrompted = fa
   };
 
   return (
-    <div
+    <div role="dialog" aria-modal="true"
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
       style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >

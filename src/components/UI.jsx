@@ -17,18 +17,51 @@ import { getLatestRelease } from '../lib/changelog.js';
  * the body text. Click-to-toggle for touch.
  */
 /**
- * Escape-to-close for modals (#189, part 1). Document-level listener,
- * active while the modal is mounted; pass enabled=false to suspend
- * (e.g. forced onboarding).
+ * Modal behavior hook (#189). Despite the historical name it now covers:
+ *   - Escape closes the modal (the original behavior)
+ *   - focus returns to the element that opened the modal on close
+ *   - Tab is trapped inside the topmost [aria-modal] dialog
+ * Pass enabled=false to suspend (e.g. forced onboarding).
  */
 export function useEscapeClose(onClose, enabled = true) {
   useEffect(() => {
     if (!enabled) return;
+    const opener = typeof document !== 'undefined' ? document.activeElement : null;
     const onKey = (e) => {
-      if (e.key === 'Escape') onClose?.();
+      if (e.key === 'Escape') {
+        onClose?.();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const dialogs = document.querySelectorAll('[aria-modal="true"]');
+      const dialog = dialogs[dialogs.length - 1];
+      if (!dialog) return;
+      const focusables = dialog.querySelectorAll(
+        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (!dialog.contains(active)) {
+        e.preventDefault();
+        first.focus();
+      } else if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      // Hand focus back to whatever opened the modal, if it still exists.
+      if (opener && typeof opener.focus === 'function' && document.contains(opener)) {
+        opener.focus();
+      }
+    };
   }, [onClose, enabled]);
 }
 
