@@ -82,7 +82,7 @@ export function BulkAddModal({ onClose, onAdd }) {
   };
 
   return (
-    <div
+    <div role="dialog" aria-modal="true"
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
       style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
@@ -189,7 +189,7 @@ export function TagEditModal({ entry, onClose, onSave }) {
   };
 
   return (
-    <div
+    <div role="dialog" aria-modal="true"
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
       style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
@@ -300,7 +300,7 @@ export function TagEditModal({ entry, onClose, onSave }) {
 export function RulesModal({ onClose }) {
   useEscapeClose(onClose);
   return (
-    <div
+    <div role="dialog" aria-modal="true"
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
       style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
@@ -391,7 +391,7 @@ export function ExportModal({ deck, onClose }) {
   };
 
   return (
-    <div
+    <div role="dialog" aria-modal="true"
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
       style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
@@ -562,7 +562,7 @@ export function CompareModal({ deck, otherDecks, onClose }) {
   };
 
   return (
-    <div
+    <div role="dialog" aria-modal="true"
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
       style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
@@ -837,7 +837,7 @@ export function RuleZeroModal({ deck, onClose }) {
   if (!card) return null;
   const bracketName = BRACKET_LABELS[card.bracket] || '';
   return (
-    <div
+    <div role="dialog" aria-modal="true"
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
       style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
@@ -1020,7 +1020,7 @@ export function BuylistModal({ deck, onClose }) {
   const fmtEur = (n) => (n == null ? '—' : `€${n.toFixed(2)}`);
 
   return (
-    <div
+    <div role="dialog" aria-modal="true"
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
       style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
@@ -1159,7 +1159,7 @@ export function ShareModal({ deck, onClose }) {
     } catch {}
   };
   return (
-    <div
+    <div role="dialog" aria-modal="true"
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
       style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
@@ -1349,7 +1349,7 @@ export function ImportDeckModal({ onClose, onImport, suggestedName = '' }) {
   const urlSource = useMemo(() => detectDeckUrl(url), [url]);
 
   return (
-    <div
+    <div role="dialog" aria-modal="true"
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
       style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
@@ -1516,7 +1516,7 @@ export function BackupModal({ decks, onClose, onRestore }) {
   useEscapeClose(onClose);
   const [tab, setTab] = useState('export');
   return (
-    <div
+    <div role="dialog" aria-modal="true"
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
       style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
@@ -1819,7 +1819,7 @@ export function BugReportModal({ onClose }) {
   };
 
   return (
-    <div
+    <div role="dialog" aria-modal="true"
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
       style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
@@ -2175,7 +2175,7 @@ export function SettingsBody() {
 export function SettingsModal({ onClose }) {
   useEscapeClose(onClose);
   return (
-    <div
+    <div role="dialog" aria-modal="true"
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
       style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
@@ -2249,7 +2249,7 @@ export function NotesModal({ deck, onClose, onSave }) {
     onClose();
   };
   return (
-    <div
+    <div role="dialog" aria-modal="true"
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
       style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
     >
@@ -2334,7 +2334,7 @@ export function PrintingPickerModal({ card, onClose, onPick }) {
   }, [card?.name, card?.oracle_id]);
 
   return createPortal((
-    <div
+    <div role="dialog" aria-modal="true"
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
       onClick={onClose}
@@ -2668,7 +2668,7 @@ export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
   const colorLabel = colors.length === 0 ? 'Any identity' : colors.join('');
 
   return (
-    <div
+    <div role="dialog" aria-modal="true"
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(var(--bg-rgb),0.92)', backdropFilter: 'blur(6px)' }}
       onClick={onClose}

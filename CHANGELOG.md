@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.53.0 — Modals become real dialogs
+
+### Accessibility (closes #189)
+- **All 21 modal wrappers now carry `role="dialog"` + `aria-modal="true"`** — screen readers announce them as dialogs instead of ambient page content.
+- **Focus management in the shared modal hook** (every modal gets it for free): focus returns to the element that opened the modal when it closes, and **Tab is trapped** inside the topmost open dialog (wrapping forward and shift-Tab backward, entering the dialog if focus is outside it). Stacked dialogs behave — the confirm dialog mounts last and correctly becomes the trap target.
+- Completes #189: Esc-to-close landed in v0.50.0; roles, focus restore and trapping land here.
+
 ## v0.52.0 — Ctrl+Z in the deck editor
 
 ### Editor (closes #191)

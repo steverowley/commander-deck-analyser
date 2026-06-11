@@ -1006,7 +1006,7 @@ function InventorySection({
 function BulkPasteModal({ bulkText, setBulkText, busy, onClose, onSubmit, error, progress, onPickFile, validateProgress, unrecognized, onRemoveUnrecognized }) {
   useEscapeClose(onClose);
   return (
-    <div
+    <div role="dialog" aria-modal="true"
       className="fixed inset-0 z-[60] flex items-center justify-center p-4"
       style={{ background: 'rgba(var(--bg-rgb),0.94)', backdropFilter: 'blur(6px)' }}
       onClick={onClose}

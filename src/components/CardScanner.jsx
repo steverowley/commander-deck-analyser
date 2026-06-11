@@ -273,7 +273,7 @@ export function CardScanner({ onClose, onAdded }) {
   }, [autoScan, status]);
 
   return (
-    <div
+    <div role="dialog" aria-modal="true"
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(var(--bg-rgb),0.94)', backdropFilter: 'blur(6px)' }}
       onClick={onClose}
