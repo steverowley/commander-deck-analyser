@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.52.0 — Ctrl+Z in the deck editor
+
+### Editor (closes #191)
+- **Undo for deck edits.** Every editor-driven change (add, cut, count change, tag edit, rename, commander swap) pushes the pre-change deck onto a bounded 30-deep snapshot stack; **Ctrl/Cmd+Z** restores the previous state exactly — tags, counts and the swap log included. Snapshot restore was chosen over replaying swap-log operations backwards precisely so no inverse-operation semantics can drift.
+- Text fields keep their native undo (the shortcut ignores focused inputs); read-only gallery views don't accumulate snapshots; restoring a minutes-old snapshot refreshes its timestamp so the v0.49.0 multi-device conflict guard can't misfire; a quiet 2s toast confirms each undo. Stack resets when you switch decks. Works on transient rolls too.
+
 ## v0.51.0 — URLs at last: refresh keeps your place, decks are linkable
 
 ### Routing (closes #195)

@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, BookOpen, Loader2, Crown, Sparkles, Tag, BarChart3, Target, Clock, Calculator, Lightbulb, Pencil, Copy, Download, Link as LinkIcon, GitCompare, FileText, Globe, Images, Sparkle, Save, Search, ShoppingCart } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
+import { toast } from '../lib/toast.js';
 import { lc, pad } from '../lib/utils.js';
 import { searchCardAutocomplete, fetchCardByExactName, cardImageUrl } from '../lib/scryfall.js';
 import { renameDeck, setDeckNotes, setDeckPublic, applyWithLog } from '../lib/deckops.js';
@@ -341,7 +342,41 @@ export function DeckEditor({ deck, onUpdate: rawOnUpdate, onBack, onDuplicate, o
   // count-change operations are captured in the deck's swap_log. Imports
   // (App.handleImport, Roll, Share) call the bare addCardsToDeck directly
   // and don't pollute the log.
-  const onUpdate = (next) => rawOnUpdate(applyWithLog(deck, next));
+  //
+  // Undo (#191): a bounded snapshot stack. Each update pushes the
+  // PRE-change deck; Ctrl/Cmd+Z restores it exactly — tags, counts and
+  // swap log included — which sidesteps all the semantics of replaying
+  // operations backwards.
+  const UNDO_CAP = 30;
+  const undoStack = useRef([]);
+  useEffect(() => { undoStack.current = []; }, [deck.id]);
+
+  const onUpdate = (next) => {
+    if (!deck.__readonly) {
+      undoStack.current.push(deck);
+      if (undoStack.current.length > UNDO_CAP) undoStack.current.shift();
+    }
+    rawOnUpdate(applyWithLog(deck, next));
+  };
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.key !== 'z' && e.key !== 'Z') || !(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
+      const t = e.target;
+      const tag = (t?.tagName || '').toLowerCase();
+      // Let text fields keep their native undo.
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || t?.isContentEditable) return;
+      const prev = undoStack.current.pop();
+      if (!prev) return;
+      e.preventDefault();
+      // Fresh timestamp: restoring a minutes-old snapshot must not trip
+      // the multi-device conflict guard in saveDeck.
+      rawOnUpdate({ ...prev, updated: Date.now() });
+      toast('Undid the last change.', { duration: 2000 });
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [rawOnUpdate]);
 
   const setCommander = (card) => {
     if (!card) {
