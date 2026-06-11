@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import { CREAM, CREAM_DIM, BG, ACCENT } from './theme.js';
 import { loadDecks, saveDeck, deleteDeck, readLocalDecks, clearLocalDecks } from './lib/storage.js';
-import { uploadLocalDecks } from './lib/storage-supabase.js';
+import { uploadLocalDecks, loadDeckById, loadRandomRollById } from './lib/storage-supabase.js';
+import { parseRoute, formatRoute, isRoutableDeckId } from './lib/router.js';
 import { useAuthState, isCloudEnabled, signOut, consumeOAuthParams } from './lib/supabase.js';
 import { loadCardCache, fetchCardsByName } from './lib/scryfall.js';
 import { duplicateDeck, addCardsToDeck } from './lib/deckops.js';
@@ -311,6 +312,62 @@ export default function App() {
     return () => { alive = false; };
   }, []);
 
+  // Hash routing (#195). Two one-way syncs with equality guards so they
+  // can't feed back into each other:
+  //   hash → state on mount + hashchange/popstate (back/forward, deep links)
+  //   state → hash whenever the user navigates in-app
+  // Legacy '#d=' share links parse to null here and stay with the
+  // dedicated share flow above. Transient roll decks aren't routable.
+  useEffect(() => {
+    const apply = async () => {
+      const r = parseRoute(window.location.hash);
+      if (!r) return;
+      if (r.view === 'deck') {
+        setView('landing');
+        setActiveId(r.id);
+        setInitialTab(null);
+      } else if (r.view === 'gallery-deck' || r.view === 'roll') {
+        // Permalink to a public deck / shared roll — rehydrate from
+        // Supabase and open read-only, same as the View tiles.
+        const deck = r.view === 'roll' ? await loadRandomRollById(r.id) : await loadDeckById(r.id);
+        if (deck) {
+          setViewingDeck({ ...deck, id: `view:${deck.id}`, __readonly: true, __permalink: formatRoute(r.view, r.id) });
+          setActiveId(`view:${deck.id}`);
+        } else {
+          setView('landing');
+          setActiveId(null);
+        }
+      } else {
+        setActiveId(null);
+        setViewingDeck(null);
+        setView(r.view);
+      }
+    };
+    apply();
+    window.addEventListener('hashchange', apply);
+    window.addEventListener('popstate', apply);
+    return () => {
+      window.removeEventListener('hashchange', apply);
+      window.removeEventListener('popstate', apply);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    let target;
+    if (activeId) {
+      if (isRoutableDeckId(activeId)) target = formatRoute('deck', activeId);
+      else if (viewingDeck?.__permalink && viewingDeck.id === activeId) target = viewingDeck.__permalink;
+      else return; // transient roll — leave the hash alone
+    } else {
+      target = formatRoute(view);
+    }
+    if (window.location.hash === target) return;
+    // First write on a hashless load replaces (no junk history entry);
+    // in-app navigation pushes so back/forward work.
+    const method = parseRoute(window.location.hash) ? 'pushState' : 'replaceState';
+    try { window.history[method](null, '', target); } catch {}
+  }, [activeId, view, viewingDeck]);
+
   // Engagement-gated auto-prompt. Once the user has done something
   // meaningful, wait DEFAULT_ENGAGEMENT_DELAY_MS, then auto-open ONE of
   // two CTAs: the Cardmarket referral pop-up (UK/EU players) takes
@@ -431,6 +488,7 @@ export default function App() {
     };
     delete fresh.__readonly;
     delete fresh.__transient;
+    delete fresh.__permalink;
     const ok = await saveDeck(fresh);
     if (ok === false) {
       toast.error(`Couldn't save "${fresh.name}" — check your connection and try again. Your deck is still open.`);
@@ -508,10 +566,15 @@ export default function App() {
   // `viewingDeck`, NOT into `decks`. The archive list never shows it;
   // navigating back clears it.
   const handleViewGalleryDeck = (deck) => {
+    // Mint the shareable permalink for the address bar: rolls live in
+    // random_rolls (ids arrive as 'roll:<uuid>'), gallery decks in decks.
+    const isRoll = !!deck.__fromRandomRolls;
+    const rawId = String(deck.id).replace(/^roll:/, '');
     const viewerDeck = {
       ...deck,
       id: `view:${deck.id}`,
       __readonly: true,
+      __permalink: formatRoute(isRoll ? 'roll' : 'gallery-deck', rawId),
     };
     setViewingDeck(viewerDeck);
     selectDeck(viewerDeck.id);
