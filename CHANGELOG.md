@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.49.0 — Multi-device edits stop silently clobbering each other
+
+### Sync (closes #193)
+- **Stale-copy guard in cloud saves.** When a deck save lands from a copy that hasn't been saved in 5+ minutes, `saveDeck` first compares the cloud row's `updated_at`; if another device wrote in between, a themed confirm asks **Overwrite** vs **Keep theirs** instead of last-write-wins silently eating the other edit. Active editing bursts never pay the extra read — every save refreshes the local timestamp, so the check only fires in the real "opened long ago, edited elsewhere since" case. 2s slack absorbs clock skew.
+
 ## v0.48.0 — Undo for Vault removals
 
 ### Vault (part 1 of #191)
