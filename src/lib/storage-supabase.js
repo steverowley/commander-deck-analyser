@@ -20,6 +20,14 @@
 import { supabase } from './supabase.js';
 import { assessBracket } from './analyzers.js';
 import { computeHealth } from './health.js';
+import { confirmDialog } from './confirm.js';
+
+// Conflict check threshold: only compare against the cloud row when the
+// local copy hasn't been saved for this long. Active editing refreshes
+// `deck.updated` on every save, so bursts of edits never pay the extra
+// read — the check fires exactly in the "opened long ago on this
+// device, edited elsewhere since" scenario (#193).
+const CONFLICT_CHECK_AFTER_MS = 5 * 60 * 1000;
 
 /**
  * Deck IDs in the local app are 'deck_<ts>' strings. Supabase uses uuids.
@@ -135,6 +143,24 @@ export async function loadDecks() {
 export async function saveDeck(deck) {
   if (!supabase) return false;
   const userId = await currentUserId();
+  // Stale-copy guard: warn before last-write-wins clobbers an edit made
+  // on another device. 2s slack absorbs clock skew / timestamp rounding.
+  if (isUuid(deck.id) && deck.updated && Date.now() - deck.updated > CONFLICT_CHECK_AFTER_MS) {
+    const { data: cur } = await supabase
+      .from('decks')
+      .select('updated_at')
+      .eq('owner_id', userId)
+      .eq('id', deck.id)
+      .maybeSingle();
+    const cloudUpdated = cur ? new Date(cur.updated_at).getTime() : 0;
+    if (cloudUpdated > deck.updated + 2000) {
+      const overwrite = await confirmDialog(
+        `"${deck.name}" was changed on another device after you opened it here. Overwrite that version with this one? (Cancel keeps the other device's version — this change won't be stored.)`,
+        { confirmLabel: 'Overwrite', cancelLabel: 'Keep theirs' }
+      );
+      if (!overwrite) return false;
+    }
+  }
   const row = deckToRow(deck, userId);
   const { data, error } = await supabase
     .from('decks')
