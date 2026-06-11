@@ -17,23 +17,21 @@ import { fetchCardsByName } from './scryfall.js';
 import { detectTags } from './tags.js';
 import { recommendByCurve } from './health.js';
 import { cardPrice, activePriceSource } from './pricing.js';
-import { archetypeById, tagsMatchArchetype } from './archetypes.js';
+import { archetypeById, tagsMatchArchetype, archetypeBuildProfile } from './archetypes.js';
 import { BANNED_CARDS } from './constants.js';
-import { utilityReserve } from './landbase.js';
+import { utilityReserve, pipDistribution } from './landbase.js';
 import { lc } from './utils.js';
 
 // Larger pool when filters are in play so we still hit 99 after
 // pruning expensive cards / off-bracket cards.
 const POOL_SIZE = 180;
 const POOL_SIZE_FILTERED = 260;
-// Targets follow the Command Zone "New Era" template (Ep. 658): bumped
-// draw to 10 (was 9), split removal into 10 spot removal + 3 wipes
-// (was 9 mixed). The targets are still upper-end of the curve-aware ramp/
-// land bands — we want the auto-seed to deliver a deck that scores high
-// on Health right out of the gate.
-const DRAW_TARGET = 10;
-const TARGETED_REMOVAL_TARGET = 10;
-const BOARD_WIPE_TARGET = 3;
+// Role targets (draw / removal / wipes / protection / recursion / wincon)
+// come from the per-archetype build profile in archetypes.js, which is
+// anchored on the Command Zone "New Era" template (Ep. 658) + Kristen
+// Gregory's Four Pillars. Lands + ramp still scale with the curve. The
+// goal: a rolled deck that scores high on its own Health check out of the
+// gate, shaped to the requested archetype.
 const DECK_TOTAL = 99;
 
 // Tags that signal a card is too high-power for casual / precon
@@ -67,12 +65,20 @@ function categorize(card) {
   if (isLand(card)) return 'land';
   const tags = new Set(detectTags(card));
   if (tags.has('Ramp') || tags.has('Mana rock')) return 'ramp';
-  if (tags.has('Card draw') || tags.has('Tutor')) return 'draw';
+  // 'Card draw' only — tutors are NOT card draw (health.js counts draw the
+  // same way), so they fall through to the synergy pool rather than
+  // padding the draw count.
+  if (tags.has('Card draw')) return 'draw';
   // Wipes checked before spot removal so a card with both tags (e.g.
   // overload spells in their bigger mode) lands in the right bucket
   // for the post-Ep. 658 split targets.
   if (tags.has('Board wipe')) return 'wipe';
   if (tags.has('Targeted removal')) return 'removal';
+  if (tags.has('Protection')) return 'protection';
+  if (tags.has('Recursion') || tags.has('Reanimation')) return 'recursion';
+  // Win-con last before the generic pool so a finisher that's also a
+  // pillar (e.g. a board wipe that ends games) counts toward the pillar.
+  if (tags.has('Win condition') || tags.has('Combo piece')) return 'wincon';
   return 'other';
 }
 
@@ -81,6 +87,40 @@ function categorize(card) {
 // (b) decrement summary.basics when a basic is removed.
 function isBasicLandName(name) {
   return /^(Snow-Covered )?(Plains|Island|Swamp|Mountain|Forest)$|^Wastes$/.test(name || '');
+}
+
+// Distribute `count` basic lands across the commander's colour identity,
+// weighted by the deck's actual coloured-pip demand (Karsten / Salubrious
+// Snail: run more of the colour you cast more of). Falls back to an even
+// split when no pips are known. Colourless identity gets Wastes. Uses
+// largest-remainder rounding so the parts sum to exactly `count`.
+function weightedBasicDistribution(count, identity, pips) {
+  const dist = {};
+  if (count <= 0) return dist;
+  if (identity.length === 0) {
+    dist[BASIC_BY_COLOR.C] = count;
+    return dist;
+  }
+  const totalPips = identity.reduce((s, c) => s + (pips?.[c] || 0), 0);
+  if (totalPips === 0) {
+    for (let i = 0; i < count; i++) {
+      const name = BASIC_BY_COLOR[identity[i % identity.length]];
+      dist[name] = (dist[name] || 0) + 1;
+    }
+    return dist;
+  }
+  const prov = identity.map((c) => {
+    const exact = (pips[c] / totalPips) * count;
+    return { name: BASIC_BY_COLOR[c], floor: Math.floor(exact), frac: exact - Math.floor(exact) };
+  });
+  let leftover = count - prov.reduce((s, p) => s + p.floor, 0);
+  prov.sort((a, b) => b.frac - a.frac);
+  for (const p of prov) {
+    const give = leftover > 0 ? 1 : 0;
+    dist[p.name] = (dist[p.name] || 0) + p.floor + give;
+    leftover -= give;
+  }
+  return dist;
 }
 
 // Check whether the user's collection contains a card. Falls back to
@@ -223,32 +263,39 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
 
   // Bucket by role. Each bucket stays in (possibly archetype-promoted)
   // synergy order so `.shift()` picks the most relevant candidate first.
-  const buckets = { land: [], ramp: [], draw: [], removal: [], wipe: [], other: [] };
+  const buckets = { land: [], ramp: [], draw: [], removal: [], wipe: [], protection: [], recursion: [], wincon: [], other: [] };
   for (const card of pool) buckets[categorize(card)].push(card);
 
-  // Curve-aware targets.
+  // Curve-aware land + ramp targets; the rest of the role split comes
+  // from the archetype build profile so a rolled deck matches the model
+  // the Health score grades against (incl. protection + recursion, which
+  // the old template ignored even though Health docks you for missing).
   const sample = pool.slice(0, 60);
   const avgCmc = avgCmcOf(sample);
   const curve = recommendByCurve(avgCmc);
+  const profile = archetypeBuildProfile(archetype.id);
   const targets = {
-    lands: curve.land.ideal[1],
-    ramp: curve.ramp.ideal[1],
-    draw: DRAW_TARGET,
-    removal: TARGETED_REMOVAL_TARGET,
-    wipe: BOARD_WIPE_TARGET,
+    lands: Math.max(30, curve.land.ideal[1] + profile.landDelta),
+    ramp: Math.max(5, curve.ramp.ideal[1] + profile.rampDelta),
+    draw: profile.draw,
+    removal: profile.removal,
+    wipe: profile.wipe,
+    protection: profile.protection,
+    recursion: profile.recursion,
+    wincon: profile.wincon,
   };
 
-  onProgress?.(`Balancing — target ${targets.lands} lands, ${targets.ramp} ramp, ${targets.draw} draw, ${targets.removal} spot removal, ${targets.wipe} wipes...`);
+  onProgress?.(`Balancing — target ${targets.lands} lands, ${targets.ramp} ramp, ${targets.draw} draw, ${targets.removal} removal, ${targets.wipe} wipes, ${targets.protection} protection, ${targets.recursion} recursion...`);
 
   const entries = [];
-  // Summary keys deliberately match the bucket keys (`land`, `ramp`,
-  // `draw`, `removal`, `wipe`, `other`) so `summary[key]` works inside
-  // the priority-fill loop. `basics` is separate because basics are
-  // distributed below; the modal sums lands + basics for the display.
-  // ownedPool surfaces how many cards survived the ownedOnly filter
-  // so the UI can warn when the Vault overlap is too thin.
+  // Summary keys deliberately match the bucket keys so `summary[key]`
+  // works inside the priority-fill loop. `basics` is separate because
+  // basics are distributed below; the modal sums lands + basics for the
+  // display. ownedPool surfaces how many cards survived the ownedOnly
+  // filter so the UI can warn when the Vault overlap is too thin.
   const summary = {
-    land: 0, ramp: 0, draw: 0, removal: 0, wipe: 0, other: 0, basics: 0,
+    land: 0, ramp: 0, draw: 0, removal: 0, wipe: 0,
+    protection: 0, recursion: 0, wincon: 0, other: 0, basics: 0,
     ownedPool: ownedOnly ? pool.length : null,
     vaultSize: collection ? Object.keys(collection).length : 0,
   };
@@ -272,9 +319,12 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
   const utilityCap = utilityReserve(identityCount);
   addFromBucket('land', Math.min(targets.lands, utilityCap));
   addFromBucket('ramp', targets.ramp);
-  addFromBucket('draw', targets.draw);
   addFromBucket('removal', targets.removal);
+  addFromBucket('draw', targets.draw);
   addFromBucket('wipe', targets.wipe);
+  addFromBucket('protection', targets.protection);
+  addFromBucket('recursion', targets.recursion);
+  addFromBucket('wincon', targets.wincon);
 
   // Fill remaining slots with synergy / strategy cards. Pull from
   // `other` first (the actual strategy fillers), then dip into the
@@ -288,6 +338,9 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
     ...buckets.draw,
     ...buckets.removal,
     ...buckets.wipe,
+    ...buckets.protection,
+    ...buckets.recursion,
+    ...buckets.wincon,
   ];
   while (totalSlots(entries) < DECK_TOTAL && overflow.length > 0) {
     const card = overflow.shift();
@@ -321,6 +374,21 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
         dropped++;
       }
     }
+    // Degenerate-pool hardening (#176 review finding): a pool that is
+    // ALL role-cards (no 'other' synergy fillers) used to leave nothing
+    // droppable here, so the land slots never opened up and the deck
+    // shipped with 0-2 lands. When 'other' is exhausted, shed role
+    // fillers from the end — overflow-fill order, i.e. the lowest-
+    // priority adds — until the land target fits. Lands are never
+    // dropped to make room for lands.
+    for (let i = entries.length - 1; i >= 0 && dropped < needToDrop; i--) {
+      const cat = categorize(entries[i].scryfall);
+      if (cat === 'land') continue;
+      entries.splice(i, 1);
+      if (summary[cat] !== undefined) summary[cat]--;
+      else summary.other--;
+      dropped++;
+    }
     const room = DECK_TOTAL - totalSlots(entries);
     const padCount = Math.min(wanted, room);
     if (padCount > 0) {
@@ -329,11 +397,10 @@ export async function buildSeededDeck(commander, opts = {}, onProgress) {
         ? [BASIC_BY_COLOR.C]
         : identity.map((c) => BASIC_BY_COLOR[c]);
       const { results: basicResults } = await fetchCardsByName(basicNames);
-      const distribution = {};
-      for (let i = 0; i < padCount; i++) {
-        const name = basicNames[i % basicNames.length];
-        distribution[name] = (distribution[name] || 0) + 1;
-      }
+      // Weight basics by the deck's coloured-pip demand so a deck that
+      // casts mostly blue gets mostly Islands, not an even split.
+      const pips = pipDistribution({ cards: entries });
+      const distribution = weightedBasicDistribution(padCount, identity, pips);
       for (const [name, count] of Object.entries(distribution)) {
         const card = basicResults[name.toLowerCase()];
         if (!card) continue;

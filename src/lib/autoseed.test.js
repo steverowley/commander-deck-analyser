@@ -43,6 +43,17 @@ function makeRemoval(i) {
 function makeLand(i) {
   return { name: `Utility Land ${i}`, type_line: 'Land', cmc: 0, oracle_text: '{T}: Add one mana of any color.' };
 }
+function makeProtection(i) {
+  return { name: `Protection ${i}`, type_line: 'Instant', cmc: 1, oracle_text: 'Target creature you control gains hexproof and indestructible until end of turn.' };
+}
+function makeRecursion(i) {
+  return { name: `Recursion ${i}`, type_line: 'Sorcery', cmc: 3, oracle_text: 'Return target creature card from your graveyard to the battlefield.' };
+}
+// Blue-pip creature for the pip-weighted basics test (carries mana_cost
+// so pipDistribution can read its colour demand).
+function makeBlue(i) {
+  return { name: `Blue ${i}`, type_line: 'Creature — Merfolk', cmc: 2, mana_cost: '{U}{U}', oracle_text: 'Vanilla.' };
+}
 
 function buildResults(cards) {
   const out = {};
@@ -365,4 +376,89 @@ describe('buildSeededDeck', () => {
     const wastes = cards.find((c) => c.name === 'Wastes');
     expect(wastes?.count ?? 0).toBeGreaterThan(0);
   });
+
+  it('builds toward the protection + recursion pillars when the pool has them', async () => {
+    const pool = [
+      ...Array.from({ length: 40 }, (_, i) => makeLand(i)),
+      ...Array.from({ length: 15 }, (_, i) => makeRamp(i)),
+      ...Array.from({ length: 15 }, (_, i) => makeDraw(i)),
+      ...Array.from({ length: 15 }, (_, i) => makeRemoval(i)),
+      ...Array.from({ length: 8 }, (_, i) => makeProtection(i)),
+      ...Array.from({ length: 8 }, (_, i) => makeRecursion(i)),
+      ...Array.from({ length: 60 }, (_, i) => makeCreature(i)),
+    ];
+    fetchRecommendations.mockResolvedValue(pool.map((c) => ({ name: c.name })));
+    fetchCardsByName.mockResolvedValue({ results: buildResults(pool), notFound: [], errors: [] });
+
+    const commander = { name: 'Pillar Cmdr', color_identity: ['W', 'B'] };
+    const { cards, summary } = await buildSeededDeck(commander);
+    expect(totalCount(cards)).toBe(99);
+    // Base profile targets 3 of each — the old builder hit zero because it
+    // had no protection/recursion buckets at all.
+    expect(summary.protection).toBeGreaterThanOrEqual(3);
+    expect(summary.recursion).toBeGreaterThanOrEqual(3);
+  });
+
+  it('reshapes the role split by archetype (aristocrats wants more wipes)', async () => {
+    const makeWipe = (i) => ({ name: `Wipe ${i}`, type_line: 'Sorcery', cmc: 4, oracle_text: 'Destroy all creatures.' });
+    const pool = [
+      ...Array.from({ length: 40 }, (_, i) => makeLand(i)),
+      ...Array.from({ length: 15 }, (_, i) => makeRamp(i)),
+      ...Array.from({ length: 15 }, (_, i) => makeDraw(i)),
+      ...Array.from({ length: 15 }, (_, i) => makeRemoval(i)),
+      ...Array.from({ length: 8 }, (_, i) => makeWipe(i)),
+      ...Array.from({ length: 60 }, (_, i) => makeCreature(i)),
+    ];
+    fetchRecommendations.mockResolvedValue(pool.map((c) => ({ name: c.name })));
+    fetchCardsByName.mockResolvedValue({ results: buildResults(pool), notFound: [], errors: [] });
+
+    const commander = { name: 'Aristo Cmdr', color_identity: ['W', 'B'] };
+    const { cards, summary } = await buildSeededDeck(commander, { archetype: 'aristocrats' });
+    expect(totalCount(cards)).toBe(99);
+    // Aristocrats profile bumps wipes to 5 (vs the base 3) — more wipes
+    // are fine because the deck benefits from its own creatures dying.
+    expect(summary.wipe).toBeGreaterThanOrEqual(5);
+  });
+
+  it('weights padded basics by the deck\'s coloured-pip demand', async () => {
+    // A heavily-blue deck (every spell costs {U}{U}) with no lands in the
+    // pool should pad mostly Islands, not an even Plains/Island split.
+    const pool = Array.from({ length: 120 }, (_, i) => makeBlue(i));
+    fetchRecommendations.mockResolvedValue(pool.map((c) => ({ name: c.name })));
+    fetchCardsByName.mockResolvedValue({ results: buildResults(pool), notFound: [], errors: [] });
+
+    const commander = { name: 'Mono-U-ish Cmdr', color_identity: ['W', 'U'] };
+    const { cards } = await buildSeededDeck(commander);
+    expect(totalCount(cards)).toBe(99);
+    const islands = cards.find((c) => c.name === 'Island')?.count ?? 0;
+    const plains = cards.find((c) => c.name === 'Plains')?.count ?? 0;
+    expect(islands).toBeGreaterThan(plains);
+  });
+
+  it('degenerate all-role pool with no lands still gets a real land base (make-room hardening)', async () => {
+    // Fuzz case from the PR-176 review: every pool card is a role card
+    // (ramp / draw / removal) — zero lands, zero 'other' fillers. The
+    // old make-room loop could only drop 'other', so basics never fit
+    // and the deck shipped with 0-2 lands.
+    const pool = [
+      ...Array.from({ length: 33 }, (_, i) => makeRamp(i)),
+      ...Array.from({ length: 33 }, (_, i) => makeDraw(i)),
+      ...Array.from({ length: 33 }, (_, i) => makeRemoval(i)),
+    ];
+    fetchRecommendations.mockResolvedValue(pool.map((c) => ({ name: c.name })));
+    fetchCardsByName.mockImplementation(async () => ({
+      results: buildResults(pool),
+      notFound: [],
+      errors: [],
+    }));
+
+    const commander = { name: 'Test Cmdr', color_identity: ['G'] };
+    const { cards, summary } = await buildSeededDeck(commander);
+
+    expect(totalCount(cards)).toBe(99);
+    // No nonbasic lands exist in this pool, so every land is a padded
+    // basic — the land base must reach a sane floor, not 0-2.
+    expect(summary.basics).toBeGreaterThanOrEqual(30);
+  });
+
 });
