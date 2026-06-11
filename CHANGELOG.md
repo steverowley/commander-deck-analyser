@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.43.0 — Installable app + polite prompts
+
+### Platform (closes #194, the core)
+- **`public/manifest.json` + `public/icon.svg`** — Vault is now installable as a PWA on Android/desktop Chrome ("Add to Home Screen" / install prompt): standalone display, dark `#0d1614` theme, the V mark as an SVG icon. A designed PNG icon set (Apple touch icon for iOS installs, maskable variants) rides with the og:image artwork tracked in #199.
+- **"New version available" toast** — `sw-register.js` watches the service-worker update cycle; when a fresh deploy finishes installing over a live page it toasts "Vault has been updated — refresh to get the latest version" (12s) instead of leaving users on a stale build until they happen to reload.
+
+### Prompts (closes #198)
+- **The tip/referral auto-prompt now waits for an idle moment.** The 5-minute engagement timer still arms it, but at fire time it requires 15s without pointer/keyboard activity (re-checking every 5s) before opening — it no longer lands mid-search or mid-edit, where a reflex X-click permanently burns the one ask.
+
 ## v0.42.0 — Vault-aware deck editing
 
 The Vault and the deck editor finally talk to each other (closes #196). Ownership data was already loaded for Buylist and coverage stats — now it's visible while you build.

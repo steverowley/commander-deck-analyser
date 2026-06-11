@@ -7,6 +7,8 @@
  * is anchored to the deployed base path.
  */
 
+import { toast } from './lib/toast.js';
+
 export function registerServiceWorker() {
   if (typeof window === 'undefined') return;
   if (!('serviceWorker' in navigator)) return;
@@ -18,7 +20,21 @@ export function registerServiceWorker() {
   const swUrl = `${base.replace(/\/$/, '')}/sw.js`;
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register(swUrl, { scope: base }).catch((err) => {
+    navigator.serviceWorker.register(swUrl, { scope: base }).then((reg) => {
+      // New deploy detection: a fresh worker installing while an old one
+      // controls the page means a new version shipped. The SW uses
+      // skipWaiting, so one refresh picks it up — tell the user instead
+      // of leaving them on a stale build indefinitely.
+      reg.addEventListener('updatefound', () => {
+        const next = reg.installing;
+        if (!next) return;
+        next.addEventListener('statechange', () => {
+          if (next.state === 'installed' && navigator.serviceWorker.controller) {
+            toast('Vault has been updated — refresh to get the latest version.', { duration: 12000 });
+          }
+        });
+      });
+    }).catch((err) => {
       console.warn('Vault: service worker registration failed', err);
     });
   });
