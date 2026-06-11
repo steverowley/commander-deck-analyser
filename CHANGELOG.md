@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.56.0 — Game Changers list syncs itself
+
+PR 3 of the deckbuilding-philosophy series — the bracket assessor stops trusting a hand-copied list.
+
+### Library (closes #125)
+- **New `src/lib/gameChangers.js`** — fetches WotC's official list via Scryfall's `is:gamechanger` search (paginated), caches 24h in localStorage, and falls back to the hardcoded `constants.js` copy when offline or when the payload looks implausible (<20 names — a truncated response must never shrink the list). A stale cache still applies when a refresh fails, so the last good sync survives outages. DFC front-face names are indexed too.
+- **`analyzers.js` (bracket flags) and `tags.js` (the Game Changer tag) both read the live set** via the sync `isGameChanger(name)` — brackets, card tags, and the roller's bracket exclusions stay in agreement. App boot fires the refresh; assessments simply sharpen when it lands.
+- The constant stays as documented fallback; future WotC updates land without a release.
+
+### Housekeeping
+- #124 (Oct 2025 tutor-cap removal) verified already shipped — code, UI copy, and the 5-tutor acceptance test all present — and closed as completed.
+
+### Tests
+- 7 new in `gameChangers.test.js` — fallback start, paginated replace, fetch-failure fallback, implausible-payload rejection, cache write + fresh-cache fast path, stale-cache-despite-failed-refresh, DFC front faces. Suite: 561 passing.
+
 ## v0.55.0 — Build Advisor learns the two big casual anti-patterns
 
 PR 2 of the deckbuilding-philosophy series (#176 follow-up).

@@ -1,6 +1,7 @@
 import {
-  GAME_CHANGERS, MLD_CARDS, EXTRA_TURN_CARDS, FAST_MANA,
+  MLD_CARDS, EXTRA_TURN_CARDS, FAST_MANA,
 } from './constants.js';
+import { isGameChanger } from './gameChangers.js';
 import { detectCombos } from './combos.js';
 import { lc } from './utils.js';
 
@@ -29,7 +30,7 @@ export function assessBracket(deck) {
   for (const c of cards) {
     const name = lc(c.scryfall.name);
     const oracle = c.scryfall.oracle_text || '';
-    if (GAME_CHANGERS.has(name)) flags.gameChangers.push(c.scryfall.name);
+    if (isGameChanger(name)) flags.gameChangers.push(c.scryfall.name);
     if (MLD_CARDS.has(name)) flags.mld.push(c.scryfall.name);
     if (EXTRA_TURN_CARDS.has(name)) flags.extraTurns.push(c.scryfall.name);
     if (FAST_MANA.has(name)) flags.fastMana.push(c.scryfall.name);

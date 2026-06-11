@@ -6,6 +6,7 @@ import { uploadLocalDecks, loadDeckById, loadRandomRollById } from './lib/storag
 import { parseRoute, formatRoute, isRoutableDeckId } from './lib/router.js';
 import { useAuthState, isCloudEnabled, signOut, consumeOAuthParams } from './lib/supabase.js';
 import { loadCardCache, fetchCardsByName } from './lib/scryfall.js';
+import { loadGameChangers } from './lib/gameChangers.js';
 import { duplicateDeck, addCardsToDeck } from './lib/deckops.js';
 import { decodeDeckUrl } from './lib/share.js';
 import { loadSettings, applyRegionDefaults, hasStoredSettings } from './lib/settings.js';
@@ -181,6 +182,10 @@ export default function App() {
 
   useEffect(() => {
     loadCardCache();
+    // Sync the official Game Changers list from Scryfall (24h cache;
+    // falls back to the hardcoded constant offline). Fire-and-forget —
+    // bracket assessments simply sharpen once it lands.
+    loadGameChangers();
 
     // Tip-return param: PayPal Donate SDK redirects here with ?tip=thanks
     // after a tip completes. Open the modal in the thanks state and re-fetch
