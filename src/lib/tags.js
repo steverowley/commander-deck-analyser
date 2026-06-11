@@ -1,7 +1,8 @@
 import {
-  TAG_PATTERNS, TYPE_TAGS, GAME_CHANGERS, MLD_CARDS,
+  TAG_PATTERNS, TYPE_TAGS, MLD_CARDS,
   EXTRA_TURN_CARDS, WIN_CONDITION_CARDS,
 } from './constants.js';
+import { isGameChanger } from './gameChangers.js';
 import { COMBO_INDEX } from './combos.js';
 import { lc } from './utils.js';
 
@@ -39,7 +40,7 @@ export function detectTags(card, deckCardNames = new Set()) {
   if (typeLine.includes('Aura')) tags.add('Aura');
   if (typeLine.includes('Vehicle')) tags.add('Vehicle');
 
-  if (GAME_CHANGERS.has(name)) tags.add('Game Changer');
+  if (isGameChanger(name)) tags.add('Game Changer');
   if (MLD_CARDS.has(name)) tags.add('Mass Land Destruction');
   if (EXTRA_TURN_CARDS.has(name)) tags.add('Extra Turn');
   if (WIN_CONDITION_CARDS.has(name)) tags.add('Win condition');
