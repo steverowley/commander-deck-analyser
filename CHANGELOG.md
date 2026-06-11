@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.50.0 — Esc closes every modal
+
+### Accessibility (part 1 of #189)
+- **New `useEscapeClose(onClose, enabled)` hook** applied to all 21 modals: the fifteen in `Modals.jsx` (export, share, compare, buylist, Rule Zero, import, backup, settings, bug report, notes, printing picker, random-deck, bulk add, tag edit, rules) plus AuthModal, ProfileModal, TipModal, ReferralModal, the card scanner, and the Vault bulk-paste modal.
+- **Onboarding stays guarded** — the forced username step passes `enabled = !onboarding`, and the Vault bulk modal's Esc routes through the same close handler that refuses to bail mid-upload.
+- **Layering handled** — the confirm dialog listens in the capture phase and stops propagation, so Esc on a confirm-on-top-of-a-modal cancels only the confirm.
+
+(Focus traps + `role="dialog"` on the modal wrappers remain open in #189.)
+
 ## v0.49.0 — Multi-device edits stop silently clobbering each other
 
 ### Sync (closes #193)

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Gift, ExternalLink, Copy, Check } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
+import { useEscapeClose } from './UI.jsx';
 import { cardmarketReferralUrl, cardmarketReferrerUsername } from '../lib/affiliate.js';
 
 /**
@@ -14,6 +15,7 @@ import { cardmarketReferralUrl, cardmarketReferrerUsername } from '../lib/affili
  * dismisses for good.
  */
 export function ReferralModal({ onClose, onRemindLater = null, autoPrompted = false }) {
+  useEscapeClose(onClose);
   const [copied, setCopied] = useState(false);
   const cmUser = cardmarketReferrerUsername();
 

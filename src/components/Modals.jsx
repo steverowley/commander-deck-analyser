@@ -25,7 +25,7 @@ import { fetchRecommendations, topRecommendations } from '../lib/edhrec.js';
 import { buildBugReportBody } from '../lib/bugReport.js';
 import { confirmDialog } from '../lib/confirm.js';
 import { supabase } from '../lib/supabase.js';
-import { TagPill, RuleSection } from './UI.jsx';
+import { TagPill, RuleSection, useEscapeClose } from './UI.jsx';
 import { ManaSymbol } from './ManaCost.jsx';
 import { ThemeToggle } from './ThemeToggle.jsx';
 import { BRACKETS } from '../lib/constants.js';
@@ -33,6 +33,7 @@ import { BRACKETS } from '../lib/constants.js';
 // ───────────────────────────────────────────────────────────────────────────────
 
 export function BulkAddModal({ onClose, onAdd }) {
+  useEscapeClose(onClose);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState('');
@@ -175,6 +176,7 @@ const COMMON_TAGS = [
 ];
 
 export function TagEditModal({ entry, onClose, onSave }) {
+  useEscapeClose(onClose);
   const [tags, setTags] = useState(entry.tags || []);
   const [note, setNote] = useState(entry.note || '');
   const [newTag, setNewTag] = useState('');
@@ -296,6 +298,7 @@ export function TagEditModal({ entry, onClose, onSave }) {
 // ───────────────────────────────────────────────────────────────────────────────
 
 export function RulesModal({ onClose }) {
+  useEscapeClose(onClose);
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
@@ -345,6 +348,7 @@ export function RulesModal({ onClose }) {
 // ───────────────────────────────────────────────────────────────────────────────
 
 export function ExportModal({ deck, onClose }) {
+  useEscapeClose(onClose);
   const [format, setFormat] = useState('text');
   const text = useMemo(() => exportAs(deck, format), [deck, format]);
   const [copied, setCopied] = useState(false);
@@ -497,6 +501,7 @@ export function ExportModal({ deck, onClose }) {
  * of candidate decks. On a pick, the modal renders the comparison inline.
  */
 export function CompareModal({ deck, otherDecks, onClose }) {
+  useEscapeClose(onClose);
   const [pickedId, setPickedId] = useState(null);
   // When the user picks "EDHREC average", we synthesise a deck from the
   // top-99 recs and hold it in state separately from otherDecks.
@@ -793,6 +798,7 @@ function CardCol({ title, cards }) {
 // ───────────────────────────────────────────────────────────────────────────────
 
 export function RuleZeroModal({ deck, onClose }) {
+  useEscapeClose(onClose);
   const card = useMemo(() => buildRuleZeroCard(deck), [deck]);
   const markdown = useMemo(() => ruleZeroAsMarkdown(card), [card]);
   const shareUrl = useMemo(() => buildShareUrl(deck), [deck]);
@@ -978,6 +984,7 @@ function Stat({ label, value }) {
 }
 
 export function BuylistModal({ deck, onClose }) {
+  useEscapeClose(onClose);
   const [collection, setCollection] = useState(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -1141,6 +1148,7 @@ export function BuylistModal({ deck, onClose }) {
 }
 
 export function ShareModal({ deck, onClose }) {
+  useEscapeClose(onClose);
   const url = buildShareUrl(deck);
   const [copied, setCopied] = useState(false);
   const copy = async () => {
@@ -1206,6 +1214,7 @@ export function ShareModal({ deck, onClose }) {
  * the active deck's contents).
  */
 export function ImportDeckModal({ onClose, onImport, suggestedName = '' }) {
+  useEscapeClose(onClose);
   const [name, setName] = useState(suggestedName);
   const [text, setText] = useState('');
   const [url, setUrl] = useState('');
@@ -1504,6 +1513,7 @@ export function ImportDeckModal({ onClose, onImport, suggestedName = '' }) {
  * all decks) and Restore (paste/upload a previous backup).
  */
 export function BackupModal({ decks, onClose, onRestore }) {
+  useEscapeClose(onClose);
   const [tab, setTab] = useState('export');
   return (
     <div
@@ -1730,6 +1740,7 @@ function BackupRestore({ onRestore, onClose }) {
 const GITHUB_REPO = 'steverowley/commander-deck-analyser';
 
 export function BugReportModal({ onClose }) {
+  useEscapeClose(onClose);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [steps, setSteps] = useState('');
@@ -2162,6 +2173,7 @@ export function SettingsBody() {
 }
 
 export function SettingsModal({ onClose }) {
+  useEscapeClose(onClose);
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
@@ -2230,6 +2242,7 @@ function ToggleSwitch({ on, onChange }) {
  * Auto-saves on blur; cancel discards in-flight edits.
  */
 export function NotesModal({ deck, onClose, onSave }) {
+  useEscapeClose(onClose);
   const [draft, setDraft] = useState(deck.notes || '');
   const commit = () => {
     if (draft !== (deck.notes || '')) onSave(draft);
@@ -2298,6 +2311,7 @@ export function NotesModal({ deck, onClose, onSave }) {
  * so swapping art here doesn't touch any other deck or the global cache.
  */
 export function PrintingPickerModal({ card, onClose, onPick }) {
+  useEscapeClose(onClose);
   const [printings, setPrintings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -2435,6 +2449,7 @@ const BUDGET_PRESETS = [
 const BRACKET_OPTIONS = [1, 2, 3, 4, 5];
 
 export function RandomDeckModal({ onClose, onBuild, canShare = false }) {
+  useEscapeClose(onClose);
   const [colors, setColors] = useState([]);
   const [partner, setPartner] = useState(false);
   const [bracket, setBracket] = useState(3);

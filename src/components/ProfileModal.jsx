@@ -11,10 +11,12 @@
 import React, { useEffect, useState } from 'react';
 import { X, Loader2, Check, User } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
+import { useEscapeClose } from './UI.jsx';
 import { loadProfile, saveUsername, validateUsername } from '../lib/profile.js';
 import { SettingsBody } from './Modals.jsx';
 
 export function ProfileModal({ user, onClose, onboarding = false, onSaved }) {
+  useEscapeClose(onClose, !onboarding);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [username, setUsername] = useState('');

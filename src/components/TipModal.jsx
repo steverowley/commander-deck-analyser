@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Heart, ExternalLink, Copy, Check, Loader2 } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
+import { useEscapeClose } from './UI.jsx';
 import { paypalMeUrl, hasTipJar, hasDonateButton, renderDonateButton, TIP_PRESETS } from '../lib/billing.js';
 import { cardmarketReferralUrl, cardmarketReferrerUsername } from '../lib/affiliate.js';
 
@@ -15,6 +16,7 @@ import { cardmarketReferralUrl, cardmarketReferrerUsername } from '../lib/affili
  * point Cardmarket can attribute referrals (no per-URL affiliate).
  */
 export function TipModal({ onClose, justTipped = false, user = null, onRemindLater = null, autoPrompted = false }) {
+  useEscapeClose(onClose);
   const [custom, setCustom] = useState('');
   const [copied, setCopied] = useState(false);
   const [sdkError, setSdkError] = useState(null);

@@ -20,6 +20,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Camera, Loader2, Check, RefreshCw, Plus, AlertCircle } from 'lucide-react';
 import { CREAM, CREAM_DIM, CREAM_FAINT, BG, ACCENT } from '../theme.js';
+import { useEscapeClose } from './UI.jsx';
 import { searchCardAutocomplete, fetchCardByExactName, cardImageUrl } from '../lib/scryfall.js';
 import { addToCollection } from '../lib/collection.js';
 
@@ -54,6 +55,7 @@ async function getWorker(onProgress) {
 }
 
 export function CardScanner({ onClose, onAdded }) {
+  useEscapeClose(onClose);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);

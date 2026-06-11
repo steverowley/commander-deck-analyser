@@ -16,6 +16,22 @@ import { getLatestRelease } from '../lib/changelog.js';
  * small dim icon next to a label; on hover/focus shows a panel with
  * the body text. Click-to-toggle for touch.
  */
+/**
+ * Escape-to-close for modals (#189, part 1). Document-level listener,
+ * active while the modal is mounted; pass enabled=false to suspend
+ * (e.g. forced onboarding).
+ */
+export function useEscapeClose(onClose, enabled = true) {
+  useEffect(() => {
+    if (!enabled) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose?.();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose, enabled]);
+}
+
 export function HelpTip({ children, side = 'right' }) {
   const [open, setOpen] = useState(false);
   return (
