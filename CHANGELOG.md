@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.55.0 — Build Advisor learns the two big casual anti-patterns
+
+PR 2 of the deckbuilding-philosophy series (#176 follow-up).
+
+### Library (closes #134, closes #136)
+- **`checkGoodstuff(deck)`** — goodstuff-pile warning. Finds the archetype with the most theme-tagged cards (tag evidence only — curve/type-derived classifications like midrange/aggro can't nominate a theme the deck shows no tagged investment in; under 8 aligned cards = no baseline, no warning) and warns when theme density lands under 30% of non-land slots ("Only 18 of 67 cards align with your Aristocrats theme"). Major below 20%.
+- **`checkEffectCoverage(deck)`** — answers need variety, not volume. Counts removal per target type (creatures, artifacts, enchantments, planeswalkers, graveyards) straight from oracle text — no new auto-tag pills — with destroy/exile-target-permanent counting universally (but never for graveyards). Warns listing each missing type with example fixes (Disenchant / Krosan Grip, Bojuka Bog / Tormod's Crypt, …); major at 3+ gaps.
+- Both surface automatically through the existing Build Advisor rendering; both stay quiet on partial decks (<40 non-lands).
+
+### Tests
+- 8 new in `antipatterns.test.js` — staple-pile fires / focused build quiet / no-baseline quiet / partial-deck quiet; creature-only removal flags all gaps; universal answers cover permanents but not graveyards; full coverage stays silent. Legacy "healthy deck" fixtures now carry coverage answers. Suite: 554 passing.
+
 ## v0.54.0 — The roller builds to the health model
 
 Lands PR #176's work (rebased onto v0.53.1 and hardened past its known edge case).

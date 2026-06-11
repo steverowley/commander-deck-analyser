@@ -3,6 +3,8 @@ import {
   checkUnderland,
   checkCurveRampImbalance,
   checkOverTutoring,
+  checkGoodstuff,
+  checkEffectCoverage,
   runAntipatternChecks,
 } from './antipatterns.js';
 
@@ -138,7 +140,11 @@ describe('runAntipatternChecks', () => {
     const cards = [];
     for (let i = 0; i < 30; i++) cards.push(basicLand(`Forest ${i}`));
     for (let i = 0; i < 5; i++) cards.push(spell(`Ramp ${i}`, ['Ramp']));
-    for (let i = 0; i < 64; i++) cards.push(spell(`Bomb ${i}`, [], { cmc: 5 }));
+    for (let i = 0; i < 62; i++) cards.push(spell(`Bomb ${i}`, [], { cmc: 5 }));
+    // Keep effect coverage satisfied so exactly the two intended
+    // warnings (underland + curve-ramp) fire.
+    cards.push(spell('Generous Gift', [], { cmc: 3, oracle_text: 'Destroy target permanent.' }));
+    cards.push(spell('Crypt', [], { cmc: 5, oracle_text: 'Exile target player\u2019s graveyard.' }));
     const deck = { cards, commander: { color_identity: ['W', 'U', 'B'] } };
     const ws = runAntipatternChecks(deck);
     expect(ws.length).toBe(2);
@@ -150,7 +156,10 @@ describe('runAntipatternChecks', () => {
     const cards = [];
     for (let i = 0; i < 37; i++) cards.push(basicLand(`Forest ${i}`));
     for (let i = 0; i < 10; i++) cards.push(spell(`Ramp ${i}`, ['Ramp']));
-    for (let i = 0; i < 52; i++) cards.push(spell(`Filler ${i}`, [], { cmc: 3 }));
+    for (let i = 0; i < 50; i++) cards.push(spell(`Filler ${i}`, [], { cmc: 3 }));
+    // Effect coverage (#136): one universal answer + one graveyard answer.
+    cards.push(spell('Generous Gift', [], { oracle_text: 'Destroy target permanent.' }));
+    cards.push(spell('Crypt', [], { oracle_text: 'Exile target player\u2019s graveyard.' }));
     const deck = { cards, commander: { color_identity: ['G'] } };
     expect(runAntipatternChecks(deck)).toEqual([]);
   });
@@ -158,5 +167,92 @@ describe('runAntipatternChecks', () => {
   it('returns empty for a deckless input', () => {
     expect(runAntipatternChecks(null)).toEqual([]);
     expect(runAntipatternChecks({ cards: [] })).toEqual([]);
+  });
+});
+
+describe('checkGoodstuff', () => {
+  const withLands = (cards, lands = 36) => {
+    for (let i = 0; i < lands; i++) cards.push(basicLand(`Forest ${i}`));
+    return { cards, commander: { color_identity: ['B'] } };
+  };
+
+  it('fires on a staple pile with a detectable but thin theme', () => {
+    const cards = [];
+    // Enough Targeted removal to classify as control (12 * 1.2 > 10)
+    // but only ~19% of 62 non-lands carry control theme tags.
+    for (let i = 0; i < 12; i++) cards.push(spell(`Removal ${i}`, ['Targeted removal']));
+    for (let i = 0; i < 50; i++) cards.push(spell(`Staple ${i}`, []));
+    const w = checkGoodstuff(withLands(cards));
+    expect(w).not.toBeNull();
+    expect(w.id).toBe('goodstuff-pile');
+    expect(w.severity).toBe('major'); // < 20%
+    expect(w.title).toMatch(/theme density/);
+  });
+
+  it('stays quiet on a focused Aristocrats build', () => {
+    const cards = [];
+    for (let i = 0; i < 12; i++) cards.push(spell(`Sac ${i}`, ['Sacrifice outlet']));
+    for (let i = 0; i < 8; i++) cards.push(spell(`Death ${i}`, ['Death trigger']));
+    for (let i = 0; i < 6; i++) cards.push(spell(`Token ${i}`, ['Token producer']));
+    for (let i = 0; i < 36; i++) cards.push(spell(`Filler ${i}`, []));
+    expect(checkGoodstuff(withLands(cards))).toBeNull(); // 26/62 = 42%
+  });
+
+  it('stays quiet when no archetype is detectable (no baseline)', () => {
+    const cards = [];
+    for (let i = 0; i < 62; i++) cards.push(spell(`Staple ${i}`, []));
+    expect(checkGoodstuff(withLands(cards))).toBeNull();
+  });
+
+  it('stays quiet on partial decks', () => {
+    const cards = [];
+    for (let i = 0; i < 12; i++) cards.push(spell(`Removal ${i}`, ['Targeted removal']));
+    expect(checkGoodstuff({ cards, commander: null })).toBeNull();
+  });
+});
+
+describe('checkEffectCoverage', () => {
+  const removal = (name, text) => spell(name, [], { oracle_text: text });
+  const fill = (cards, n = 50) => {
+    for (let i = 0; i < n; i++) cards.push(spell(`Filler ${i}`, []));
+    return { cards, commander: null };
+  };
+
+  it('flags every missing type when removal is creature-only', () => {
+    const cards = [];
+    for (let i = 0; i < 12; i++) cards.push(removal(`Doom ${i}`, 'Destroy target creature.'));
+    const w = checkEffectCoverage(fill(cards));
+    expect(w).not.toBeNull();
+    expect(w.severity).toBe('major');
+    expect(w.title).toMatch(/artifacts/);
+    expect(w.title).toMatch(/enchantments/);
+    expect(w.title).toMatch(/graveyards/);
+    expect(w.coverage.creature).toBe(12);
+    expect(w.detail).toMatch(/Bojuka Bog/);
+  });
+
+  it('universal answers cover all permanent types but not graveyards', () => {
+    const cards = [removal('Anguished Unmaking', 'Exile target nonland permanent. You lose 3 life.')];
+    const w = checkEffectCoverage(fill(cards));
+    expect(w).not.toBeNull();
+    expect(w.coverage.creature).toBe(1);
+    expect(w.coverage.artifact).toBe(1);
+    expect(w.coverage.enchantment).toBe(1);
+    expect(w.coverage.planeswalker).toBe(1);
+    expect(w.coverage.graveyard).toBe(0);
+    expect(w.title).toMatch(/graveyards/);
+    expect(w.title).not.toMatch(/artifacts/);
+  });
+
+  it('returns null when every type has at least one answer', () => {
+    const cards = [
+      removal('Generous Gift', 'Destroy target permanent. Its controller creates a 3/3 green Elephant creature token.'),
+      removal('Bojuka Bog', 'When this land enters, exile target player\u2019s graveyard.'),
+    ];
+    expect(checkEffectCoverage(fill(cards))).toBeNull();
+  });
+
+  it('stays quiet on partial decks', () => {
+    expect(checkEffectCoverage({ cards: [removal('Doom Blade', 'Destroy target creature.')], commander: null })).toBeNull();
   });
 });
