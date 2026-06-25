@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.56.1 — Real app icons, not just the SVG favicon
+
+The lettermark favicon only existed as an inline SVG — fine for modern desktop tabs, blank everywhere else. This fleshes out the raster set so the "V" shows up on iOS home screens, in older browsers, and as the installed-PWA icon.
+
+### Icons
+- **New raster assets in `public/`** — `favicon.ico` (16/32/48), `apple-touch-icon.png` (180×180), and `icon-192.png` / `icon-512.png` for the web app manifest. Same brand lettermark as the SVG: cream "V" on the `#0d1614` ground.
+- **`index.html`** gains a `favicon.ico` fallback (for browsers that don't render SVG favicons) and an `apple-touch-icon` link; the existing SVG favicon is untouched and still preferred where supported.
+- **`manifest.json`** now lists PNG icons alongside the SVG, so Android "Add to Home Screen" gets a proper maskable icon.
+- **New `scripts/gen-icons.mjs`** (`npm run gen:icons`) regenerates every raster from the polygon glyph — pure Node, no rasterizer dependency — so the icons stay reproducible and in lock-step with the brand colours.
+
 ## v0.56.0 — Game Changers list syncs itself
 
 PR 3 of the deckbuilding-philosophy series — the bracket assessor stops trusting a hand-copied list.
