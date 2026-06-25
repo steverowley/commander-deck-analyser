@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.56.1 — Vercel deploys from the site root
+
+### Deploy
+- **New `vercel.json`** — the default build hard-codes `base: '/commander-deck-analyser/'` so GitHub Pages can serve the app from a project sub-path. Vercel serves from the domain root, so every asset request resolved to `/commander-deck-analyser/assets/…`, 404'd, and the app rendered a blank white screen. The config pins the Vercel build to `VITE_BASE=/` (output dir `dist`), so assets resolve from root. The GitHub Pages pipeline builds through Actions and is untouched.
+
 ## v0.56.0 — Game Changers list syncs itself
 
 PR 3 of the deckbuilding-philosophy series — the bracket assessor stops trusting a hand-copied list.
