@@ -55,7 +55,7 @@ npm run build
 npm run preview
 ```
 
-The built files go into `dist/` — that's what gets deployed (this project deploys to GitHub Pages automatically; see Deployment).
+The built files go into `dist/` — that's what gets deployed (this project auto-deploys to Vercel and GitHub Pages on every merge to `main`; see Deployment).
 
 ### Configuration
 
@@ -135,10 +135,22 @@ e2e/                         # Playwright smoke tests
 
 ## Deployment
 
-Pushing to `main` triggers two GitHub Actions workflows:
+The app ships to **two** production targets, both of which rebuild automatically on every merge to `main`:
 
-- **Tests** (`.github/workflows/test.yml`) — runs the Vitest suite.
-- **Deploy to GitHub Pages** (`.github/workflows/deploy.yml`) — runs the tests, builds, and publishes `dist/` to GitHub Pages. The deploy is **gated on the tests passing**, so a red test blocks the deploy.
+| Target | URL | How it builds | Base path |
+| --- | --- | --- | --- |
+| **Vercel** (primary) | your Vercel production domain (e.g. `commander-deck-analyser.vercel.app`) | Vercel's GitHub integration builds each push automatically — `main` → production, every PR → its own preview URL | served from root `/`, set by `vercel.json` |
+| **GitHub Pages** | https://steverowley.github.io/commander-deck-analyser/ | `.github/workflows/deploy.yml` runs the Vitest suite, builds, and publishes `dist/` | served from the `/commander-deck-analyser/` sub-path (Vite's default `base`) |
+
+There is **no GitHub Actions workflow for Vercel** — Vercel deploys itself via its GitHub app, so the only Vercel config in the repo is `vercel.json`.
+
+**Why the two base paths matter.** GitHub Pages serves from a project sub-folder, so the build defaults to `base: '/commander-deck-analyser/'` (see `vite.config.js`). Vercel serves from the domain root, so its build overrides that to `/` — which is what `vercel.json` does (`"buildCommand": "VITE_BASE=/ npm run build"`). Getting this wrong renders an all-white screen: every asset 404s because it's requested under the wrong path prefix. If you ever add a third host, set `VITE_BASE` to match wherever it serves from.
+
+**Test-gating differs between the two — worth knowing.** The GitHub Pages deploy is **gated on the Vitest suite** (`deploy.yml` runs `npm test` before building, so a red test blocks it). Vercel's native integration runs its own build **independently of the GitHub Actions test run**, so a failing unit test will *not* stop a Vercel production deploy as long as `npm run build` itself succeeds. The `test.yml` workflow still runs on every PR so red checks show up before you merge — just don't expect Vercel to hard-block on them. (To make CI gate Vercel too, replace the native integration with a GitHub Actions workflow that runs the tests and then deploys via the Vercel CLI.)
+
+**Settings & operations:**
+- Vercel **Production Branch** must be `main` (Project → Settings → Git). That's the default, since `main` is the repo's default branch — verify it once.
+- Vercel keeps every past deployment. To **roll back**, open Project → Deployments, pick a known-good build, and **Promote to Production** — instant, no rebuild.
 
 The production Supabase URL + anon key are baked into the build via Vite `define` (see `vite.config.js`). Edge-function secrets (PayPal credentials) are set separately with `supabase secrets set`, not in the Vite build.
 
