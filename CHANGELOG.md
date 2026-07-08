@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.56.2 — Sign-in survives the move to Vault
+
+### Fix
+- **Magic-link and Google sign-in stopped working after the move to Vault.** The redirect Supabase was told to return users to was `window.location.href`, which — once hash routing shipped (`#/`, `#/vault`, …) and the app moved to Vercel's root domain — became `https://…/#/`. That fragment stopped the URL matching Supabase's redirect allow-list and left the auth `?code=…` stranded after the `#`, so the session was never established. Sign-in now hands Supabase the bare page URL (origin + path, no hash) via `authRedirectUrl()`, so the callback matches the allow-list and the code lands where the client looks for it. It keeps the GitHub Pages sub-path and collapses to `/` on Vercel.
+
+> Note: the return URL is only half of the pair — the same origin must also be listed under **Supabase → Authentication → URL Configuration** (Site URL + Redirect URLs) for the new Vault domain, or Supabase still bounces users to the old site.
+
+### Housekeeping
+- `og:url` social-preview meta now points at the live Vercel domain (`commander-deck-analyser.vercel.app`) instead of the retired GitHub Pages URL.
+
 ## v0.56.1 — Vercel deploys from the site root
 
 ### Deploy
