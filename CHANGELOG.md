@@ -7,6 +7,9 @@
 
 > Note: the return URL is only half of the pair — the same origin must also be listed under **Supabase → Authentication → URL Configuration** (Site URL + Redirect URLs) for the new Vault domain, or Supabase still bounces users to the old site.
 
+### Housekeeping
+- `og:url` social-preview meta now points at the live Vercel domain (`commander-deck-analyser.vercel.app`) instead of the retired GitHub Pages URL.
+
 ## v0.56.1 — Vercel deploys from the site root
 
 ### Deploy
