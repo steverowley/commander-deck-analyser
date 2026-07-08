@@ -14,6 +14,7 @@
  *   supabase           — the live client (or null if not configured)
  *   useAuthState()     — React hook returning { user, session, loading }
  *   isCloudEnabled()   — true when both env vars are present
+ *   authRedirectUrl()  — the clean page URL to send users back to post-auth
  *   signInWithEmail(email, redirectTo)
  *   signInWithGoogle(redirectTo)
  *   signOut()
@@ -80,6 +81,28 @@ export function isCloudEnabled() {
 }
 
 /**
+ * The URL Supabase redirects back to after a magic-link or Google sign-in.
+ * Must be the bare page URL — origin + path, no hash, no query.
+ *
+ * Hash routing (`#/`, `#/vault`, …) means window.location.href now always
+ * carries a fragment, so a naive `emailRedirectTo: window.location.href`
+ * hands Supabase `https://site/#/`. That breaks sign-in two ways:
+ *   1. it no longer matches a clean entry in Supabase's redirect allow-list
+ *      (so GoTrue falls back to the Site URL — the wrong site);
+ *   2. the auth `?code=…` ends up stranded after the fragment, where
+ *      detectSessionInUrl never looks, so the session is never exchanged.
+ * Stripping to origin + pathname gives a canonical callback that both
+ * matches the allow-list and lands the code in the query string.
+ * pathname keeps a project sub-path (GitHub Pages' /commander-deck-analyser/)
+ * while collapsing to '/' on a root deploy (Vercel).
+ */
+export function authRedirectUrl() {
+  if (typeof window === 'undefined') return undefined;
+  const { origin, pathname } = window.location;
+  return `${origin}${pathname}`;
+}
+
+/**
  * React hook that subscribes to auth state. Returns { user, session, loading }
  * where loading is true until the initial session check resolves.
  */
@@ -114,7 +137,7 @@ export async function signInWithEmail(email, redirectTo, captchaToken) {
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: redirectTo || window.location.href,
+      emailRedirectTo: redirectTo || authRedirectUrl(),
       // Only sent when a Turnstile token is present; Supabase ignores it
       // unless CAPTCHA is enabled in the project's Auth settings.
       ...(captchaToken ? { captchaToken } : {}),
@@ -127,7 +150,7 @@ export async function signInWithGoogle(redirectTo) {
   if (!supabase) throw new Error('Cloud sync is not configured.');
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: redirectTo || window.location.href },
+    options: { redirectTo: redirectTo || authRedirectUrl() },
   });
   if (error) throw error;
 }
